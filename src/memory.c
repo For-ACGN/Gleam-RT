@@ -1,0 +1,9 @@
+void* MemAlloc()
+{
+
+}
+
+void MemFree()
+{
+
+}
