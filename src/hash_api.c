@@ -13,7 +13,6 @@ static uint64 calcSeedHash(uint64 key);
 static uint64 calcKeyHash(uint64 seed, uint64 key);
 static uint64 ror64(uint64 value, uint64 bits);
 
-// FindAPI is used to FindAPI address by hash and key.
 uintptr FindAPI(uint64 hash, uint64 key)
 {
     uint64 seedHash = calcSeedHash(key);
@@ -140,7 +139,6 @@ static uint32 calcSeedHash(uint32 key);
 static uint32 calcKeyHash(uint32 seed, uint32 key);
 static uint32 ror32(uint32 value, uint32 bits);
 
-// FindAPI is used to FindAPI address by hash and key.
 uintptr FindAPI(uint32 hash, uint32 key) 
 {
     uint32 seedHash = calcSeedHash(key);
