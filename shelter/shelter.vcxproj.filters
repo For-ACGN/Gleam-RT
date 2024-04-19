@@ -15,7 +15,13 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="shelter.cpp">
+    <ClCompile Include="shelter.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\hash_api.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\memory.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -1,8 +1,8 @@
-﻿#include <memory.h>
+﻿#include "go_types.h"
+#include "memory.h"
 
-
-void Init()
+#pragma comment(linker, "/ENTRY:EntryMain")
+uint EntryMain()
 {
-    malloc();
-
+    return InitMemMgr(NULL);
 }
