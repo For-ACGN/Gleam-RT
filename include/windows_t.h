@@ -15,10 +15,6 @@
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createthread
 */
 
-typedef byte*   LPCSTR;
-typedef uintptr HMODULE;
-typedef uint    HANDLE;
-
 #define MEM_COMMIT  0x00001000
 #define MEM_RESERVE 0x00002000
 #define MEM_RELEASE 0x00008000
