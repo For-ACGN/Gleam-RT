@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="asm_shelter.c">
+    <ClCompile Include="shelter.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
