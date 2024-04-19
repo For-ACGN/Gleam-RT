@@ -4,7 +4,7 @@
 #include "go_types.h"
 #include "hash_api.h"
 
-bool InitMemMgr(FindAPI_t findAPI);
+uint InitMemMgr(FindAPI_t findAPI);
 
 void* MemAlloc(uint size);
 
