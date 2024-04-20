@@ -3,8 +3,8 @@
 
 #include "go_types.h"
 
-// RandBuffer is used to fill random bytes to the memory.
-void RandBuffer(byte* buf, uint size);
+// RandBuf is used to fill random bytes to the memory.
+void RandBuf(byte* buf, uint size);
 
 // RandByte is used to generate random byte.
 byte RandByte(uint seed);

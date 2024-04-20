@@ -4,13 +4,13 @@
 static uint getStackAddr();
 static uint ror(uint value, uint8 bits);
 
-void RandBuffer(uintptr buf, uint size)
+void RandBuf(byte* buf, uint size)
 {
-    uint data = RandUint(0);
-    for (uintptr i = 0; i < size; i++)
+    uint data = RandUint((uint)(buf));
+    for (uint i = 0; i < size; i++)
     {
         data = RandUint(data);
-        *(byte*)(buf + i) = (byte)data;
+        *(buf + i) = (byte)data;
     }
 }
 
@@ -21,31 +21,27 @@ byte RandByte(uint seed)
 
 uint RandUint(uint seed)
 {
-    if (seed % 16 < 8)
-    {
-        seed += getStackAddr();
-    }
-    uint a = (uint)(&ror) >> 2;
-    uint c = (uint)(&getStackAddr) >> 4;
-    uint m = (uint)(&RandUint) << 8;
+    uint a = (uint)(&ror);
+    uint c = (uint)(&getStackAddr);
+    uint m = (uint)(&RandUint);
     a += getStackAddr();
     c += getStackAddr();
     m += getStackAddr();
-    a = ror(a, 3);
-    c = ror(c, 6);
-    m = ror(m, 9);
+    a = ror(a, 11);
+    c = ror(c, 17);
+    m = ror(m, 28);
+    if (m < UINT32_MAX / 2)
+    {
+        m = UINT32_MAX;
+    }
     seed = ror(seed + a, 12);
     seed = ror(seed + c, 13);
     seed = ror(seed + m, 14);
-    if (seed % 32 < 16)
-    {
-        seed = ror(seed, 7);
-    }
     return (uint)((a * seed + c) % m);
 }
 
 #pragma warning(push)
-#pragma warning(disable : 4172)
+#pragma warning(disable: 4172)
 static uintptr getStackAddr()
 {
     uint stack = 0;
