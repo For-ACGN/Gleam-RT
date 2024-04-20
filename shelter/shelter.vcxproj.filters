@@ -24,5 +24,8 @@
     <ClCompile Include="..\src\memory.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\random.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

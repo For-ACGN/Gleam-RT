@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\hash_api.c" />
     <ClCompile Include="..\src\memory.c" />
+    <ClCompile Include="..\src\random.c" />
     <ClCompile Include="shelter.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
