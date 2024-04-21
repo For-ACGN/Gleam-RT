@@ -1,12 +1,12 @@
 #include "go_types.h"
 #include "crypto.h"
 
-static void generateSBox(byte* box, byte* key);
+static void initSBox(byte* box, byte* key);
 static byte swapBit(byte b, uint8 p1, uint8 p2);
 static byte ror(byte value, uint8 bits);
 static byte rol(byte value, uint8 bits);
 
-void EncryptBuf(byte* buf, uint size, byte* key)
+void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
 {
     if (size == 0)
     {
@@ -14,11 +14,10 @@ void EncryptBuf(byte* buf, uint size, byte* key)
     } 
     // initialize S-Box
     byte sBox[256];
-    generateSBox(&sBox[0], key);
+    initSBox(&sBox[0], key);
     // initialize status
     uint kIdx = 0;
     byte last = 255;
-    byte xor  = 170;
     byte cKey;
     byte data;
     for (uintptr i = 0; i < size; i++)
@@ -29,12 +28,16 @@ void EncryptBuf(byte* buf, uint size, byte* key)
         // read byte from buffer
         data = *(buf + i);
 
-        data ^= cKey;
         data ^= last;
+        data = swapBit(data, last % 8, cKey % 8);
+        data = ror(data, last % 8);
+
+        data ^= cKey;
+        data = swapBit(data, last % 8, cKey % 8);
+        data = ror(data, cKey % 8);
 
         // permutation
         data = sBox[data];
-
 
         // write byte to the buffer
         *(buf + i) = data;
@@ -45,42 +48,12 @@ void EncryptBuf(byte* buf, uint size, byte* key)
         {
             kIdx = 0;
         }
-
+        // update last byte
         last = data;
-
-
-        continue;
-
-        // xor with the data
-        xor += ror(xor, last % 8);
-        xor += swapBit(xor, last % 8, data % 8);
-        data ^= xor;
-        // xor, swap bit and ror
-        for (int i = 0; i < CRYPTO_KEY_SIZE; i++)
-        {
-            byte kb = *(key + i);
-            data ^= kb;
-            
-            data = swapBit(data, last % 8, xor % 8);
-            data = ror(data, last % 8);
-            data = swapBit(data, xor % 8, kb % 8);
-            data = ror(data, xor % 8);
-            data = swapBit(data, xor % 8, last % 8);
-            data = ror(data, kb % 8);
-            
-            data ^= xor;
-            // permutation
-            data = sBox[data];
-            // update status
-            last = data;
-            xor  = data ^ kb;
-        }
-        // write byte to the buffer
-        *(buf + i) = data;
     }
 }
 
-void DecryptBuf(byte* buf, uint size, byte* key)
+void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
 {
     if (size == 0)
     {
@@ -88,7 +61,7 @@ void DecryptBuf(byte* buf, uint size, byte* key)
     }
     // initialize S-Box
     byte sBox[256];
-    generateSBox(&sBox[0], key);
+    initSBox(&sBox[0], key);
     // initialize reverse S-Box
     byte rBox[256];
     for (int i = 0; i < 256; i++)
@@ -101,18 +74,45 @@ void DecryptBuf(byte* buf, uint size, byte* key)
         sBox[i] = rBox[i];
     }
     // initialize status
+    uint kIdx = 0;
+    byte last = 255;
+    byte cKey;
     byte data;
-    for (int64 i = (int64)size - 1; i > -1; i--)
+    for (uintptr i = 0; i < size; i++)
     {
+        // update current key byte
+        cKey = *(key + kIdx);
+
         // read byte from buffer
         data = *(buf + i);
 
-        *(buf + i) = sBox[data];
-        continue;
+        // permutation
+        data = sBox[data];
+
+        data = rol(data, cKey % 8);
+        data = swapBit(data, last % 8, cKey % 8);
+        data ^= cKey;
+
+        data = rol(data, last % 8);
+        data = swapBit(data, last % 8, cKey % 8);
+        data ^= last;
+        
+        // update last byte
+        last = *(buf + i);
+
+        // write byte to the buffer
+        *(buf + i) = data; 
+
+        // update key index
+        kIdx++;
+        if (kIdx >= CRYPTO_KEY_SIZE)
+        {
+            kIdx = 0;
+        }
     }
 }
 
-static void generateSBox(byte* box, byte* key)
+static void initSBox(byte* box, byte* key)
 {
     // initialize S-Box byte array
     for (int i = 0; i < 256; i++)
