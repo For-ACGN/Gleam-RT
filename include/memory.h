@@ -3,6 +3,7 @@
 
 #include "go_types.h"
 #include "hash_api.h"
+#include "windows_t.h"
 
 uint InitMemMgr(FindAPI_t findAPI);
 
