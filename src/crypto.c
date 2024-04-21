@@ -1,6 +1,7 @@
 #include "go_types.h"
 #include "crypto.h"
 
+static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, bool save, byte* pLast);
 static void initSBox(byte* box, byte* key);
 static byte swapBit(byte b, uint8 p1, uint8 p2);
 static byte ror(byte value, uint8 bits);
@@ -15,9 +16,17 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
     // initialize S-Box
     byte sBox[256];
     initSBox(&sBox[0], key);
+    // encrypt iv and data
+    byte last = 255;
+    encryptBuf(iv, CRYPTO_IV_SIZE, key, &sBox[0], false, &last);
+    encryptBuf(buf, size, key, &sBox[0], true, &last);
+}
+
+static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, bool save, byte* pLast)
+{
     // initialize status
     uint kIdx = 0;
-    byte last = 255;
+    uint last = *pLast;
     byte cKey;
     byte data;
     for (uintptr i = 0; i < size; i++)
@@ -40,7 +49,10 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
         data = sBox[data];
 
         // write byte to the buffer
-        *(buf + i) = data;
+        if (save)
+        {
+            *(buf + i) = data;
+        }
 
         // update key index
         kIdx++;
@@ -48,9 +60,12 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
         {
             kIdx = 0;
         }
+
         // update last byte
         last = data;
     }
+    // save status
+    *pLast = last;
 }
 
 void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
