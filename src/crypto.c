@@ -2,11 +2,15 @@
 #include "crypto.h"
 
 static byte swapBit(byte b, uint8 p1, uint8 p2);
-static uint ror(uint value, uint8 bits);
-static uint rol(uint value, uint8 bits);
+static byte ror(byte value, uint8 bits);
+static byte rol(byte value, uint8 bits);
 
-__declspec(noinline) void EncryptBuf(byte* buf, uint size, byte* key)
+void EncryptBuf(byte* buf, uint size, byte* key)
 {
+    if (size == 0)
+    {
+        return;
+    } 
     // initialize S-Box byte array
     byte sBox[256];
     for (int i = 0; i < 256; i++)
@@ -34,30 +38,41 @@ __declspec(noinline) void EncryptBuf(byte* buf, uint size, byte* key)
             swap = sBox[idx];
             sBox[idx] = sBox[0];
             sBox[0] = swap;
-
+            // update LCG status
             seed = (a * seed + c) % UINT32_MAX;
             k++;
         }
     }
-
-    *(buf + 0) = sBox[7] + sBox[2] + sBox[13] + sBox[5];
-    *(buf + 1) = sBox[6] + sBox[22] + sBox[59] + sBox[15];
-    *(buf + 2) = sBox[87] + sBox[47] + sBox[23] + sBox[5];
-    *(buf + 3) = sBox[12] + sBox[211] + sBox[3] + sBox[65];
-
-
-    return;
-
-    // (uint)((a * seed + c) % m)
-
-
-
-    byte counter = 0;
+    // initialize status
+    byte last = 255;
+    byte xor  = 170;
     byte data;
     for (uintptr i = 0; i < size; i++)
     {
+        // read byte from buffer
         data = *(buf + i);
-
+        // xor with the data
+        xor  += ror(xor, last % 8);
+        xor  += swapBit(xor, last % 8, data % 8);
+        data ^= xor;
+        // xor, swap bit and ror
+        for (int i = 0; i < ENCRYPT_KEY_SIZE; i++)
+        {
+            byte kb = *(key + i);
+            data ^= kb;
+            data = swapBit(data, last % 8, xor % 8); // replace to xor
+            data = ror(data, last % 8);
+            data = swapBit(data, last % 4, 4 +xor % 4);
+            data = ror(data, xor % 8);
+            // update status
+            last = data;
+        }
+        // permutation
+        data = sBox[data];
+        // write byte to the buffer
+        *(buf + i) = data;
+        // update status
+        last = data;
     }
 }
 
@@ -69,8 +84,8 @@ void DecryptBuf(byte* buf, uint size, byte* key)
 static byte swapBit(byte b, uint8 p1, uint8 p2)
 {
     // extract the bits at pos1 and pos2
-    int bit1 = (b >> p1) & 1;
-    int bit2 = (b >> p2) & 1;
+    byte bit1 = (b >> p1) & 1;
+    byte bit2 = (b >> p2) & 1;
     if (bit1 == bit2)
     {
         return b;
@@ -81,20 +96,12 @@ static byte swapBit(byte b, uint8 p1, uint8 p2)
     return b;
 }
 
-static uint ror(uint value, uint8 bits)
+static byte ror(byte value, uint8 bits)
 {
-    #ifdef _WIN64
-    return value >> bits | value << (64 - bits);
-    #elif _WIN32
-    return value >> bits | value << (32 - bits);
-    #endif
+    return value >> bits | value << (8 - bits);
 }
 
-static uint rol(uint value, uint8 bits)
+static byte rol(byte value, uint8 bits)
 {
-    #ifdef _WIN64
-    return value << bits | value >> (64 - bits);
-    #elif _WIN32
-    return value << bits | value >> (32 - bits);
-    #endif
+    return value << bits | value >> (8 - bits);
 }

