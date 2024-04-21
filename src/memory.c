@@ -57,8 +57,8 @@ uint InitMemMgr(FindAPI_t findAPI)
     EncryptBuf(&encData1[0], 32, &encKey[0]);
     EncryptBuf(&encData2[0], 32, &encKey[0]);
 
-    DecryptBuf(&encData1[0], 32, &encKey[0]);
-    DecryptBuf(&encData2[0], 32, &encKey[0]);
+    // DecryptBuf(&encData1[0], 32, &encKey[0]);
+    // DecryptBuf(&encData2[0], 32, &encKey[0]);
 
 
     return encData1[0] + encData2[0];
