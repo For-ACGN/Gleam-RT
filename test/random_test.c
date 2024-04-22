@@ -3,9 +3,9 @@
 #include "go_types.h"
 #include "random.h"
 
-void TestRandBuf();
-void TestRandByte();
-void TestRandUint();
+static void TestRandBuf();
+static void TestRandByte();
+static void TestRandUint();
 
 bool TestRandom()
 {
@@ -15,7 +15,7 @@ bool TestRandom()
     return true;
 }
 
-void TestRandBuf()
+static void TestRandBuf()
 {
     printf("========TestRandBuf begin==========\n");
 
@@ -32,7 +32,7 @@ void TestRandBuf()
     printf("========TestRandBuf passed=========\n\n");
 }
 
-void TestRandByte()
+static void TestRandByte()
 {
     printf("========TestRandByte begin=========\n");
 
@@ -54,7 +54,7 @@ void TestRandByte()
     printf("========TestRandByte passed========\n\n");
 }
 
-void TestRandUint()
+static void TestRandUint()
 {
     printf("========TestRandUint begin=========\n");
 
