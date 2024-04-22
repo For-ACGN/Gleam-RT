@@ -5,6 +5,8 @@ VisualStudioVersion = 17.9.34723.18
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "shelter", "shelter\shelter.vcxproj", "{F6F189C8-EB91-4470-855B-5C1E53E78359}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test", "test\test.vcxproj", "{62613D62-414F-4F98-B75C-146193782DF2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Release|x64 = Release|x64
@@ -15,6 +17,10 @@ Global
 		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Release|x64.Build.0 = Release|x64
 		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Release|x86.ActiveCfg = Release|Win32
 		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Release|x86.Build.0 = Release|Win32
+		{62613D62-414F-4F98-B75C-146193782DF2}.Release|x64.ActiveCfg = Release|x64
+		{62613D62-414F-4F98-B75C-146193782DF2}.Release|x64.Build.0 = Release|x64
+		{62613D62-414F-4F98-B75C-146193782DF2}.Release|x86.ActiveCfg = Release|Win32
+		{62613D62-414F-4F98-B75C-146193782DF2}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
