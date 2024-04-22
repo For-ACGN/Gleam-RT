@@ -18,6 +18,18 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\crypto.c" />
+    <ClCompile Include="..\src\random.c" />
+    <ClCompile Include="crypto_test.c" />
+    <ClCompile Include="random_test.c" />
+    <ClCompile Include="test.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\crypto.h" />
+    <ClInclude Include="..\include\random.h" />
+    <ClInclude Include="test.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -128,14 +140,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="crypto.c" />
-    <ClCompile Include="random.c" />
-    <ClCompile Include="test.c" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="test.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
