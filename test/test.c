@@ -5,11 +5,12 @@ int main()
 {
     if (!TestRandom())
     {
-        return -1;
+        return 1;
     }
     if (!TestCrypto())
     {
-        return -1;
+        return 1;
     }
     printf("all tests passed!\n");
+    return 0;
 }
