@@ -1,5 +1,4 @@
 #include <stdio.h>
-
 #include "go_types.h"
 #include "random.h"
 
