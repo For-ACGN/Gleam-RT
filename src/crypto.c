@@ -1,7 +1,8 @@
 #include "go_types.h"
 #include "crypto.h"
 
-static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, bool save, byte* pLast);
+static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
+static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
 static void initSBox(byte* box, byte* key);
 static byte swapBit(byte b, uint8 p1, uint8 p2);
 static byte ror(byte value, uint8 bits);
@@ -18,17 +19,18 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
     initSBox(&sBox[0], key);
     // encrypt iv and data
     byte last = 255;
-    encryptBuf(iv, CRYPTO_IV_SIZE, key, &sBox[0], false, &last);
-    encryptBuf(buf, size, key, &sBox[0], true, &last);
+    encryptBuf(iv, CRYPTO_IV_SIZE, key, &sBox[0], &last);
+    encryptBuf(buf, size, key, &sBox[0], &last);
 }
 
-static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, bool save, byte* pLast)
+static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
 {
     // initialize status
     uint kIdx = 0;
-    uint last = *pLast;
+    byte last = *pLast;
     byte cKey;
     byte data;
+    // encrypt buffer
     for (uintptr i = 0; i < size; i++)
     {
         // update current key byte
@@ -49,10 +51,7 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, bool save, b
         data = sBox[data];
 
         // write byte to the buffer
-        if (save)
-        {
-            *(buf + i) = data;
-        }
+        *(buf + i) = data;
 
         // update key index
         kIdx++;
@@ -88,11 +87,20 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
     {
         sBox[i] = rBox[i];
     }
+    // decrypt iv and data
+    byte last = 255;
+    decryptBuf(iv, CRYPTO_IV_SIZE, key, &sBox[0], &last);
+    decryptBuf(buf, size, key, &sBox[0], &last);
+}
+
+static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
+{
     // initialize status
     uint kIdx = 0;
-    byte last = 255;
+    byte last = *pLast;
     byte cKey;
     byte data;
+    // decrypt buffer
     for (uintptr i = 0; i < size; i++)
     {
         // update current key byte
@@ -111,12 +119,12 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
         data = rol(data, last % 8);
         data = swapBit(data, last % 8, cKey % 8);
         data ^= last;
-        
+
         // update last byte
         last = *(buf + i);
 
         // write byte to the buffer
-        *(buf + i) = data; 
+        *(buf + i) = data;
 
         // update key index
         kIdx++;
@@ -125,6 +133,8 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
             kIdx = 0;
         }
     }
+    // save status
+    *pLast = last;
 }
 
 static void initSBox(byte* box, byte* key)

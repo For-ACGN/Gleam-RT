@@ -37,6 +37,12 @@ uint InitMemMgr(FindAPI_t findAPI)
         return NULL;
     }
 
+    byte encKey[] = { 
+        0, 1, 1, 13, 0, 12, 2, 64, 0, 200, 2, 3, 123, 1, 44, 3,
+        0, 1, 2, 13, 200, 31, 2, 21, 0, 1, 48, 3, 48, 1, 1, 3,
+    };
+    RandBuf(&encKey[0], 32);
+
     byte encData1[] = {
         0, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
         0, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
@@ -47,24 +53,27 @@ uint InitMemMgr(FindAPI_t findAPI)
         0, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
     };
 
-    byte encKey[] = { 
-        0, 1, 1, 13, 0, 12, 2, 64, 0, 200, 2, 3, 123, 1, 44, 3,
-        0, 1, 2, 13, 200, 31, 2, 21, 0, 1, 48, 3, 48, 1, 1, 3,
-    };
-    // RandBuf(&encKey[0], 32);
-    byte iv[] = { 
+   
+    byte iv1[] = { 
         30, 11, 1, 13, 0, 12, 2, 64, 10, 200, 2, 23, 123, 1, 44, 3,
         120, 31, 2, 13, 200, 31, 2, 21, 0, 1, 48, 3, 48, 1, 1, 3,
     };
+    RandBuf(&iv1[0], 32);
 
-    EncryptBuf(&encData1[0], 32, &encKey[0], &iv[0]);
-    EncryptBuf(&encData2[0], 32, &encKey[0], &iv[0]);
+    byte iv2[] = { 
+        30, 11, 1, 13, 0, 12, 2, 64, 10, 200, 2, 23, 123, 1, 44, 3,
+        120, 31, 2, 13, 200, 31, 2, 21, 0, 1, 48, 3, 48, 1, 1, 3,
+    };
+    RandBuf(&iv2[0], 32);
 
-    DecryptBuf(&encData1[0], 32, &encKey[0], &iv[0]);
-    DecryptBuf(&encData2[0], 32, &encKey[0], &iv[0]);
+    EncryptBuf(&encData1[0], 32, &encKey[0], &iv1[0]);
+    EncryptBuf(&encData2[0], 32, &encKey[0], &iv2[0]);
+
+    DecryptBuf(&encData1[0], 32, &encKey[0], &iv1[0]);
+    DecryptBuf(&encData2[0], 32, &encKey[0], &iv2[0]);
 
 
-    return encData1[0] + encData2[0];
+    return encData1[0] + encData1[1] + encData2[0] + encData2[1];
 }
 
 static bool initAPI(MemMgr* manager, FindAPI_t findAPI)
