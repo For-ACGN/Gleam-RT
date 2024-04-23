@@ -4,13 +4,13 @@
 
 static void TestRandBuf();
 static void TestRandByte();
-static void TestRandUint();
+static void TestRandUint64();
 
 bool TestRandom()
 {
     TestRandBuf();
     TestRandByte();
-    TestRandUint();
+    TestRandUint64();
     return true;
 }
 
@@ -53,22 +53,22 @@ static void TestRandByte()
     printf("========TestRandByte passed========\n\n");
 }
 
-static void TestRandUint()
+static void TestRandUint64()
 {
     printf("========TestRandUint begin=========\n");
 
     // will same
-    for (uint i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++)
     {
-        printf("uint: %lld\n", RandUint(0));
+        printf("uint: %lld\n", RandUint64(0));
     }
     printf("\n");
 
     // will different
-    uint last = (uint)(&TestRandBuf);
-    for (uint i = 0; i < 3; i++)
+    uint64 last = (uint64)(&TestRandBuf);
+    for (int i = 0; i < 3; i++)
     {
-        last += RandUint(last);
+        last += RandUint64(last);
         printf("uint: %lld\n", last);
     }
 
