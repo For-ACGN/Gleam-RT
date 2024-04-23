@@ -2,6 +2,7 @@
 #include "random.h"
 
 static uintptr getStackAddr();
+static uint64  swapBit(uint64 b, uint16 p1, uint16 p2);
 static uint64  ror(uint64 value, uint8 bits);
 
 void RandBuf(byte* buf, int64 size)
@@ -45,9 +46,9 @@ int64 RandInt64(uint64 seed)
 
 uint64 RandUint64(uint64 seed)
 {
-    if (seed < INT32_MAX / 16)
+    if (seed < 4096)
     {
-        seed += INT32_MAX / 16;
+        seed += 4096;
     }
     uint64 a = (uint64)(&ror);
     uint64 c = (uint64)(&getStackAddr);
@@ -55,16 +56,26 @@ uint64 RandUint64(uint64 seed)
     a += getStackAddr();
     c += getStackAddr();
     m += getStackAddr();
-    a = ror(a, 11);
+    a = ror(a, 3);
     c = ror(c, 17);
-    m = ror(m, 28);
+    m = ror(m, 23);
     if (m < UINT32_MAX / 2)
     {
-        m = UINT32_MAX;
+        m += UINT32_MAX;
     }
-    seed = ror(seed + a, 12);
-    seed = ror(seed + c, 13);
-    seed = ror(seed + m, 14);
+    seed = ror(seed + a, 3);
+    seed++;
+    seed = ror(seed + c, 6);
+    seed++;
+    seed = ror(seed + m, 9);
+    for (int i = 0; i < 32; i++)
+    {
+        seed = swapBit(seed, 0, seed%32);
+        seed = ror(seed, 1);
+        seed = swapBit(seed, 0, 32 + seed%32);
+        seed = ror(seed, 17);
+        seed += i;
+    }
     return (uint64)((a * seed + c) % m);
 }
 
@@ -76,6 +87,21 @@ static uintptr getStackAddr()
     return (uintptr)(&stack);
 }
 #pragma warning(pop)
+
+static uint64 swapBit(uint64 b, uint16 p1, uint16 p2)
+{
+    // extract the bits at pos1 and pos2
+    uint64 bit1 = (b >> p1) & 1;
+    uint64 bit2 = (b >> p2) & 1;
+    if (bit1 == bit2)
+    {
+        return b;
+    }
+    // use XOR to flip the bits
+    b ^= ((uint64)1 << p1);
+    b ^= ((uint64)1 << p2);
+    return b;
+}
 
 static uint64 ror(uint64 value, uint8 bits)
 {
