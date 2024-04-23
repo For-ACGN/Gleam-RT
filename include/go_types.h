@@ -13,13 +13,13 @@ typedef unsigned int       uint32;
 typedef unsigned long long uint64;
 
 #ifdef _WIN64
-typedef int64  integer;
-typedef uint64 uint;
-typedef uint64 uintptr;
+    typedef int64  integer;
+    typedef uint64 uint;
+    typedef uint64 uintptr;
 #elif _WIN32
-typedef int32  integer;
-typedef uint32 uint;
-typedef uint32 uintptr;
+    typedef int32  integer;
+    typedef uint32 uint;
+    typedef uint32 uintptr;
 #endif
 
 typedef float  float32;
