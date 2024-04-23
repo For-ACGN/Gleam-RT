@@ -1,29 +1,57 @@
 #include "go_types.h"
 #include "random.h"
 
-static uint getStackAddr();
-static uint ror(uint value, uint8 bits);
+static uintptr getStackAddr();
+static uint64  ror(uint64 value, uint8 bits);
 
-void RandBuf(byte* buf, uint size)
+void RandBuf(byte* buf, int64 size)
 {
-    uint data = RandUint((uint)(buf));
-    for (uint i = 0; i < size; i++)
+    uint64 data = RandUint64((uint64)(buf));
+    for (int64 i = 0; i < size; i++)
     {
-        data = RandUint(data);
+        data = RandUint64(data);
         *(buf + i) = (byte)data;
     }
 }
 
-byte RandByte(uint seed)
+byte RandByte(uint64 seed)
 {
-    return (byte)RandUint(seed);
+    return (byte)RandUint64(seed);
 }
 
-uint RandUint(uint seed)
+bool RandBool(uint64 seed)
 {
-    uint a = (uint)(&ror);
-    uint c = (uint)(&getStackAddr);
-    uint m = (uint)(&RandUint);
+    if (RandUint64(seed) % 2 == 0)
+    {
+        return false;
+    }
+    return true;
+}
+
+int RandInt(uint64 seed)
+{
+    return (int)RandUint64(seed);
+}
+
+uint RandUint(uint64 seed)
+{
+    return (uint)RandUint64(seed);
+}
+
+int64 RandInt64(uint64 seed)
+{
+    return (int64)RandUint64(seed);
+}
+
+uint64 RandUint64(uint64 seed)
+{
+    if (seed < INT32_MAX / 16)
+    {
+        seed += INT32_MAX / 16;
+    }
+    uint64 a = (uint64)(&ror);
+    uint64 c = (uint64)(&getStackAddr);
+    uint64 m = (uint64)(&RandUint);
     a += getStackAddr();
     c += getStackAddr();
     m += getStackAddr();
@@ -37,7 +65,7 @@ uint RandUint(uint seed)
     seed = ror(seed + a, 12);
     seed = ror(seed + c, 13);
     seed = ror(seed + m, 14);
-    return (uint)((a * seed + c) % m);
+    return (uint64)((a * seed + c) % m);
 }
 
 #pragma warning(push)
@@ -49,11 +77,7 @@ static uintptr getStackAddr()
 }
 #pragma warning(pop)
 
-static uint ror(uint value, uint8 bits)
+static uint64 ror(uint64 value, uint8 bits)
 {
-    #ifdef _WIN64
     return value >> bits | value << (64 - bits);
-    #elif _WIN32
-    return value >> bits | value << (32 - bits);
-    #endif
 }
