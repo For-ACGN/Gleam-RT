@@ -18,7 +18,7 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
     byte sBox[256];
     initSBox(&sBox[0], key);
     // encrypt iv and data
-    byte last = 255;
+    byte last = 170;
     encryptBuf(iv, CRYPTO_IV_SIZE, key, &sBox[0], &last);
     encryptBuf(buf, size, key, &sBox[0], &last);
 }
@@ -27,6 +27,7 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
 {
     // initialize status
     uint kIdx = 0;
+    byte ctr  = 0;
     byte last = *pLast;
     byte cKey;
     byte data;
@@ -39,29 +40,36 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         // read byte from buffer
         data = *(buf + i);
 
+        data ^= ctr;
+        data = swapBit(data, ctr % 8, cKey % 8);
+        data = ror(data, ctr % 8);
+        data = sBox[data]; // permutation
+
         data ^= last;
         data = swapBit(data, last % 8, cKey % 8);
         data = ror(data, last % 8);
+        data = sBox[data]; // permutation
 
         data ^= cKey;
         data = swapBit(data, last % 8, cKey % 8);
         data = ror(data, cKey % 8);
-
-        // permutation
-        data = sBox[data];
+        data = sBox[data]; // permutation
 
         // write byte to the buffer
         *(buf + i) = data;
 
-        // update key index
+        // update last
+        last = data;
+
+        // update counter
+        ctr++;
+
+        // update key index and last
         kIdx++;
         if (kIdx >= CRYPTO_KEY_SIZE)
         {
             kIdx = 0;
         }
-
-        // update last byte
-        last = data;
     }
     // save status
     *pLast = last;
@@ -88,7 +96,7 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
         sBox[i] = rBox[i];
     }
     // decrypt iv and data
-    byte last = 255;
+    byte last = 170;
     decryptBuf(iv, CRYPTO_IV_SIZE, key, &sBox[0], &last);
     decryptBuf(buf, size, key, &sBox[0], &last);
 }
@@ -97,6 +105,7 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
 {
     // initialize status
     uint kIdx = 0;
+    byte ctr  = 0;
     byte last = *pLast;
     byte cKey;
     byte data;
@@ -109,22 +118,29 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         // read byte from buffer
         data = *(buf + i);
 
-        // permutation
-        data = sBox[data];
-
+        data = sBox[data]; // permutation
         data = rol(data, cKey % 8);
         data = swapBit(data, last % 8, cKey % 8);
         data ^= cKey;
 
+        data = sBox[data]; // permutation
         data = rol(data, last % 8);
         data = swapBit(data, last % 8, cKey % 8);
         data ^= last;
+
+        data = sBox[data]; // permutation
+        data = rol(data, ctr % 8);
+        data = swapBit(data, ctr % 8, cKey % 8);
+        data ^= ctr;
 
         // update last byte
         last = *(buf + i);
 
         // write byte to the buffer
         *(buf + i) = data;
+
+        // update counter
+        ctr++;
 
         // update key index
         kIdx++;
