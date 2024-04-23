@@ -115,7 +115,7 @@ static void TestRandUint()
     // will same
     for (int i = 0; i < 3; i++)
     {
-        printf("uint: %lld\n", (uint64)RandUint(0));
+        printf("uint: %llu\n", (uint64)RandUint(0));
     }
     printf("\n");
 
@@ -124,7 +124,7 @@ static void TestRandUint()
     for (int i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandUint(last);
-        printf("uint: %lld\n", val);
+        printf("uint: %llu\n", val);
         last += val;
     }
 
@@ -161,7 +161,7 @@ static void TestRandUint64()
     // will same
     for (int i = 0; i < 3; i++)
     {
-        printf("uint64: %lld\n", RandUint64(0));
+        printf("uint64: %llu\n", RandUint64(0));
     }
     printf("\n");
 
@@ -170,7 +170,7 @@ static void TestRandUint64()
     for (int i = 0; i < 5; i++)
     {
         uint64 val = RandUint64(last);
-        printf("uint64: %lld\n", val);
+        printf("uint64: %llu\n", val);
         last += val;
     }
 

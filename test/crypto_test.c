@@ -48,12 +48,13 @@ static bool TestEncryptBuf()
     // write repetitive and orderly iv
     byte iv1[CRYPTO_IV_SIZE];
     byte iv2[CRYPTO_IV_SIZE];
-    // RandBuf(&iv1[0], sizeof(iv1));
-    for (byte i = 0; i < CRYPTO_IV_SIZE; i++)
-    {
-        iv1[i] = i;
-    }
-    memcpy(&iv2[0], &iv1[0], sizeof(iv1));
+    RandBuf(&iv1[0], sizeof(iv1));
+    RandBuf(&iv2[0], sizeof(iv2));
+    // for (byte i = 0; i < CRYPTO_IV_SIZE; i++)
+    // {
+    //     iv1[i] = i;
+    // }
+    // memcpy(&iv2[0], &iv1[0], sizeof(iv1));
 
     printf("plain data:\n");
     printHexBytes(&data1[0], sizeof(data1));
@@ -85,7 +86,6 @@ static bool TestDecryptBuf()
     byte iv[CRYPTO_IV_SIZE];
     RandBuf(&iv[0], sizeof(iv));
 
-
     printf("plain data:\n");
     printHexBytes(&data2[0], sizeof(data2));
 
@@ -101,6 +101,7 @@ static bool TestDecryptBuf()
     {
         if (data1[i] != data2[i])
         {
+            printf("[error] plain data is incorrect");
             return false;
         }
     }
