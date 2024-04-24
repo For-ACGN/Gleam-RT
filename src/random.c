@@ -54,21 +54,17 @@ static uint64 rand(uint64 seed, uint64 m)
     }
     uint64 a = (uint64)(&ror);
     uint64 c = (uint64)(&getStackAddr);
-    a += getStackAddr();
-    c += getStackAddr();
-    a = ror(a, 3);
-    c = ror(c, 32);
-    seed = ror(seed + a, 3);
-    seed++;
-    seed = ror(seed + c, 6);
-    seed++;
-    seed = ror(seed + m, 9);
-    seed++;
     for (int i = 0; i < 32; i++)
     {
+        a += ror(a, 3);
+        c += ror(c, 32);
+        a += getStackAddr();
+        c += getStackAddr();
+        seed += ror(seed + a, 3);
+        seed += ror(seed + c, 6);
+        seed += ror(seed + m, 9);
         seed += ror(seed, 1);        
         seed += ror(seed, 17);
-        seed += i;
     }
     if (seed % 2 == 0)
     {
