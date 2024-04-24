@@ -32,7 +32,9 @@ typedef _Bool bool;
 #define true  1
 #define false 0
 
+#ifndef NULL
 #define NULL 0
+#endif
 
 // copy from <stdint.h>
 #define INT8_MIN   (-127i8 - 1)
