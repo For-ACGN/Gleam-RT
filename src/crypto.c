@@ -4,6 +4,7 @@
 static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
 static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
 static void initSBox(byte* box, byte* key);
+static byte negBit(byte b, uint8 n);
 static byte swapBit(byte b, uint8 p1, uint8 p2);
 static byte ror(byte value, uint8 bits);
 static byte rol(byte value, uint8 bits);
@@ -41,16 +42,19 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         data = *(buf + i);
 
         data ^= ctr;
+        data = negBit(data, ctr % 8);
         data = swapBit(data, ctr % 8, cKey % 8);
         data = ror(data, ctr % 8);
         data = sBox[data]; // permutation
 
         data ^= last;
+        data = negBit(data, last % 8);
         data = swapBit(data, last % 8, cKey % 8);
         data = ror(data, last % 8);
         data = sBox[data]; // permutation
 
         data ^= cKey;
+        data = negBit(data, cKey % 8);
         data = swapBit(data, last % 8, cKey % 8);
         data = ror(data, cKey % 8);
         data = sBox[data]; // permutation
@@ -121,16 +125,19 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         data = sBox[data]; // permutation
         data = rol(data, cKey % 8);
         data = swapBit(data, last % 8, cKey % 8);
+        data = negBit(data, cKey % 8);
         data ^= cKey;
 
         data = sBox[data]; // permutation
         data = rol(data, last % 8);
         data = swapBit(data, last % 8, cKey % 8);
+        data = negBit(data, last % 8);
         data ^= last;
 
         data = sBox[data]; // permutation
         data = rol(data, ctr % 8);
         data = swapBit(data, ctr % 8, cKey % 8);
+        data = negBit(data, ctr % 8);
         data ^= ctr;
 
         // update last byte
@@ -186,6 +193,11 @@ static void initSBox(byte* box, byte* key)
             k++;
         }
     }
+}
+
+static byte negBit(byte b, uint8 n)
+{
+    return b ^ (1 << n);
 }
 
 static byte swapBit(byte b, uint8 p1, uint8 p2)
