@@ -12,71 +12,16 @@ typedef struct {
     VirtualProtect VirtualProtect;
 
     uint pages;
-} MemMgr;
+} MemoryMgr;
 
-static bool initAPI(MemMgr* manager, FindAPI_t findAPI);
+static bool initAPI(MemoryMgr* manager, FindAPI_t findAPI);
 
 uint InitMemMgr(FindAPI_t findAPI)
 {
-    // allocate memory for store MemMgr structure.
-    #ifdef _WIN64
-    uint64 hash = 0xB6A1D0D4A275D4B6;
-    uint64 key  = 0x64CB4D66EC0BEFD9;
-    #elif _WIN32
-    uint32 hash = 0xC3DE112E;
-    uint32 key  = 0x8D9EA74F;
-    #endif
-    VirtualAlloc virtualAlloc = (VirtualAlloc)findAPI(hash, key);
-    if (virtualAlloc == NULL)
-    {
-        return NULL;
-    }
-    uintptr address = virtualAlloc(0, 4096, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
-    if (address == NULL)
-    {
-        return NULL;
-    }
-
-    byte encKey[] = { 
-        0, 1, 1, 13, 0, 12, 2, 64, 0, 200, 2, 3, 123, 1, 44, 3,
-        0, 1, 2, 13, 200, 31, 2, 21, 0, 1, 48, 3, 48, 1, 1, 3,
-    };
-    RandBuf(&encKey[0], 32);
-
-    byte encData1[] = {
-        0, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
-        0, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
-    };
-
-    byte encData2[] = {
-        1, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
-        0, 1, 2, 3, 0, 1, 2, 3,0, 1, 2, 3,0, 1, 2, 3,
-    };
-
-   
-    byte iv1[] = { 
-        30, 11, 1, 13, 0, 12, 2, 64, 10, 200, 2, 23, 123, 1, 44, 3,
-        120, 31, 2, 13, 200, 31, 2, 21, 0, 1, 48, 3, 48, 1, 1, 3,
-    };
-    RandBuf(&iv1[0], 32);
-
-    byte iv2[] = { 
-        30, 11, 1, 13, 0, 12, 2, 64, 10, 200, 2, 23, 123, 1, 44, 3,
-        120, 31, 2, 13, 200, 31, 2, 21, 0, 1, 48, 3, 48, 1, 1, 3,
-    };
-    RandBuf(&iv2[0], 32);
-
-    EncryptBuf(&encData1[0], 32, &encKey[0], &iv1[0]);
-    EncryptBuf(&encData2[0], 32, &encKey[0], &iv2[0]);
-
-    DecryptBuf(&encData1[0], 32, &encKey[0], &iv1[0]);
-    DecryptBuf(&encData2[0], 32, &encKey[0], &iv2[0]);
-
-
-    return encData1[0] + encData1[1] + encData2[0] + encData2[1];
+    return 0;
 }
 
-static bool initAPI(MemMgr* manager, FindAPI_t findAPI)
+static bool initAPI(MemoryMgr* manager, FindAPI_t findAPI)
 {
 #ifdef _WIN64
     uint64 hash = 0xB82F958E3932DE49;
@@ -102,17 +47,15 @@ static bool initAPI(MemMgr* manager, FindAPI_t findAPI)
     {
         return false;
     }
-
-
     return true;
 }
 
-static void* Alloc(uint size)
+void* Alloc(uint size)
 {
 
 }
 
-static void Free(uintptr address)
+void Free(uintptr address)
 {
 
 }

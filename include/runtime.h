@@ -2,27 +2,27 @@
 #define RUNTIME_H
 
 #include "go_types.h"
-#include "hash_api.h"
-#include "memory.h"
-#include "thread.h"
+#include "windows_t.h"
+
+typedef void* (*MemAlloc)(uint size);
+typedef void  (*MemFree)(void* addr);
+
+typedef void (*Hide)();
+typedef void (*Recover)();
+typedef void (*Clean)();
 
 typedef struct {
-    FindAPI_t FindAPI;
+    MemAlloc     MemAlloc;
+    MemFree      MemFree;
+    VirtualAlloc VirtualAlloc;
+    VirtualFree  VirtualFree;
+    CreateThread CreateThread;
 
-    // *MemoryMgr MemoryMgr
-
-    // *ThreadMgr ThreadMgr
-
-
-} Runtime;
-
-typedef struct {
-    
-
-
-
-
+    Hide    Hide;
+    Recover Recover;
+    Clean   Clean;
 } RuntimeM;
 
+RuntimeM* NewRuntime(FindAPI_t findAPI);
 
 #endif // RUNTIME_H

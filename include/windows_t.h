@@ -15,6 +15,8 @@
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createthread
 */
 
+typedef uint HANDLE;
+
 #define MEM_COMMIT  0x00001000
 #define MEM_RESERVE 0x00002000
 #define MEM_RELEASE 0x00008000
@@ -41,6 +43,12 @@ typedef bool (*VirtualFree)
 typedef bool (*VirtualProtect)
 (
     uintptr lpAddress, uint dwSize, uint32 flNewProtect, uint32* lpflOldProtect
+);
+
+typedef HANDLE (*CreateThread)
+(
+    uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
+    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
 );
 
 #endif // WINDOWS_T_H
