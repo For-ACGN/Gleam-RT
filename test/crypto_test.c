@@ -29,9 +29,9 @@ static bool TestEncryptBuf()
     byte key[CRYPTO_KEY_SIZE];
     RandBuf(&key[0], sizeof(key));
 
-    byte data1[64];
-    byte data2[64];
-    RandBuf(&data1[0], sizeof(data1));
+    byte data1[128];
+    byte data2[128];
+    RandBuf(&data1[0], 64);
 
     // write repetitive and orderly data
     for (byte i = 0; i < 16; i++)
@@ -41,6 +41,10 @@ static bool TestEncryptBuf()
     for (byte i = 0; i < 16; i++)
     {
         data1[i+16] = i;
+    }
+    for (byte i = 0; i < 64; i++)
+    {
+        data1[i + 64] = 0;
     }
     memcpy(&data2[0], &data1[0], sizeof(data1));
     data2[0]++;
