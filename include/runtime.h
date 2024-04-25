@@ -11,6 +11,7 @@ typedef void (*Hide_t)();
 typedef void (*Recover_t)();
 typedef void (*Clean_t)();
 
+// Runtime_M contains exported methods for hijack.
 typedef struct {
     MemAlloc_t   MemAlloc;
     MemFree_t    MemFree;
@@ -21,8 +22,9 @@ typedef struct {
     Hide_t    Hide;
     Recover_t Recover;
     Clean_t   Clean;
-} RuntimeM;
+} Runtime_M;
 
-RuntimeM* NewRuntime(FindAPI_t findAPI);
+// InitRuntime is used to initialize runtime, and return module methods.
+Runtime_M* InitRuntime(FindAPI_t findAPI);
 
 #endif // RUNTIME_H

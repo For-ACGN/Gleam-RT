@@ -3,6 +3,12 @@
 #include "random.h"
 #include "runtime.h"
 
+#ifdef _WIN64
+    #define METHOD_ADDR_HIDE 0x7FFFFFFFFFFFFFF0
+#elif _WIN32
+    #define METHOD_ADDR_HIDE 0x7FFFFFF0
+#endif
+
 typedef struct {
     FindAPI_t FindAPI;
 
@@ -11,10 +17,13 @@ typedef struct {
 } Runtime;
 
 void Hide();
+void Recover();
+void Clean();
 
-static bool updatePointers(Runtime* runtime, FindAPI_t findAPI);
+static bool updateRuntimePointers(Runtime* runtime);
+static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
 
-RuntimeM* NewRuntime(FindAPI_t findAPI)
+Runtime_M* InitRuntime(FindAPI_t findAPI)
 {
     // allocate memory for store structures.
 #ifdef _WIN64
@@ -40,22 +49,25 @@ RuntimeM* NewRuntime(FindAPI_t findAPI)
     runtime->FindAPI = findAPI;
 
 
-    if (!updatePointers(runtime, findAPI))
+
+    if (!updateRuntimePointers(runtime))
     {
         // clean 
         return NULL;
-    } else {
-        // return 123;
     }
 
-    RuntimeM* runtimeM = (RuntimeM*)(address+2048);
-    runtimeM->Hide = &Hide;
-    return runtimeM;
+
+    Runtime_M* module = (Runtime_M*)(address + 2048);
+    module->Hide    = &Hide;
+    module->Recover = &Recover;
+    module->Clean   = &Clean;
+    return module;
 }
 
-static bool updatePointers(Runtime* runtime, FindAPI_t findAPI)
-{
-    // change memory protect for update pointer that hard encode
+// change memory protect for dynamic update pointer that hard encode.
+static bool updateRuntimePointers(Runtime* runtime)
+{    
+    FindAPI_t findAPI = runtime->FindAPI;
 #ifdef _WIN64
     uint64 hash = 0xEA5B0C76C7946815;
     uint64 key  = 0x8846C203C35DE586;
@@ -68,45 +80,69 @@ static bool updatePointers(Runtime* runtime, FindAPI_t findAPI)
     {
         return false;
     }
+    uintptr begin = (uintptr)(&Hide);
+    uintptr size  = 8192;
+
     uint32 old;
-    if (!virtualProtect((uintptr)(&Hide), 8192, PAGE_EXECUTE_READWRITE, &old))
+    if (!virtualProtect(begin, size, PAGE_EXECUTE_READWRITE, &old))
     {
         return false;
     }
-    bool ok = false;
 
-    uintptr addr = (uintptr)(&Hide);
-    uintptr* ptr;
-    for (uintptr i = 0; i < 64; i++)
+    bool success = true;
+    for(;;)
     {
-        ptr = (uintptr*)(addr);
-        if (*ptr == 0x7FFFFFFFFFFFFFF0)
+        if (!updateRuntimePointer(runtime, &Hide, METHOD_ADDR_HIDE))
         {
-            *ptr = (uintptr)runtime;
-
-            ok = true;
+            success =  false;
             break;
         }
-        addr++;
+        break;
     }
 
-
     // recovery memory protect
-    if (!virtualProtect((uintptr)(&Hide), 8192, old, &old))
+    if (!virtualProtect(begin, size, old, &old))
     {
         return false;
     }
-    return ok;
-} 
+    return success;
+}
+
+static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address)
+{
+    bool success = false;
+    uintptr target = (uintptr)method;
+    uintptr* pointer;
+    for (uintptr i = 0; i < 64; i++)
+    {
+        pointer = (uintptr*)(target);
+        if (*pointer == address)
+        {
+            *pointer = (uintptr)runtime;
+            success = true;
+            break;
+        }
+        target++;
+    }
+    return success;
+}
 
 __declspec(noinline) void Hide()
 {
-    // updatePointer will replace to the runtime actual address
-#ifdef _WIN64
-    Runtime* runtime = (Runtime*)(0x7FFFFFFFFFFFFFF0);
-#elif _WIN32
-    Runtime* runtime = (Runtime*)(0x7FFFFFF0);
-#endif
+    // updatePointer will replace it to the actual address
+    Runtime* runtime = (Runtime*)(METHOD_ADDR_HIDE);
+
+
 
     // return runtime;
+}
+
+__declspec(noinline) void Recover()
+{
+
+}
+
+__declspec(noinline) void Clean()
+{
+
 }
