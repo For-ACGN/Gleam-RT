@@ -2,13 +2,19 @@
 #define MEMORY_H
 
 #include "go_types.h"
-#include "hash_api.h"
 #include "windows_t.h"
+#include "context.h"
 
-uint InitMemMgr(FindAPI_t findAPI);
+typedef void* (*MemAlloc_t)(uint size);
+typedef void  (*MemFree_t)(void* address);
 
-void* MemAlloc(uint size);
+typedef struct {
+    MemAlloc_t   MemAlloc;
+    MemFree_t    MemFree;
+    VirtualAlloc VirtualAlloc;
+    VirtualFree  VirtualFree;
+} MemoryTracker_M;
 
-void MemFree(uintptr address);
+MemoryTracker_M* InitMemoryTracker(Context* context);
 
 #endif // MEMORY_H

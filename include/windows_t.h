@@ -6,11 +6,8 @@
 /* 
 * Documents:
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc
-* https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualprotect
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualfree
-* https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya
-* https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-freelibrary
-* https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getprocaddress
+* https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualprotect
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-flushinstructioncache
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createthread
 */
@@ -43,6 +40,11 @@ typedef bool (*VirtualFree)
 typedef bool (*VirtualProtect)
 (
     uintptr lpAddress, uint dwSize, uint32 flNewProtect, uint32* lpflOldProtect
+);
+
+typedef bool (*FlushInstCache)
+(
+    HANDLE hProcess, uintptr lpBaseAddress, uint dwSize
 );
 
 typedef HANDLE (*CreateThread)

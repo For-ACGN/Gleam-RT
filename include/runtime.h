@@ -5,11 +5,11 @@
 #include "windows_t.h"
 
 typedef void* (*MemAlloc_t)(uint size);
-typedef void  (*MemFree_t)(void* addr);
+typedef void  (*MemFree_t)(void* address);
 
 typedef void (*Hide_t)();
 typedef void (*Recover_t)();
-typedef void (*Clean_t)();
+typedef void (*Stop_t)();
 
 // Runtime_M contains exported methods for hijack.
 typedef struct {
@@ -21,7 +21,7 @@ typedef struct {
 
     Hide_t    Hide;
     Recover_t Recover;
-    Clean_t   Clean;
+    Stop_t    Stop;
 } Runtime_M;
 
 // InitRuntime is used to initialize runtime, and return module methods.
