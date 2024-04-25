@@ -17,6 +17,10 @@
 typedef struct {
     FindAPI_t FindAPI;
 
+    VirtualFree    VirtualFree;
+    VirtualProtect VirtualProtect;
+    FlushInstCache FlushInstCache;
+
     // *MemoryMgr MemoryMgr
     // *ThreadMgr ThreadMgr
 } Runtime;
@@ -25,12 +29,54 @@ void Hide();
 void Recover();
 void Clean();
 
+static uintptr allocRuntimeMemory(FindAPI_t findAPI);
+static bool initRuntimeAPI(Runtime* runtime);
 static bool updateRuntimePointers(Runtime* runtime);
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
 
 Runtime_M* InitRuntime(FindAPI_t findAPI)
 {
-    // allocate memory for store structures.
+    uintptr address = allocRuntimeMemory(findAPI);
+    if (address == NULL)
+    {
+        return NULL;
+    }
+    Runtime* runtime = (Runtime*)(address + RandUint(address)%512);
+    runtime->FindAPI = findAPI;
+    // initialize runtime
+    bool success = true;
+    for (;;)
+    {
+        if (!initRuntimeAPI(runtime))
+        {
+            success = false;
+            break;
+        }
+
+        if (!updateRuntimePointers(runtime))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+    if (!success)
+    {
+        RandBuf((byte*)address, 4096);
+        runtime->VirtualFree(address, 0, MEM_RELEASE);
+        return NULL;
+    }
+    // create methods about Runtime
+    Runtime_M* module = (Runtime_M*)(address + 520 + RandUint(address)%512);
+    module->Hide    = &Hide;
+    module->Recover = &Recover;
+    module->Clean   = &Clean;
+    return module;
+}
+
+// allocate memory for store structures.
+static uintptr allocRuntimeMemory(FindAPI_t findAPI)
+{
 #ifdef _WIN64
     uint64 hash = 0xB6A1D0D4A275D4B6;
     uint64 key  = 0x64CB4D66EC0BEFD9;
@@ -49,70 +95,63 @@ Runtime_M* InitRuntime(FindAPI_t findAPI)
         return NULL;
     }
     RandBuf((byte*)address, 4096);
-    // initialize runtime
-    Runtime* runtime = (Runtime*)(address + 128);
-    runtime->FindAPI = findAPI;
-    bool success = true;
-    for (;;)
-    {
-
-
-
-
-        if (!updateRuntimePointers(runtime))
-        {
-            success = false;
-            break;
-        }
-        break;
-    }
-    if (!success)
-    {
-        RandBuf((byte*)address, 4096);
-    #ifdef _WIN64
-        uint64 hash = 0x04989F7862AEABA4;
-        uint64 key  = 0xC7825C3DB35EE20E;
-    #elif _WIN32
-        uint32 hash = 0xF76A2ADE;
-        uint32 key  = 0x4D8938BD;
-    #endif
-        VirtualFree virtualFree = (VirtualFree)findAPI(hash, key);
-        if (virtualFree == NULL)
-        {
-            return NULL;
-        }
-        virtualFree(address, 0, MEM_RELEASE);
-        return NULL;
-    }
-    // create methods about Runtime
-    Runtime_M* module = (Runtime_M*)(address + 2048);
-    module->Hide    = &Hide;
-    module->Recover = &Recover;
-    module->Clean   = &Clean;
-    return module;
+    return address;
 }
 
-// change memory protect for dynamic update pointer that hard encode.
-static bool updateRuntimePointers(Runtime* runtime)
-{    
+static bool initRuntimeAPI(Runtime* runtime)
+{
     FindAPI_t findAPI = runtime->FindAPI;
 #ifdef _WIN64
-    uint64 hash = 0xEA5B0C76C7946815;
-    uint64 key  = 0x8846C203C35DE586;
+    uint64 hash = 0xAC150252A6CA3960;
+    uint64 key  = 0x12EFAEA421D60C3E;
 #elif _WIN32
-    uint32 hash = 0xB2AC456D;
-    uint32 key  = 0x2A690F63;
+    uint32 hash = 0xF76A2ADE;
+    uint32 key  = 0x4D8938BD;
+#endif
+    VirtualFree virtualFree = (VirtualFree)findAPI(hash, key);
+    if (virtualFree == NULL)
+    {
+        return false;
+    }
+#ifdef _WIN64
+     hash = 0xEA5B0C76C7946815;
+     key  = 0x8846C203C35DE586;
+#elif _WIN32
+     hash = 0xB2AC456D;
+     key  = 0x2A690F63;
 #endif
     VirtualProtect virtualProtect = (VirtualProtect)findAPI(hash, key);
     if (virtualProtect == NULL)
     {
         return false;
     }
+#ifdef _WIN64
+    hash = 0x8172B49F66E495BA;
+    key  = 0x8F0D0796223B56C2;
+#elif _WIN32
+    hash = 0x87A2CEE8;
+    key  = 0x42A3C1AF;
+#endif
+    FlushInstCache flushInstCache = (FlushInstCache)findAPI(hash, key);
+    if (flushInstCache == NULL)
+    {
+        return false;
+    }
+
+    runtime->VirtualFree    = virtualFree;
+    runtime->VirtualProtect = virtualProtect;
+    runtime->FlushInstCache = flushInstCache;
+    return true;
+}
+
+// change memory protect for dynamic update pointer that hard encode.
+static bool updateRuntimePointers(Runtime* runtime)
+{    
     uintptr memBegin = (uintptr)(&Hide);
-    uintptr memSize  = 8192;
+    uint    memSize  = 8192;
     // change memory protect
     uint32 old;
-    if (!virtualProtect(memBegin, memSize, PAGE_EXECUTE_READWRITE, &old))
+    if (!runtime->VirtualProtect(memBegin, memSize, PAGE_EXECUTE_READWRITE, &old))
     {
         return false;
     }
@@ -121,7 +160,7 @@ static bool updateRuntimePointers(Runtime* runtime)
     {
         if (!updateRuntimePointer(runtime, &Hide, METHOD_ADDR_HIDE))
         {
-            success =  false;
+            success = false;
             break;
         }
         if (!updateRuntimePointer(runtime, &Recover, METHOD_ADDR_RECOVER))
@@ -137,11 +176,15 @@ static bool updateRuntimePointers(Runtime* runtime)
         break;
     }
     // recovery memory protect
-    if (!virtualProtect(memBegin, memSize, old, &old))
+    if (!runtime->VirtualProtect(memBegin, memSize, old, &old))
     {
         return false;
     }
-    return success;
+    if (!success)
+    {
+        return false;
+    }
+    return runtime->FlushInstCache(-1, memBegin, memSize);
 }
 
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address)
