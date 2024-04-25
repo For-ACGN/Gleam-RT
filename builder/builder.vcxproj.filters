@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="shelter.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\hash_api.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -28,6 +25,15 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\src\crypto.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\runtime.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\thread.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="builder.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -48,6 +54,12 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\include\windows_t.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\runtime.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\thread.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
