@@ -18,10 +18,10 @@
 
 typedef struct {
     // arguments
+    uintptr   EntryPoint;
+    uint      SizeOfCode;
     FindAPI_t FindAPI;
-
-    // memory page for store structures.
-    uintptr MemoryPage;
+    uintptr   StructMemPage;
 
     // API addresses
     VirtualAlloc   VirtualAlloc;
@@ -44,7 +44,7 @@ static bool initMemoryTracker(Runtime* runtime);
 static bool updateRuntimePointers(Runtime* runtime);
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
 
-Runtime_M* InitRuntime(FindAPI_t findAPI)
+Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
 {
     uintptr address = allocateRuntimeMemory(findAPI);
     if (address == NULL)
@@ -56,8 +56,10 @@ Runtime_M* InitRuntime(FindAPI_t findAPI)
     uintptr moduleAddr  = address + 600 + RandUint(address) % 256;
     // initialize runtime
     Runtime* runtime = (Runtime*)runtimeAddr;
+    runtime->EntryPoint = entry;
+    runtime->SizeOfCode = size; 
     runtime->FindAPI = findAPI;
-    runtime->MemoryPage = address;
+    runtime->StructMemPage = address;
     bool success = true;
     for (;;)
     {
@@ -89,9 +91,11 @@ Runtime_M* InitRuntime(FindAPI_t findAPI)
         }
         return NULL;
     }
+
     // clean context data in runtime structure
     // runtime->FindAPI        = NULL; // TODO recover it
-    RandBuf((byte*)runtime + 8, sizeof(Runtime) - 8 - 16);
+    // RandBuf((byte*)runtime + 8, sizeof(Runtime) - 8 - 16);
+    
     // create methods about Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     module->Hide    = &RT_Hide;
@@ -189,7 +193,10 @@ static bool initRuntimeAPI(Runtime* runtime)
 static bool initMemoryTracker(Runtime* runtime)
 {
     Context ctx = {
-        .MemoryPage     = runtime->MemoryPage,
+        .EntryPoint     = runtime->EntryPoint,
+        .SizeOfCode     = runtime->SizeOfCode,
+        .FindAPI        = runtime->FindAPI,
+        .StructMemPage  = runtime->StructMemPage,
         .VirtualAlloc   = runtime->VirtualAlloc,
         .VirtualFree    = runtime->VirtualFree,
         .VirtualProtect = runtime->VirtualProtect,
@@ -264,6 +271,8 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
     return success;
 }
 
+#pragma optimize("", off)
+
 __declspec(noinline) 
 void RT_Hide()
 {
@@ -290,3 +299,5 @@ void RT_Stop()
 
     runtime->FindAPI(0, 0);
 }
+
+#pragma optimize("", on)
