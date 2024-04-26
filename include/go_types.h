@@ -50,4 +50,7 @@ typedef _Bool bool;
 #define UINT32_MAX 0xFFFFFFFFui32
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFFui64
 
+// calculate array length
+#define arrlen(array) (sizeof(array)/sizeof(array[0]))
+
 #endif // GO_TYPES_H
