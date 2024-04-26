@@ -17,21 +17,28 @@
 #endif
 
 typedef struct {
+    // arguments
     FindAPI_t FindAPI;
 
+    // memory page for store structures.
+    uintptr MemoryPage;
+
+    // API addresses
     VirtualAlloc   VirtualAlloc;
     VirtualFree    VirtualFree;
     VirtualProtect VirtualProtect;
     FlushInstCache FlushInstCache;
 
+    // sub modules
     MemoryTracker_M* MemoryTracker;
 } Runtime;
 
+// methods about Runtime
 void Hide();
 void Recover();
 void Stop();
 
-static uintptr allocRuntimeMemory(FindAPI_t findAPI);
+static uintptr allocateRuntimeMemory(FindAPI_t findAPI);
 static bool initRuntimeAPI(Runtime* runtime);
 static bool initMemoryTracker(Runtime* runtime);
 static bool updateRuntimePointers(Runtime* runtime);
@@ -39,14 +46,18 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
 
 Runtime_M* InitRuntime(FindAPI_t findAPI)
 {
-    uintptr address = allocRuntimeMemory(findAPI);
+    uintptr address = allocateRuntimeMemory(findAPI);
     if (address == NULL)
     {
         return NULL;
     }
-    Runtime* runtime = (Runtime*)(address + RandUint(address)%512);
-    runtime->FindAPI = findAPI;
+    // set structure address
+    uintptr runtimeAddr = address + 300 + RandUint(address) % 256;
+    uintptr moduleAddr  = address + 600 + RandUint(address) % 256;
     // initialize runtime
+    Runtime* runtime = (Runtime*)runtimeAddr;
+    runtime->FindAPI = findAPI;
+    runtime->MemoryPage = address;
     bool success = true;
     for (;;)
     {
@@ -78,8 +89,11 @@ Runtime_M* InitRuntime(FindAPI_t findAPI)
         }
         return NULL;
     }
+    // clean context data in runtime structure
+    // runtime->FindAPI        = NULL; // TODO recover it
+    RandBuf((byte*)runtime + 8, sizeof(Runtime) - 8 - 16);
     // create methods about Runtime
-    Runtime_M* module = (Runtime_M*)(address + 520 + RandUint(address)%512);
+    Runtime_M* module = (Runtime_M*)moduleAddr;
     module->Hide    = &Hide;
     module->Recover = &Recover;
     module->Stop    = &Stop;
@@ -87,7 +101,7 @@ Runtime_M* InitRuntime(FindAPI_t findAPI)
 }
 
 // allocate memory for store structures.
-static uintptr allocRuntimeMemory(FindAPI_t findAPI)
+static uintptr allocateRuntimeMemory(FindAPI_t findAPI)
 {
 #ifdef _WIN64
     uint64 hash = 0xB6A1D0D4A275D4B6;
@@ -175,9 +189,11 @@ static bool initRuntimeAPI(Runtime* runtime)
 static bool initMemoryTracker(Runtime* runtime)
 {
     Context ctx = {
+        .MemoryPage     = runtime->MemoryPage,
         .VirtualAlloc   = runtime->VirtualAlloc,
         .VirtualFree    = runtime->VirtualFree,
         .VirtualProtect = runtime->VirtualProtect,
+        .FlushInstCache = runtime->FlushInstCache,
     };
     MemoryTracker_M* tracker = InitMemoryTracker(&ctx);
     if (tracker == NULL)
@@ -252,15 +268,15 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
 
 __declspec(noinline) void Hide()
 {
-    // updatePointer will replace it to the actual address
+    // updateRuntimePointers will replace it to the actual address
     Runtime* runtime = (Runtime*)(METHOD_ADDR_HIDE);
 
-    runtime->FindAPI(0,0);
+    runtime->FindAPI(0, 0);
 }
 
 __declspec(noinline) void Recover()
 {
-    // updatePointer will replace it to the actual address
+    // updateRuntimePointers will replace it to the actual address
     Runtime* runtime = (Runtime*)(METHOD_ADDR_RECOVER);
 
     runtime->FindAPI(0, 0);
@@ -268,7 +284,7 @@ __declspec(noinline) void Recover()
 
 __declspec(noinline) void Stop()
 {
-    // updatePointer will replace it to the actual address
+    // updateRuntimePointers will replace it to the actual address
     Runtime* runtime = (Runtime*)(METHOD_ADDR_STOP);
 
     runtime->FindAPI(0, 0);
