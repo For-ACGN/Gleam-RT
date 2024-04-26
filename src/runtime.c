@@ -34,9 +34,9 @@ typedef struct {
 } Runtime;
 
 // methods about Runtime
-void Hide();
-void Recover();
-void Stop();
+void RT_Hide();
+void RT_Recover();
+void RT_Stop();
 
 static uintptr allocateRuntimeMemory(FindAPI_t findAPI);
 static bool initRuntimeAPI(Runtime* runtime);
@@ -94,9 +94,9 @@ Runtime_M* InitRuntime(FindAPI_t findAPI)
     RandBuf((byte*)runtime + 8, sizeof(Runtime) - 8 - 16);
     // create methods about Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
-    module->Hide    = &Hide;
-    module->Recover = &Recover;
-    module->Stop    = &Stop;
+    module->Hide    = &RT_Hide;
+    module->Recover = &RT_Recover;
+    module->Stop    = &RT_Stop;
     return module;
 }
 
@@ -207,7 +207,7 @@ static bool initMemoryTracker(Runtime* runtime)
 // change memory protect for dynamic update pointer that hard encode.
 static bool updateRuntimePointers(Runtime* runtime)
 {    
-    uintptr memBegin = (uintptr)(&Hide);
+    uintptr memBegin = (uintptr)(&RT_Hide);
     uint    memSize  = 8192;
     // change memory protect
     uint32 old;
@@ -215,25 +215,24 @@ static bool updateRuntimePointers(Runtime* runtime)
     {
         return false;
     }
+    // update pointer in methods
+    typedef struct {
+        void*   address;
+        uintptr pointer;
+    } method;
+    method methods[] = {
+        {&RT_Hide,    METHOD_ADDR_HIDE},
+        {&RT_Recover, METHOD_ADDR_RECOVER},
+        {&RT_Stop,    METHOD_ADDR_STOP},
+    };
     bool success = true;
-    for(;;)
+    for (int i = 0; i < arrlen(methods); i++)
     {
-        if (!updateRuntimePointer(runtime, &Hide, METHOD_ADDR_HIDE))
+        if (!updateRuntimePointer(runtime, methods[i].address, methods[i].pointer))
         {
             success = false;
             break;
         }
-        if (!updateRuntimePointer(runtime, &Recover, METHOD_ADDR_RECOVER))
-        {
-            success = false;
-            break;
-        }
-        if (!updateRuntimePointer(runtime, &Stop, METHOD_ADDR_STOP))
-        {
-            success = false;
-            break;
-        }
-        break;
     }
     // recovery memory protect
     if (!runtime->VirtualProtect(memBegin, memSize, old, &old))
@@ -251,10 +250,9 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
 {
     bool success = false;
     uintptr target = (uintptr)method;
-    uintptr* pointer;
     for (uintptr i = 0; i < 32; i++)
     {
-        pointer = (uintptr*)(target);
+        uintptr* pointer = (uintptr*)(target);
         if (*pointer == address)
         {
             *pointer = (uintptr)runtime;
@@ -266,7 +264,8 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
     return success;
 }
 
-__declspec(noinline) void Hide()
+__declspec(noinline) 
+void RT_Hide()
 {
     // updateRuntimePointers will replace it to the actual address
     Runtime* runtime = (Runtime*)(METHOD_ADDR_HIDE);
@@ -274,7 +273,8 @@ __declspec(noinline) void Hide()
     runtime->FindAPI(0, 0);
 }
 
-__declspec(noinline) void Recover()
+__declspec(noinline)
+void RT_Recover()
 {
     // updateRuntimePointers will replace it to the actual address
     Runtime* runtime = (Runtime*)(METHOD_ADDR_RECOVER);
@@ -282,7 +282,8 @@ __declspec(noinline) void Recover()
     runtime->FindAPI(0, 0);
 }
 
-__declspec(noinline) void Stop()
+__declspec(noinline)
+void RT_Stop()
 {
     // updateRuntimePointers will replace it to the actual address
     Runtime* runtime = (Runtime*)(METHOD_ADDR_STOP);
