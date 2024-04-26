@@ -5,6 +5,8 @@
 #include "windows_t.h"
 
 typedef struct {
+    uintptr MemoryPage;
+
     VirtualAlloc   VirtualAlloc;
     VirtualFree    VirtualFree;
     VirtualProtect VirtualProtect;
