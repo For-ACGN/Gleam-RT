@@ -3,10 +3,16 @@
 
 #include "go_types.h"
 #include "windows_t.h"
+#include "hash_api.h"
 
 typedef struct {
-    uintptr MemoryPage;
+    // arguments for initialize runtime
+    uintptr   EntryPoint;
+    uint      SizeOfCode;
+    FindAPI_t FindAPI;
+    uintptr   StructMemPage;
 
+    // context data about initialize runtime
     VirtualAlloc   VirtualAlloc;
     VirtualFree    VirtualFree;
     VirtualProtect VirtualProtect;
