@@ -33,9 +33,9 @@ typedef struct {
 } MemoryTracker;
 
 // methods about memory tracker
-uintptr MT_VirtualAlloc(uintptr lpAddress, uint dwSize, uint32 flAllocationType, uint32 flProtect);
-uintptr MT_VirtualFree(uintptr lpAddress, uint dwSize, uint32 dwFreeType);
-uintptr MT_VirtualProtect(uintptr lpAddress, uint dwSize, uint32 flNewProtect, uint32* lpflOldProtect);
+uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect);
+uintptr MT_VirtualFree(uintptr address, uint size, uint32 type);
+uintptr MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old);
 void*   MT_MemAlloc(uint size);
 void    MT_MemFree(void* address);
 void    MT_Encrypt();
@@ -49,7 +49,7 @@ static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr a
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
     // set structure address
-    uintptr address = context->MemoryPage;
+    uintptr address = context->StructMemPage;
     uintptr trackerAddr = address + 1000 + RandUint(address) % 256;
     uintptr moduleAddr  = address + 1300 + RandUint(address) % 256;
     // initialize tracker
@@ -108,68 +108,29 @@ static bool updateTrackerPointers(MemoryTracker* tracker)
     {
         return false;
     }
-    // typedef struct {
-    //     void*   method;
-    //     uintptr address;
-    // } item;
-    // item items[] = 
-    // {
-    //     { &MT_VirtualAlloc,   METHOD_ADDR_VIRTUAL_ALLOC },
-    //     { &MT_VirtualFree,    METHOD_ADDR_VIRTUAL_FREE },
-    //     { &MT_VirtualProtect, METHOD_ADDR_VIRTUAL_PROTECT },
-    //     { &MT_Encrypt,        METHOD_ADDR_ENCRYPT },
-    //     { &MT_Decrypt,        METHOD_ADDR_DECRYPT },
-    //     { &MT_Clean,          METHOD_ADDR_CLEAN },
-    // };
-    // bool success = true;
-    // for (int i = 0; i < sizeof(items)/sizeof(items[0]); i++)
-    // {
-    //     if (!updateTrackerPointer(tracker, items[i].method, items[i].address))
-    //     {
-    //         success = false;
-    //         break;
-    //     }
-    // }
-    // 
-    // 
-    bool success = true;
-    for (;;)
+    // update pointer in methods
+    typedef struct {
+        void*   address;
+        uintptr pointer;
+    } method;
+    method methods[] = 
     {
-        if (!updateTrackerPointer(tracker, &MT_VirtualAlloc, METHOD_ADDR_VIRTUAL_ALLOC))
+        {&MT_VirtualAlloc,   METHOD_ADDR_VIRTUAL_ALLOC},
+        {&MT_VirtualFree,    METHOD_ADDR_VIRTUAL_FREE},
+        {&MT_VirtualProtect, METHOD_ADDR_VIRTUAL_PROTECT},
+        {&MT_Encrypt,        METHOD_ADDR_ENCRYPT},
+        {&MT_Decrypt,        METHOD_ADDR_DECRYPT},
+        {&MT_Clean,          METHOD_ADDR_CLEAN},
+    };
+    bool success = true;
+    for (int i = 0; i < arrlen(methods); i++)
+    {
+        if (!updateTrackerPointer(tracker, methods[i].address, methods[i].pointer))
         {
             success = false;
             break;
         }
-        if (!updateTrackerPointer(tracker, &MT_VirtualFree, METHOD_ADDR_VIRTUAL_FREE))
-        {
-            success = false;
-            break;
-        }
-        if (!updateTrackerPointer(tracker, &MT_VirtualProtect, METHOD_ADDR_VIRTUAL_PROTECT))
-        {
-            success = false;
-            break;
-        }
-        if (!updateTrackerPointer(tracker, &MT_Encrypt, METHOD_ADDR_ENCRYPT))
-        {
-            success = false;
-            break;
-        }
-        if (!updateTrackerPointer(tracker, &MT_Decrypt, METHOD_ADDR_DECRYPT))
-        {
-            success = false;
-            break;
-        }
-        if (!updateTrackerPointer(tracker, &MT_Clean, METHOD_ADDR_CLEAN))
-        {
-            success = false;
-            break;
-        }
-        break;
     }
-
-
-
     // recovery memory protect
     if (!tracker->VirtualProtect(memBegin, memSize, old, &old))
     {
@@ -209,7 +170,7 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
    return tracker->VirtualAlloc(address, size, type, protect);
 }
 
- #pragma optimize("", off)
+#pragma optimize("", off)
 __declspec(noinline)
 uintptr MT_VirtualFree(uintptr address, uint size, uint32 type)
 {
@@ -218,18 +179,18 @@ uintptr MT_VirtualFree(uintptr address, uint size, uint32 type)
 
     return tracker->VirtualFree(address, size, type);
 }
- #pragma optimize("", on)
+#pragma optimize("", on)
 
- #pragma optimize("", off)
+#pragma optimize("", off)
 __declspec(noinline)
-uintptr MT_VirtualProtect(uintptr address, uint size, uint32 newProtect, uint32* oldProtect)
+uintptr MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 {
     // updateTrackerPointers will replace it to the actual address
     MemoryTracker* tracker = (MemoryTracker*)(METHOD_ADDR_VIRTUAL_PROTECT);
 
-    return tracker->VirtualProtect(address, size, newProtect, oldProtect);
+    return tracker->VirtualProtect(address, size, new, old);
 }
- #pragma optimize("", on)
+#pragma optimize("", on)
 
 __declspec(noinline)
 void* MT_MemAlloc(uint size)
