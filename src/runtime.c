@@ -98,6 +98,13 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
     
     // create methods about Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
+    module->VirtualAlloc   = runtime->MemoryTracker->VirtualAlloc;
+    module->VirtualFree    = runtime->MemoryTracker->VirtualFree;
+    module->VirtualProtect = runtime->MemoryTracker->VirtualProtect;
+
+    module->MemAlloc = runtime->MemoryTracker->MemAlloc;
+    module->MemFree  = runtime->MemoryTracker->MemFree;
+
     module->Hide    = &RT_Hide;
     module->Recover = &RT_Recover;
     module->Stop    = &RT_Stop;
@@ -260,33 +267,47 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
     for (uintptr i = 0; i < 32; i++)
     {
         uintptr* pointer = (uintptr*)(target);
-        if (*pointer == address)
+        if (*pointer != address)
         {
-            *pointer = (uintptr)runtime;
-            success = true;
-            break;
+            target++;
+            continue;
         }
-        target++;
+        *pointer = (uintptr)runtime;
+        success = true;
+        break;
     }
     return success;
 }
 
+// updateRuntimePointers will replace hard encode address to the actual address.
+// Must disable compiler optimize, otherwise updateRuntimePointer will fail.
 #pragma optimize("", off)
+static Runtime* getRuntimePointer(uintptr pointer)
+{
+    return (Runtime*)(pointer);
+}
+#pragma optimize("", on)
 
 __declspec(noinline) 
 void RT_Hide()
 {
-    // updateRuntimePointers will replace it to the actual address
-    Runtime* runtime = (Runtime*)(METHOD_ADDR_HIDE);
+    Runtime* runtime = getRuntimePointer(METHOD_ADDR_HIDE);
 
-    runtime->FindAPI(0, 0);
+#ifdef _WIN64
+    uint64 hash = 0xB6A1D0D4A275D4B6;
+    uint64 key  = 0x64CB4D66EC0BEFD9;
+#elif _WIN32
+    uint32 hash = 0xC3DE112E;
+    uint32 key  = 0x8D9EA74F;
+#endif
+    runtime->FindAPI(hash, key);
 }
 
 __declspec(noinline)
 void RT_Recover()
 {
     // updateRuntimePointers will replace it to the actual address
-    Runtime* runtime = (Runtime*)(METHOD_ADDR_RECOVER);
+    Runtime* runtime = getRuntimePointer(METHOD_ADDR_RECOVER);
 
     runtime->FindAPI(0, 0);
 }
@@ -295,9 +316,7 @@ __declspec(noinline)
 void RT_Stop()
 {
     // updateRuntimePointers will replace it to the actual address
-    Runtime* runtime = (Runtime*)(METHOD_ADDR_STOP);
+    Runtime* runtime = getRuntimePointer(METHOD_ADDR_STOP);
 
     runtime->FindAPI(0, 0);
 }
-
-#pragma optimize("", on)
