@@ -150,47 +150,50 @@ static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr a
     for (uintptr i = 0; i < 32; i++)
     {
         uintptr* pointer = (uintptr*)(target);
-        if (*pointer == address)
+        if (*pointer != address)
         {
-            *pointer = (uintptr)tracker;
-            success = true;
-            break;
+            target++;
+            continue;
         }
-        target++;
+        *pointer = (uintptr)tracker;
+        success = true;
+        break;
     }
     return success;
 }
 
+// updateTrackerPointers will replace hard encode address to the actual address.
+// Must disable compiler optimize, otherwise updateTrackerPointer will fail.
+#pragma optimize("", off)
+static MemoryTracker* getTrackerPointer(uintptr pointer)
+{
+    return (MemoryTracker*)(pointer);
+}
+#pragma optimize("", on)
+
 __declspec(noinline)
 uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 {
-    // updateTrackerPointers will replace it to the actual address
-    MemoryTracker* tracker = (MemoryTracker*)(METHOD_ADDR_VIRTUAL_ALLOC);
+    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_ALLOC);
 
    return tracker->VirtualAlloc(address, size, type, protect);
 }
 
-#pragma optimize("", off)
 __declspec(noinline)
 uintptr MT_VirtualFree(uintptr address, uint size, uint32 type)
 {
-    // updateTrackerPointers will replace it to the actual address
-    MemoryTracker* tracker = (MemoryTracker*)(METHOD_ADDR_VIRTUAL_FREE);
+    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_FREE);
 
     return tracker->VirtualFree(address, size, type);
 }
-#pragma optimize("", on)
 
-#pragma optimize("", off)
 __declspec(noinline)
 uintptr MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 {
-    // updateTrackerPointers will replace it to the actual address
-    MemoryTracker* tracker = (MemoryTracker*)(METHOD_ADDR_VIRTUAL_PROTECT);
+    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_PROTECT);
 
     return tracker->VirtualProtect(address, size, new, old);
 }
-#pragma optimize("", on)
 
 __declspec(noinline)
 void* MT_MemAlloc(uint size)
@@ -207,8 +210,7 @@ void MT_MemFree(void* address)
 __declspec(noinline)
 void MT_Encrypt()
 {
-    // updateTrackerPointers will replace it to the actual address
-    MemoryTracker* tracker = (MemoryTracker*)(METHOD_ADDR_ENCRYPT);
+    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_ENCRYPT);
 
     tracker->VirtualAlloc(0, 1, 0, 0);
 }
@@ -216,8 +218,7 @@ void MT_Encrypt()
 __declspec(noinline)
 void MT_Decrypt()
 {
-    // updateTrackerPointers will replace it to the actual address
-    MemoryTracker* tracker = (MemoryTracker*)(METHOD_ADDR_DECRYPT);
+    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_DECRYPT);
 
     tracker->VirtualAlloc(0, 1, 0, 0);
 }
@@ -225,8 +226,7 @@ void MT_Decrypt()
 __declspec(noinline)
 void MT_Clean()
 {
-    // updateTrackerPointers will replace it to the actual address
-    MemoryTracker* tracker = (MemoryTracker*)(METHOD_ADDR_CLEAN);
+    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
     tracker->VirtualAlloc(0, 1, 0, 0);
 }
