@@ -24,12 +24,17 @@
 #endif
 
 typedef struct {
-    // API address from runtime
-    VirtualAlloc   VirtualAlloc;
-    VirtualFree    VirtualFree;
-    VirtualProtect VirtualProtect;
-    FlushInstCache FlushInstCache;
+    // API addresses
+    VirtualAlloc          VirtualAlloc;
+    VirtualFree           VirtualFree;
+    VirtualProtect        VirtualProtect;
+    FlushInstructionCache FlushInstructionCache;
+    CreateMutexA          CreateMutexA;
+    ReleaseMutex          ReleaseMutex;
+    WaitForSingleObject   WaitForSingleObject;
+    CloseHandle           CloseHandle;
 
+    HANDLE Mutex;
 } MemoryTracker;
 
 // methods about memory tracker
@@ -43,6 +48,7 @@ void    MT_Decrypt();
 void    MT_Clean();
 
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
+static bool initTrackerEnvironment(MemoryTracker* tracker);
 static bool updateTrackerPointers(MemoryTracker* tracker);
 static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
 
@@ -63,6 +69,11 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
             success = false;
             break;
         }
+        if (!initTrackerEnvironment(tracker))
+        {
+            success = false;
+            break;
+        }
         if (!updateTrackerPointers(tracker))
         {
             success = false;
@@ -74,13 +85,17 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     {
         return NULL;
     }
+    // clean context data in runtime structure
+    tracker->FlushInstructionCache = NULL;
+    // RandBuf((byte*)runtime + 8, sizeof(Runtime) - 8 - 16);
+
     // create methods about tracker
     MemoryTracker_M* module = (MemoryTracker_M*)moduleAddr;
-
+    // Windows API hooks
     module->VirtualAlloc   = (VirtualAlloc  )(&MT_VirtualAlloc);
     module->VirtualFree    = (VirtualFree   )(&MT_VirtualFree);
     module->VirtualProtect = (VirtualProtect)(&MT_VirtualProtect);
-
+    // methods for runtime
     module->MemAlloc   = &MT_MemAlloc;
     module->MemFree    = &MT_MemFree;
     module->MemEncrypt = &MT_Encrypt;
@@ -91,10 +106,79 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
 
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 {
-    tracker->VirtualAlloc   = context->VirtualAlloc;
-    tracker->VirtualFree    = context->VirtualFree;
-    tracker->VirtualProtect = context->VirtualProtect;
-    tracker->FlushInstCache = context->FlushInstCache;
+    FindAPI_t findAPI = context->FindAPI;
+
+#ifdef _WIN64
+    uint64 hash = 0x31FE697F93D7510C;
+    uint64 key  = 0x77C8F05FE04ED22D;
+#elif _WIN32
+    uint32 hash = 0x8F5BAED2;
+    uint32 key  = 0x43487DC7;
+#endif
+    CreateMutexA createMutexA = (CreateMutexA)findAPI(hash, key);
+    if (createMutexA == NULL)
+    {
+        return NULL;
+    }
+
+#ifdef _WIN64
+    hash = 0xEEFDEA7C0785B561;
+    key  = 0xA7B72CC8CD55C1D4;
+#elif _WIN32
+    hash = 0xFA42E55C;
+    key  = 0xEA9F1081;
+#endif
+    ReleaseMutex releaseMutex = (ReleaseMutex)findAPI(hash, key);
+    if (releaseMutex == NULL)
+    {
+        return NULL;
+    }
+
+#ifdef _WIN64
+    hash = 0xA524CD56CF8DFF7F;
+    key  = 0x5519595458CD47C8;
+#elif _WIN32
+    hash = 0xC21AB03D;
+    key  = 0xED3AAF22;
+#endif
+    WaitForSingleObject waitForSingleObject = (WaitForSingleObject)findAPI(hash, key);
+    if (waitForSingleObject == NULL)
+    {
+        return NULL;
+    }
+
+#ifdef _WIN64
+    hash = 0xA25F7449D6939A01;
+    key  = 0x85D37F1D89B30D2E;
+#elif _WIN32
+    hash = 0x60E108B2;
+    key  = 0x3C2DFF52;
+#endif
+    CloseHandle closeHandle = (CloseHandle)findAPI(hash, key);
+    if (closeHandle == NULL)
+    {
+        return NULL;
+    }
+
+    tracker->CreateMutexA        = createMutexA;
+    tracker->ReleaseMutex        = releaseMutex;
+    tracker->WaitForSingleObject = waitForSingleObject;
+    tracker->CloseHandle         = closeHandle;
+
+    tracker->VirtualAlloc          = context->VirtualAlloc;
+    tracker->VirtualFree           = context->VirtualFree;
+    tracker->VirtualProtect        = context->VirtualProtect;
+    tracker->FlushInstructionCache = context->FlushInstructionCache;
+
+    context->CreateMutexA        = createMutexA;
+    context->ReleaseMutex        = releaseMutex;
+    context->WaitForSingleObject = waitForSingleObject;
+    context->CloseHandle         = closeHandle;
+    return true;
+}
+
+static bool initTrackerEnvironment(MemoryTracker* tracker)
+{
     return true;
 }
 
@@ -140,7 +224,7 @@ static bool updateTrackerPointers(MemoryTracker* tracker)
     {
         return false;
     }
-    return tracker->FlushInstCache(-1, memBegin, memSize);
+    return tracker->FlushInstructionCache(-1, memBegin, memSize);
 }
 
 static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address)
