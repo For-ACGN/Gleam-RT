@@ -22,6 +22,9 @@ typedef struct {
     ReleaseMutex          ReleaseMutex;
     WaitForSingleObject   WaitForSingleObject;
     CloseHandle           CloseHandle;
+
+    // runtime context data
+    HANDLE Mutex;
 } Context;
 
 #endif // CONTEXT_H

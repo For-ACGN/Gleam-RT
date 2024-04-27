@@ -29,6 +29,9 @@
 #define PAGE_EXECUTE_READWRITE 0x40
 #define PAGE_EXECUTE_WRITECOPY 0x80
 
+#define INFINITE      0xFFFFFFFF
+#define WAIT_OBJECT_0 0x00000000
+
 typedef uint  HANDLE;
 typedef byte* LPCSTR;
 
