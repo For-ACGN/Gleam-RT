@@ -28,6 +28,13 @@ typedef struct {
     VirtualFree           VirtualFree;
     VirtualProtect        VirtualProtect;
     FlushInstructionCache FlushInstructionCache;
+    CreateMutexA          CreateMutexA;
+    ReleaseMutex          ReleaseMutex;
+    WaitForSingleObject   WaitForSingleObject;
+    CloseHandle           CloseHandle;
+
+    // global mutex
+    HANDLE Mutex;
 
     // sub modules
     MemoryTracker_M* MemoryTracker;
@@ -40,9 +47,11 @@ void RT_Stop();
 
 static uintptr allocateRuntimeMemory(FindAPI_t findAPI);
 static bool initRuntimeAPI(Runtime* runtime);
+static bool initRuntimeEnvironment(Runtime* runtime);
 static bool initMemoryTracker(Runtime* runtime);
 static bool updateRuntimePointers(Runtime* runtime);
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
+static void cleanRuntime(Runtime* runtime);
 
 __declspec(noinline)
 Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
@@ -61,6 +70,7 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
     runtime->SizeOfCode = size; 
     runtime->FindAPI = findAPI;
     runtime->StructMemPage = address;
+    runtime->Mutex = 0;
     bool success = true;
     for (;;)
     {
@@ -69,7 +79,7 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
             success = false;
             break;
         }
-        if (!initMemoryTracker(runtime))
+        if (!initRuntimeEnvironment(runtime))
         {
             success = false;
             break;
@@ -83,29 +93,22 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
     }
     if (!success)
     {
-        // must copy api address before call RandBuf
-        VirtualFree virtualFree = runtime->VirtualFree;
-        RandBuf((byte*)address, 4096);
-        if (virtualFree != NULL)
-        {
-            virtualFree(address, 0, MEM_RELEASE);
-        }
-        return NULL;
+        cleanRuntime(runtime);
     }
-
     // clean context data in runtime structure
     // runtime->FindAPI        = NULL; // TODO recover it
     // RandBuf((byte*)runtime + 8, sizeof(Runtime) - 8 - 16);
     
     // create methods about Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
+    // for IAT hooks
     module->VirtualAlloc   = runtime->MemoryTracker->VirtualAlloc;
     module->VirtualFree    = runtime->MemoryTracker->VirtualFree;
     module->VirtualProtect = runtime->MemoryTracker->VirtualProtect;
-
+    // for general shellcode
     module->MemAlloc = runtime->MemoryTracker->MemAlloc;
     module->MemFree  = runtime->MemoryTracker->MemFree;
-
+    // runtime core methods
     module->Hide    = &RT_Hide;
     module->Recover = &RT_Recover;
     module->Stop    = &RT_Stop;
@@ -192,10 +195,82 @@ static bool initRuntimeAPI(Runtime* runtime)
         return false;
     }
 
+#ifdef _WIN64
+     hash = 0x31FE697F93D7510C;
+     key  = 0x77C8F05FE04ED22D;
+#elif _WIN32
+     hash = 0x8F5BAED2;
+     key  = 0x43487DC7;
+#endif
+    CreateMutexA createMutexA = (CreateMutexA)findAPI(hash, key);
+    if (createMutexA == NULL)
+    {
+        return NULL;
+    }
+
+#ifdef _WIN64
+    hash = 0xEEFDEA7C0785B561;
+    key  = 0xA7B72CC8CD55C1D4;
+#elif _WIN32
+    hash = 0xFA42E55C;
+    key  = 0xEA9F1081;
+#endif
+    ReleaseMutex releaseMutex = (ReleaseMutex)findAPI(hash, key);
+    if (releaseMutex == NULL)
+    {
+        return NULL;
+    }
+
+#ifdef _WIN64
+    hash = 0xA524CD56CF8DFF7F;
+    key  = 0x5519595458CD47C8;
+#elif _WIN32
+    hash = 0xC21AB03D;
+    key  = 0xED3AAF22;
+#endif
+    WaitForSingleObject waitForSingleObject = (WaitForSingleObject)findAPI(hash, key);
+    if (waitForSingleObject == NULL)
+    {
+        return NULL;
+    }
+
+#ifdef _WIN64
+    hash = 0xA25F7449D6939A01;
+    key  = 0x85D37F1D89B30D2E;
+#elif _WIN32
+    hash = 0x60E108B2;
+    key  = 0x3C2DFF52;
+#endif
+    CloseHandle closeHandle = (CloseHandle)findAPI(hash, key);
+    if (closeHandle == NULL)
+    {
+        return NULL;
+    }
+
     runtime->VirtualAlloc          = virtualAlloc;
     runtime->VirtualFree           = virtualFree;
     runtime->VirtualProtect        = virtualProtect;
     runtime->FlushInstructionCache = flushInstructionCache;
+    runtime->CreateMutexA          = createMutexA;
+    runtime->ReleaseMutex          = releaseMutex;
+    runtime->WaitForSingleObject   = waitForSingleObject;
+    runtime->CloseHandle           = closeHandle;
+    return true;
+}
+
+static bool initRuntimeEnvironment(Runtime* runtime)
+{
+    // create global mutex
+    HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
+    if (hMutex == NULL)
+    {
+        return false;
+    }
+    runtime->Mutex = hMutex;
+    if (!initMemoryTracker(runtime))
+    {
+        return false;
+    }
     return true;
 }
 
@@ -266,7 +341,7 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
 {
     bool success = false;
     uintptr target = (uintptr)method;
-    for (uintptr i = 0; i < 32; i++)
+    for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
         if (*pointer != address)
@@ -321,4 +396,22 @@ void RT_Stop()
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_STOP);
 
     runtime->FindAPI(0, 0);
+}
+
+static void cleanRuntime(Runtime* runtime)
+{
+    CloseHandle closeHandle = runtime->CloseHandle;
+    if (closeHandle != NULL && runtime->Mutex != NULL)
+    {
+        closeHandle(runtime->Mutex);
+    }
+
+    // must copy api address before call RandBuf
+    VirtualFree virtualFree = runtime->VirtualFree;
+    RandBuf((byte*)runtime->StructMemPage, 4096);
+    if (virtualFree != NULL)
+    {
+        virtualFree(runtime->StructMemPage, 0, MEM_RELEASE);
+    }
+    return NULL;
 }
