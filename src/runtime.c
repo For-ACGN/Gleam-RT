@@ -24,10 +24,10 @@ typedef struct {
     uintptr   StructMemPage;
 
     // API addresses
-    VirtualAlloc   VirtualAlloc;
-    VirtualFree    VirtualFree;
-    VirtualProtect VirtualProtect;
-    FlushInstCache FlushInstCache;
+    VirtualAlloc          VirtualAlloc;
+    VirtualFree           VirtualFree;
+    VirtualProtect        VirtualProtect;
+    FlushInstructionCache FlushInstructionCache;
 
     // sub modules
     MemoryTracker_M* MemoryTracker;
@@ -44,6 +44,7 @@ static bool initMemoryTracker(Runtime* runtime);
 static bool updateRuntimePointers(Runtime* runtime);
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
 
+__declspec(noinline)
 Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
 {
     uintptr address = allocateRuntimeMemory(findAPI);
@@ -138,6 +139,7 @@ static uintptr allocateRuntimeMemory(FindAPI_t findAPI)
 static bool initRuntimeAPI(Runtime* runtime)
 {
     FindAPI_t findAPI = runtime->FindAPI;
+
 #ifdef _WIN64
     uint64 hash = 0x6AC498DF641A4FCB;
     uint64 key  = 0xFF3BB21B9BA46CEA;
@@ -184,30 +186,30 @@ static bool initRuntimeAPI(Runtime* runtime)
     hash = 0x87A2CEE8;
     key  = 0x42A3C1AF;
 #endif
-    FlushInstCache flushInstCache = (FlushInstCache)findAPI(hash, key);
-    if (flushInstCache == NULL)
+    FlushInstructionCache flushInstructionCache = (FlushInstructionCache)findAPI(hash, key);
+    if (flushInstructionCache == NULL)
     {
         return false;
     }
 
-    runtime->VirtualAlloc   = virtualAlloc;
-    runtime->VirtualFree    = virtualFree;
-    runtime->VirtualProtect = virtualProtect;
-    runtime->FlushInstCache = flushInstCache;
+    runtime->VirtualAlloc          = virtualAlloc;
+    runtime->VirtualFree           = virtualFree;
+    runtime->VirtualProtect        = virtualProtect;
+    runtime->FlushInstructionCache = flushInstructionCache;
     return true;
 }
 
 static bool initMemoryTracker(Runtime* runtime)
 {
     Context ctx = {
-        .EntryPoint     = runtime->EntryPoint,
-        .SizeOfCode     = runtime->SizeOfCode,
-        .FindAPI        = runtime->FindAPI,
-        .StructMemPage  = runtime->StructMemPage,
-        .VirtualAlloc   = runtime->VirtualAlloc,
-        .VirtualFree    = runtime->VirtualFree,
-        .VirtualProtect = runtime->VirtualProtect,
-        .FlushInstCache = runtime->FlushInstCache,
+        .EntryPoint            = runtime->EntryPoint,
+        .SizeOfCode            = runtime->SizeOfCode,
+        .FindAPI               = runtime->FindAPI,
+        .StructMemPage         = runtime->StructMemPage,
+        .VirtualAlloc          = runtime->VirtualAlloc,
+        .VirtualFree           = runtime->VirtualFree,
+        .VirtualProtect        = runtime->VirtualProtect,
+        .FlushInstructionCache = runtime->FlushInstructionCache,
     };
     MemoryTracker_M* tracker = InitMemoryTracker(&ctx);
     if (tracker == NULL)
@@ -257,7 +259,7 @@ static bool updateRuntimePointers(Runtime* runtime)
     {
         return false;
     }
-    return runtime->FlushInstCache(-1, memBegin, memSize);
+    return runtime->FlushInstructionCache(-1, memBegin, memSize);
 }
 
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address)
