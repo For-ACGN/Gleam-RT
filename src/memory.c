@@ -23,6 +23,18 @@
     #define METHOD_ADDR_CLEAN           0x7FFFFF05
 #endif
 
+typedef struct memoryPage {
+    uint   size;
+    uint32 protect;
+    byte   iv[CRYPTO_IV_SIZE];
+
+    struct memoryPage* next;
+} memoryPage;
+
+// make sure the memory address is 16 bytes aligned.
+#define MEMORY_PAGE_PAD_SIZE    sizeof(memoryPage) % 16
+#define MEMORY_PAGE_HEADER_SIZE sizeof(memoryPage) + MEMORY_PAGE_PAD_SIZE
+
 typedef struct {
     // API addresses
     VirtualAlloc          VirtualAlloc;
@@ -33,6 +45,8 @@ typedef struct {
     ReleaseMutex          ReleaseMutex;
     WaitForSingleObject   WaitForSingleObject;
     CloseHandle           CloseHandle;
+
+    memoryPage* FirstPage;
 
     HANDLE Mutex;
 } MemoryTracker;
@@ -51,6 +65,7 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
 static bool initTrackerEnvironment(MemoryTracker* tracker);
 static bool updateTrackerPointers(MemoryTracker* tracker);
 static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
+static uintptr allocatePage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -179,6 +194,13 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 
 static bool initTrackerEnvironment(MemoryTracker* tracker)
 {
+    HANDLE hMutex = tracker->CreateMutexA(NULL, false, NULL);
+    if (hMutex == NULL)
+    {
+        return false;
+    }
+    tracker->FirstPage = NULL;
+    tracker->Mutex     = hMutex;
     return true;
 }
 
@@ -231,7 +253,7 @@ static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr a
 {
     bool success = false;
     uintptr target = (uintptr)method;
-    for (uintptr i = 0; i < 32; i++)
+    for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
         if (*pointer != address)
@@ -260,7 +282,46 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_ALLOC);
 
-   return tracker->VirtualAlloc(address, size, type, protect);
+    // lock recorded memory pages
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return NULL;
+    }
+    uintptr page;
+    bool success = true;
+    for (;;)
+    {
+        page = tracker->VirtualAlloc(address, size + MEMORY_PAGE_HEADER_SIZE, type, protect);
+        if (page == NULL)
+        {
+            success = false;
+            break;
+        }
+        page = allocatePage(tracker, page, size, protect);
+        break;
+    }
+    // unlock recorded memory pages
+    tracker->ReleaseMutex(tracker->Mutex);
+    if (!success)
+    {
+        return NULL;
+    }
+    return page;
+}
+
+// write memory header data at the front of the actual memory page
+static uintptr allocatePage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect)
+{
+    memoryPage* memPage = (memoryPage*)page;
+
+    memPage->size    = size;
+    memPage->protect = protect;
+    RandBuf(&memPage->iv[0], CRYPTO_IV_SIZE);
+    memPage->next = tracker->FirstPage;
+
+    uintptr pad = page + MEMORY_PAGE_HEADER_SIZE - MEMORY_PAGE_PAD_SIZE;
+    RandBuf((byte*)pad, MEMORY_PAGE_PAD_SIZE);
+    return page + MEMORY_PAGE_HEADER_SIZE;
 }
 
 __declspec(noinline)
