@@ -1,6 +1,6 @@
 #include "go_types.h"
-#include "hash_api.h"
 #include "windows_t.h"
+#include "hash_api.h"
 #include "context.h"
 #include "random.h"
 #include "crypto.h"
@@ -62,7 +62,7 @@ void    MT_Decrypt();
 void    MT_Clean();
 
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
-static bool initTrackerEnvironment(MemoryTracker* tracker);
+static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context);
 static bool updateTrackerPointers(MemoryTracker* tracker);
 static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
 static uintptr allocatePage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
@@ -75,7 +75,6 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     uintptr moduleAddr  = address + 1300 + RandUint(address) % 256;
     // initialize tracker
     MemoryTracker* tracker = (MemoryTracker*)trackerAddr;
-    initTrackerAPI(tracker, context);
     bool success = true;
     for (;;)
     {
@@ -84,7 +83,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
             success = false;
             break;
         }
-        if (!initTrackerEnvironment(tracker))
+        if (!initTrackerEnvironment(tracker, context))
         {
             success = false;
             break;
@@ -121,86 +120,21 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
 
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 {
-    FindAPI_t findAPI = context->FindAPI;
-
-#ifdef _WIN64
-    uint64 hash = 0x31FE697F93D7510C;
-    uint64 key  = 0x77C8F05FE04ED22D;
-#elif _WIN32
-    uint32 hash = 0x8F5BAED2;
-    uint32 key  = 0x43487DC7;
-#endif
-    CreateMutexA createMutexA = (CreateMutexA)findAPI(hash, key);
-    if (createMutexA == NULL)
-    {
-        return NULL;
-    }
-
-#ifdef _WIN64
-    hash = 0xEEFDEA7C0785B561;
-    key  = 0xA7B72CC8CD55C1D4;
-#elif _WIN32
-    hash = 0xFA42E55C;
-    key  = 0xEA9F1081;
-#endif
-    ReleaseMutex releaseMutex = (ReleaseMutex)findAPI(hash, key);
-    if (releaseMutex == NULL)
-    {
-        return NULL;
-    }
-
-#ifdef _WIN64
-    hash = 0xA524CD56CF8DFF7F;
-    key  = 0x5519595458CD47C8;
-#elif _WIN32
-    hash = 0xC21AB03D;
-    key  = 0xED3AAF22;
-#endif
-    WaitForSingleObject waitForSingleObject = (WaitForSingleObject)findAPI(hash, key);
-    if (waitForSingleObject == NULL)
-    {
-        return NULL;
-    }
-
-#ifdef _WIN64
-    hash = 0xA25F7449D6939A01;
-    key  = 0x85D37F1D89B30D2E;
-#elif _WIN32
-    hash = 0x60E108B2;
-    key  = 0x3C2DFF52;
-#endif
-    CloseHandle closeHandle = (CloseHandle)findAPI(hash, key);
-    if (closeHandle == NULL)
-    {
-        return NULL;
-    }
-
-    tracker->CreateMutexA        = createMutexA;
-    tracker->ReleaseMutex        = releaseMutex;
-    tracker->WaitForSingleObject = waitForSingleObject;
-    tracker->CloseHandle         = closeHandle;
-
     tracker->VirtualAlloc          = context->VirtualAlloc;
     tracker->VirtualFree           = context->VirtualFree;
     tracker->VirtualProtect        = context->VirtualProtect;
     tracker->FlushInstructionCache = context->FlushInstructionCache;
-
-    context->CreateMutexA        = createMutexA;
-    context->ReleaseMutex        = releaseMutex;
-    context->WaitForSingleObject = waitForSingleObject;
-    context->CloseHandle         = closeHandle;
+    tracker->CreateMutexA          = context->CreateMutexA;
+    tracker->ReleaseMutex          = context->ReleaseMutex;
+    tracker->WaitForSingleObject   = context->WaitForSingleObject;
+    tracker->CloseHandle           = context->CloseHandle;
     return true;
 }
 
-static bool initTrackerEnvironment(MemoryTracker* tracker)
+static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 {
-    HANDLE hMutex = tracker->CreateMutexA(NULL, false, NULL);
-    if (hMutex == NULL)
-    {
-        return false;
-    }
+    tracker->Mutex     = context->Mutex;
     tracker->FirstPage = NULL;
-    tracker->Mutex     = hMutex;
     return true;
 }
 

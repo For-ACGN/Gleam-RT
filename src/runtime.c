@@ -1,4 +1,5 @@
 #include "go_types.h"
+#include "windows_t.h"
 #include "hash_api.h"
 #include "context.h"
 #include "random.h"
@@ -70,7 +71,7 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
     runtime->SizeOfCode = size; 
     runtime->FindAPI = findAPI;
     runtime->StructMemPage = address;
-    runtime->Mutex = 0;
+    runtime->Mutex = NULL;
     bool success = true;
     for (;;)
     {
@@ -267,6 +268,7 @@ static bool initRuntimeEnvironment(Runtime* runtime)
         return false;
     }
     runtime->Mutex = hMutex;
+
     if (!initMemoryTracker(runtime))
     {
         return false;
@@ -277,14 +279,21 @@ static bool initRuntimeEnvironment(Runtime* runtime)
 static bool initMemoryTracker(Runtime* runtime)
 {
     Context ctx = {
-        .EntryPoint            = runtime->EntryPoint,
-        .SizeOfCode            = runtime->SizeOfCode,
-        .FindAPI               = runtime->FindAPI,
-        .StructMemPage         = runtime->StructMemPage,
+        .EntryPoint    = runtime->EntryPoint,
+        .SizeOfCode    = runtime->SizeOfCode,
+        .FindAPI       = runtime->FindAPI,
+        .StructMemPage = runtime->StructMemPage,
+
         .VirtualAlloc          = runtime->VirtualAlloc,
         .VirtualFree           = runtime->VirtualFree,
         .VirtualProtect        = runtime->VirtualProtect,
         .FlushInstructionCache = runtime->FlushInstructionCache,
+        .CreateMutexA          = runtime->CreateMutexA,
+        .ReleaseMutex          = runtime->ReleaseMutex,
+        .WaitForSingleObject   = runtime->WaitForSingleObject,
+        .CloseHandle           = runtime->CloseHandle,
+
+        .Mutex = runtime->Mutex,
     };
     MemoryTracker_M* tracker = InitMemoryTracker(&ctx);
     if (tracker == NULL)
@@ -356,6 +365,23 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
     return success;
 }
 
+static void cleanRuntime(Runtime* runtime)
+{
+    CloseHandle closeHandle = runtime->CloseHandle;
+    if (closeHandle != NULL && runtime->Mutex != NULL)
+    {
+        closeHandle(runtime->Mutex);
+    }
+
+    // must copy api address before call RandBuf
+    VirtualFree virtualFree = runtime->VirtualFree;
+    RandBuf((byte*)runtime->StructMemPage, 4096);
+    if (virtualFree != NULL)
+    {
+        virtualFree(runtime->StructMemPage, 0, MEM_RELEASE);
+    }
+}
+
 // updateRuntimePointers will replace hard encode address to the actual address.
 // Must disable compiler optimize, otherwise updateRuntimePointer will fail.
 #pragma optimize("", off)
@@ -396,22 +422,4 @@ void RT_Stop()
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_STOP);
 
     runtime->FindAPI(0, 0);
-}
-
-static void cleanRuntime(Runtime* runtime)
-{
-    CloseHandle closeHandle = runtime->CloseHandle;
-    if (closeHandle != NULL && runtime->Mutex != NULL)
-    {
-        closeHandle(runtime->Mutex);
-    }
-
-    // must copy api address before call RandBuf
-    VirtualFree virtualFree = runtime->VirtualFree;
-    RandBuf((byte*)runtime->StructMemPage, 4096);
-    if (virtualFree != NULL)
-    {
-        virtualFree(runtime->StructMemPage, 0, MEM_RELEASE);
-    }
-    return NULL;
 }
