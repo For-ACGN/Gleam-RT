@@ -13,10 +13,15 @@ typedef struct {
     uintptr   StructMemPage;
 
     // context data about initialize runtime
-    VirtualAlloc   VirtualAlloc;
-    VirtualFree    VirtualFree;
-    VirtualProtect VirtualProtect;
-    FlushInstCache FlushInstCache;
+    VirtualAlloc          VirtualAlloc;
+    VirtualFree           VirtualFree;
+    VirtualProtect        VirtualProtect;
+    CreateThread          CreateThread;
+    FlushInstructionCache FlushInstructionCache;
+    CreateMutexA          CreateMutexA;
+    ReleaseMutex          ReleaseMutex;
+    WaitForSingleObject   WaitForSingleObject;
+    CloseHandle           CloseHandle;
 } Context;
 
 #endif // CONTEXT_H
