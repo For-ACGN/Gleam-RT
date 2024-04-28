@@ -28,6 +28,7 @@ typedef struct memoryPage {
     uint32 protect;
     byte   iv[CRYPTO_IV_SIZE];
 
+    struct memoryPage* prev;
     struct memoryPage* next;
 } memoryPage;
 
@@ -46,7 +47,7 @@ typedef struct {
     WaitForSingleObject   WaitForSingleObject;
     CloseHandle           CloseHandle;
 
-    memoryPage* FirstPage;
+    memoryPage* PageHead;
 
     HANDLE Mutex;
 } MemoryTracker;
@@ -67,6 +68,7 @@ static bool updateTrackerPointers(MemoryTracker* tracker);
 static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
 static void allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
 static bool freePage(MemoryTracker* tracker, uintptr address, uint32 type);
+static void deletePage(MemoryTracker* tracker, memoryPage* page);
 static bool isPageWriteable(uint32 protect);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
@@ -136,7 +138,7 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 {
     tracker->Mutex     = context->Mutex;
-    tracker->FirstPage = NULL;
+    tracker->PageHead = NULL;
     return true;
 }
 
@@ -251,8 +253,15 @@ static void allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 pr
     memPage->size    = size;
     memPage->protect = protect;
     RandBuf(&memPage->iv[0], CRYPTO_IV_SIZE);
-    memPage->next = tracker->FirstPage;
+    memPage->prev = NULL;
+    memPage->next = tracker->PageHead;
 
+    tracker->PageHead = memPage;
+
+    if (MEMORY_PAGE_PAD_SIZE == 0)
+    {
+        return;
+    }
     uintptr pad = page + MEMORY_PAGE_HEADER_SIZE - MEMORY_PAGE_PAD_SIZE;
     RandBuf((byte*)pad, MEMORY_PAGE_PAD_SIZE);
 }
@@ -289,8 +298,7 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint32 type)
 {
     uintptr page = address - MEMORY_PAGE_HEADER_SIZE;
     memoryPage* memPage = (memoryPage*)page;
-    // delete this page in the memory page list
-
+    deletePage(tracker, memPage);
     // fill random data before call VirtualFree
     uint size = memPage->size;
     if (isPageWriteable(memPage->protect))
@@ -298,6 +306,7 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint32 type)
         RandBuf((byte*)page, MEMORY_PAGE_HEADER_SIZE + size);
         return true;
     } 
+    // if page is not writeable, change protect first
     uint32 old;
     if (!tracker->VirtualProtect(page, size, PAGE_READWRITE, &old))
     {
@@ -308,12 +317,24 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint32 type)
     return true;
 }
 
-__declspec(noinline)
-bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
+static void deletePage(MemoryTracker* tracker, memoryPage* target)
 {
-    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_PROTECT);
-
-    return tracker->VirtualProtect(address, size, new, old);
+    if (tracker->PageHead == target)
+    {
+        tracker->PageHead = target->next;
+        if (target->next != NULL)
+        {
+            target->next->prev = NULL;
+        }
+        return;
+    }
+    memoryPage* prev = target->prev;
+    memoryPage* next = target->next;
+    prev->next = next;
+    if (next != NULL)
+    {
+        next->prev = prev;
+    }
 }
 
 static bool isPageWriteable(uint32 protect)
@@ -332,6 +353,14 @@ static bool isPageWriteable(uint32 protect)
         return false;
     }
     return true;
+}
+
+__declspec(noinline)
+bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
+{
+    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_PROTECT);
+
+    return tracker->VirtualProtect(address, size, new, old);
 }
 
 __declspec(noinline)
