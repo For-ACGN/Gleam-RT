@@ -6,11 +6,10 @@
 #include "hash_api.h"
 
 typedef void* (*MemAlloc_t)(uint size);
-typedef void  (*MemFree_t)(void* address);
-
-typedef void (*Hide_t)();
-typedef void (*Recover_t)();
-typedef void (*Stop_t)();
+typedef bool  (*MemFree_t)(void* address);
+typedef void  (*Hide_t)();
+typedef void  (*Recover_t)();
+typedef void  (*Stop_t)();
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
