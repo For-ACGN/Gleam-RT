@@ -69,6 +69,7 @@ static bool   updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr
 static bool   allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
 static bool   freePage(MemoryTracker* tracker, uintptr address);
 static bool   deletePage(MemoryTracker* tracker, memoryPage* page);
+static bool   protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
 static bool   adjustPageProtect(MemoryTracker* tracker, memoryPage* page);
 static bool   recoverPageProtect(MemoryTracker* tracker, memoryPage* page);
 static uint32 replacePageProtect(uint32 protect);
@@ -341,6 +342,8 @@ static bool recoverPageProtect(MemoryTracker* tracker, memoryPage* page)
     return tracker->VirtualProtect((uintptr)page, page->size, page->protect, &old);
 }
 
+// replacePageProtect is used to make sure all the page are readable.
+// avoid inadvertently using sensitive permissions.
 static uint32 replacePageProtect(uint32 protect)
 {
     switch (protect)
@@ -425,7 +428,7 @@ static bool freePage(MemoryTracker* tracker, uintptr page)
     uint size = memPage->size;
     if (isPageWriteable(memPage->protect))
     {
-        RandBuf((byte*)page, MEMORY_PAGE_HEADER_SIZE + size);
+        RandBuf((byte*)page, size);
         return true;
     } 
     // if page is not writeable, adjust protect first
@@ -434,7 +437,7 @@ static bool freePage(MemoryTracker* tracker, uintptr page)
     {
         return false;
     }
-    RandBuf((byte*)page, MEMORY_PAGE_HEADER_SIZE + size);
+    RandBuf((byte*)page, size);
     return tracker->VirtualProtect(page, size, old, &old);
 }
 
@@ -494,13 +497,59 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_PROTECT);
 
-    return tracker->VirtualProtect(address, size, new, old);
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return false;
+    }
+
+    bool success = true;
+    for (;;)
+    {
+        if (!tracker->VirtualProtect(address, size, new, old))
+        {
+            success = false;
+            break;
+        }
+        if (!protectPage(tracker, address, new))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
+    tracker->ReleaseMutex(tracker->Mutex);
+    return success;
+}
+
+static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect)
+{
+    memoryPage* memPage = (memoryPage*)(address - MEMORY_PAGE_HEADER_SIZE);
+
+    // check this page is allocated by MemoryTracker
+    for (memoryPage* page = tracker->PageHead; page != NULL; page = page->next)
+    {
+        if (page != memPage)
+        {
+            continue;
+        }
+        if (!adjustPageProtect(tracker, page))
+        {
+            return false;
+        }
+        page->protect = protect;
+        if (!recoverPageProtect(tracker, page))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 __declspec(noinline)
 void* MT_MemAlloc(uint size)
 {
-    uintptr addr = MT_VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    uintptr addr = MT_VirtualAlloc(0, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
@@ -520,7 +569,12 @@ void MT_Encrypt()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_ENCRYPT);
 
-    tracker->VirtualAlloc(0, 1, 0, 0);
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return;
+    }
+
+    tracker->ReleaseMutex(tracker->Mutex);
 }
 
 __declspec(noinline)
@@ -528,7 +582,12 @@ void MT_Decrypt()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_DECRYPT);
 
-    tracker->VirtualAlloc(0, 1, 0, 0);
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return;
+    }
+
+    tracker->ReleaseMutex(tracker->Mutex);
 }
 
 __declspec(noinline)
@@ -536,5 +595,10 @@ void MT_Clean()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
-    tracker->VirtualAlloc(0, 1, 0, 0);
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return;
+    }
+
+    tracker->ReleaseMutex(tracker->Mutex);
 }
