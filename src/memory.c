@@ -224,11 +224,18 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
     {
         return NULL;
     }
+    // adjust size at sometime
+    if (size < 4096)
+    {
+        size += MEMORY_PAGE_HEADER_SIZE;
+    } else {
+        size += 4096;
+    }
     uintptr page;
     bool success = true;
     for (;;)
     {
-        page = tracker->VirtualAlloc(address, size + MEMORY_PAGE_HEADER_SIZE, type, protect);
+        page = tracker->VirtualAlloc(address, size, type, protect);
         if (page == NULL)
         {
             success = false;
@@ -262,13 +269,20 @@ static bool allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 pr
         }
     }
 
-    memoryPage* memPage = (memoryPage*)page;
+    memoryPage* pageHead = tracker->PageHead;
+    memoryPage* memPage  = (memoryPage*)page;
     memPage->size    = size;
     memPage->protect = protect;
     RandBuf(&memPage->iv[0], CRYPTO_IV_SIZE);
     memPage->prev = NULL;
-    memPage->next = tracker->PageHead;
+    memPage->next = pageHead;
+    if (pageHead != NULL)
+    {
+        // check Write
 
+        pageHead->prev = memPage;
+    }
+    
     // fill random padding data
     if (MEMORY_PAGE_PAD_SIZE != 0)
     {
@@ -317,6 +331,18 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
     {
         return false;
     }
+
+    // adjust size at sometime
+    if (size != 0)
+    {
+        if (size < 4096)
+        {
+            size += MEMORY_PAGE_HEADER_SIZE;
+        } else {
+            size += 4096;
+        }
+    }
+
     bool success = true;
     for (;;)
     {
@@ -361,6 +387,8 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint32 type)
 
 static void deletePage(MemoryTracker* tracker, memoryPage* target)
 {
+    // check Write
+
     if (tracker->PageHead == target)
     {
         tracker->PageHead = target->next;
