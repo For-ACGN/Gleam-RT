@@ -24,7 +24,8 @@
 #endif
 
 typedef struct memoryPage {
-    byte   iv[CRYPTO_IV_SIZE]; // think about encrypt
+    byte   key[CRYPTO_KEY_SIZE];
+    byte   iv[CRYPTO_IV_SIZE];
     uint   size;
     uint32 protect;
 
@@ -74,6 +75,7 @@ static bool   adjustPageProtect(MemoryTracker* tracker, memoryPage* page);
 static bool   recoverPageProtect(MemoryTracker* tracker, memoryPage* page);
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageWriteable(uint32 protect);
+static bool   encryptPage(MemoryTracker* tracker, memoryPage* page);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -574,7 +576,47 @@ void MT_Encrypt()
         return;
     }
 
+    memoryPage* page = tracker->PageHead;
+    if (page != NULL)
+    {
+        for (;;)
+        {
+            memoryPage* next = page->next;
+            encryptPage(tracker, page);
+            if (next == NULL)
+            {
+                break;
+            }
+            page = next;
+        }
+    }
+
     tracker->ReleaseMutex(tracker->Mutex);
+}
+
+static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
+{
+    if (!adjustPageProtect(tracker, page))
+    {
+        return false;
+    }
+    // generate new key and IV
+    RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
+    RandBuf(&page->iv[0], CRYPTO_IV_SIZE);
+
+    byte key[CRYPTO_KEY_SIZE];
+    copy(&key[0], &page->key[0], CRYPTO_KEY_SIZE);
+    copy(&key[16], page, sizeof(uintptr));
+
+    byte* buf  = (byte*)(&page->size);
+    uint  size = page->size - (CRYPTO_KEY_SIZE + CRYPTO_IV_SIZE);
+    EncryptBuf(buf, size, &key[0], &page->iv[0]);
+
+    if (!recoverPageProtect(tracker, page))
+    {
+        return false;
+    }
+    return true;
 }
 
 __declspec(noinline)
