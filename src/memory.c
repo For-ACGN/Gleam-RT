@@ -66,7 +66,7 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context);
 static bool updateTrackerPointers(MemoryTracker* tracker);
 static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
-static void allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
+static bool allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
 static bool freePage(MemoryTracker* tracker, uintptr address, uint32 type);
 static void deletePage(MemoryTracker* tracker, memoryPage* page);
 static bool isPageWriteable(uint32 protect);
@@ -234,7 +234,11 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
             success = false;
             break;
         }
-        allocPage(tracker, page, size, protect);
+        if (!allocPage(tracker, page, size, protect))
+        {
+            success = false;
+            break;
+        }
         break;
     }
     tracker->ReleaseMutex(tracker->Mutex);
@@ -246,24 +250,62 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 }
 
 // write memory header data at the front of the actual memory page
-static void allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect)
+static bool allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect)
 {
-    memoryPage* memPage = (memoryPage*)page;
+    // adjust protect to write memory page data
+    if (!isPageWriteable(protect))
+    {
+        uint32 old;
+        if (!tracker->VirtualProtect(page, size, PAGE_READWRITE, &old))
+        {
+            return false;
+        }
+    }
 
+    memoryPage* memPage = (memoryPage*)page;
     memPage->size    = size;
     memPage->protect = protect;
     RandBuf(&memPage->iv[0], CRYPTO_IV_SIZE);
     memPage->prev = NULL;
     memPage->next = tracker->PageHead;
 
-    tracker->PageHead = memPage;
-
-    if (MEMORY_PAGE_PAD_SIZE == 0)
+    // fill random padding data
+    if (MEMORY_PAGE_PAD_SIZE != 0)
     {
-        return;
+        uintptr pad = page + MEMORY_PAGE_HEADER_SIZE - MEMORY_PAGE_PAD_SIZE;
+        RandBuf((byte*)pad, MEMORY_PAGE_PAD_SIZE);    
     }
-    uintptr pad = page + MEMORY_PAGE_HEADER_SIZE - MEMORY_PAGE_PAD_SIZE;
-    RandBuf((byte*)pad, MEMORY_PAGE_PAD_SIZE);
+
+    // recovery memory protect
+    if (!isPageWriteable(protect))
+    {
+        uint32 old;
+        if (!tracker->VirtualProtect(page, size, protect, &old))
+        {
+            return false;
+        }
+    }
+
+    tracker->PageHead = memPage;
+    return true;
+}
+
+static bool isPageWriteable(uint32 protect)
+{
+    switch (protect)
+    {
+    case PAGE_READWRITE:
+        break;
+    case PAGE_WRITECOPY:
+        break;
+    case PAGE_EXECUTE_READWRITE:
+        break;
+    case PAGE_EXECUTE_WRITECOPY:
+        break;
+    default:
+        return false;
+    }
+    return true;
 }
 
 __declspec(noinline)
@@ -306,7 +348,7 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint32 type)
         RandBuf((byte*)page, MEMORY_PAGE_HEADER_SIZE + size);
         return true;
     } 
-    // if page is not writeable, change protect first
+    // if page is not writeable, adjust protect first
     uint32 old;
     if (!tracker->VirtualProtect(page, size, PAGE_READWRITE, &old))
     {
@@ -335,24 +377,6 @@ static void deletePage(MemoryTracker* tracker, memoryPage* target)
     {
         next->prev = prev;
     }
-}
-
-static bool isPageWriteable(uint32 protect)
-{
-    switch (protect)
-    {
-    case PAGE_READWRITE:
-        break;
-    case PAGE_WRITECOPY:
-        break;
-    case PAGE_EXECUTE_READWRITE:
-        break;
-    case PAGE_EXECUTE_WRITECOPY:
-        break;
-    default:
-        return false;
-    }
-    return true;
 }
 
 __declspec(noinline)
