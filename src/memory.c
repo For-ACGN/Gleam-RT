@@ -32,8 +32,8 @@ typedef struct memoryPage {
 } memoryPage;
 
 // make sure the memory address is 16 bytes aligned.
-#define MEMORY_PAGE_PAD_SIZE    sizeof(memoryPage) % 16
-#define MEMORY_PAGE_HEADER_SIZE sizeof(memoryPage) + MEMORY_PAGE_PAD_SIZE
+#define MEMORY_PAGE_PAD_SIZE    (sizeof(memoryPage) % 16)
+#define MEMORY_PAGE_HEADER_SIZE (sizeof(memoryPage) + MEMORY_PAGE_PAD_SIZE)
 
 typedef struct {
     // API addresses
@@ -53,19 +53,20 @@ typedef struct {
 
 // methods about memory tracker
 uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect);
-uintptr MT_VirtualFree(uintptr address, uint size, uint32 type);
-uintptr MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old);
+bool    MT_VirtualFree(uintptr address, uint size, uint32 type);
+bool    MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old);
 void*   MT_MemAlloc(uint size);
-void    MT_MemFree(void* address);
+bool    MT_MemFree(void* address);
 void    MT_Encrypt();
 void    MT_Decrypt();
 void    MT_Clean();
 
-static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
-static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context);
-static bool updateTrackerPointers(MemoryTracker* tracker);
-static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
+static bool    initTrackerAPI(MemoryTracker* tracker, Context* context);
+static bool    initTrackerEnvironment(MemoryTracker* tracker, Context* context);
+static bool    updateTrackerPointers(MemoryTracker* tracker);
+static bool    updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
 static uintptr allocatePage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
+static bool    freePage(MemoryTracker* tracker, uintptr address, uint32 type);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -216,7 +217,6 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_ALLOC);
 
-    // lock recorded memory pages
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
         return NULL;
@@ -234,7 +234,7 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
         page = allocatePage(tracker, page, size, protect);
         break;
     }
-    // unlock recorded memory pages
+
     tracker->ReleaseMutex(tracker->Mutex);
     if (!success)
     {
@@ -259,15 +259,48 @@ static uintptr allocatePage(MemoryTracker* tracker, uintptr page, uint size, uin
 }
 
 __declspec(noinline)
-uintptr MT_VirtualFree(uintptr address, uint size, uint32 type)
+bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_FREE);
 
-    return tracker->VirtualFree(address, size, type);
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return false;
+    }
+    bool success = true;
+    for (;;)
+    {
+        if (!freePage(tracker, address, type))
+        {
+            success = false;
+            break;
+        }
+        if (!tracker->VirtualFree(address - MEMORY_PAGE_HEADER_SIZE, size, type))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+    tracker->ReleaseMutex(tracker->Mutex);
+    return success;
+}
+
+static bool freePage(MemoryTracker* tracker, uintptr address, uint32 type)
+{
+    uintptr page = address - MEMORY_PAGE_HEADER_SIZE;
+    memoryPage* memPage = (memoryPage*)page;
+    // delete this page in the memory page list
+
+
+    // fill random data before call VirtualFree
+    uint size = memPage->size;
+    RandBuf((byte*)page, MEMORY_PAGE_HEADER_SIZE + size);
+    return true;
 }
 
 __declspec(noinline)
-uintptr MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
+bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_PROTECT);
 
@@ -281,9 +314,9 @@ void* MT_MemAlloc(uint size)
 }
 
 __declspec(noinline)
-void MT_MemFree(void* address)
+bool MT_MemFree(void* address)
 {
-    MT_VirtualFree((uintptr)address, 0, MEM_RELEASE);
+    return MT_VirtualFree((uintptr)address, 0, MEM_RELEASE);
 }
 
 __declspec(noinline)
