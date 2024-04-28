@@ -24,9 +24,9 @@
 #endif
 
 typedef struct memoryPage {
+    byte   iv[CRYPTO_IV_SIZE]; // think about encrypt
     uint   size;
     uint32 protect;
-    byte   iv[CRYPTO_IV_SIZE];
 
     struct memoryPage* prev;
     struct memoryPage* next;
@@ -68,7 +68,9 @@ static bool   updateTrackerPointers(MemoryTracker* tracker);
 static bool   updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
 static bool   allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
 static bool   freePage(MemoryTracker* tracker, uintptr address);
-static void   deletePage(MemoryTracker* tracker, memoryPage* page);
+static bool   deletePage(MemoryTracker* tracker, memoryPage* page);
+static bool   adjustPageProtect(MemoryTracker* tracker, memoryPage* page);
+static bool   recoverPageProtect(MemoryTracker* tracker, memoryPage* page);
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageWriteable(uint32 protect);
 
@@ -281,11 +283,19 @@ static bool allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 pr
     RandBuf(&memPage->iv[0], CRYPTO_IV_SIZE);
     memPage->prev = NULL;
     memPage->next = pageHead;
+
+    // update head page
     if (pageHead != NULL)
     {
-        // check Write
-
+        if (!adjustPageProtect(tracker, pageHead))
+        {
+            return false;
+        }
         pageHead->prev = memPage;
+        if (!recoverPageProtect(tracker, pageHead))
+        {
+            return false;
+        }
     }
     
     // fill random padding data
@@ -307,6 +317,28 @@ static bool allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 pr
 
     tracker->PageHead = memPage;
     return true;
+}
+
+// adjustPageProtect is used to make sure this page is writeable.
+static bool adjustPageProtect(MemoryTracker* tracker, memoryPage* page)
+{
+    if (isPageWriteable(page->protect))
+    {
+        return true;
+    }
+    uint32 old;
+    return tracker->VirtualProtect((uintptr)page, page->size, PAGE_READWRITE, &old);
+}
+
+// recoverPageProtect is used to recover to prevent protect.
+static bool recoverPageProtect(MemoryTracker* tracker, memoryPage* page)
+{
+    if (isPageWriteable(page->protect))
+    {
+        return true;
+    }
+    uint32 old;
+    return tracker->VirtualProtect((uintptr)page, page->size, page->protect, &old);
 }
 
 static uint32 replacePageProtect(uint32 protect)
@@ -385,7 +417,10 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 static bool freePage(MemoryTracker* tracker, uintptr page)
 {
     memoryPage* memPage = (memoryPage*)page;
-    deletePage(tracker, memPage);
+    if (!deletePage(tracker, memPage))
+    {
+        return false;
+    }
     // fill random data before call VirtualFree
     uint size = memPage->size;
     if (isPageWriteable(memPage->protect))
@@ -397,33 +432,61 @@ static bool freePage(MemoryTracker* tracker, uintptr page)
     uint32 old;
     if (!tracker->VirtualProtect(page, size, PAGE_READWRITE, &old))
     {
-        return true;
+        return false;
     }
     RandBuf((byte*)page, MEMORY_PAGE_HEADER_SIZE + size);
-    tracker->VirtualProtect(page, size, old, &old);
-    return true;
+    return tracker->VirtualProtect(page, size, old, &old);
 }
 
-static void deletePage(MemoryTracker* tracker, memoryPage* target)
+static bool deletePage(MemoryTracker* tracker, memoryPage* target)
 {
-    // check Write
-
     if (tracker->PageHead == target)
     {
         tracker->PageHead = target->next;
-        if (target->next != NULL)
+        if (tracker->PageHead == NULL)
         {
-            target->next->prev = NULL;
+            return true;
         }
-        return;
+        if (!adjustPageProtect(tracker, target->next))
+        {
+            return false;
+        }
+        tracker->PageHead->prev = NULL;
+        if (!recoverPageProtect(tracker, target->next))
+        {
+            return false;
+        }
+        return true;
     }
+
     memoryPage* prev = target->prev;
     memoryPage* next = target->next;
-    prev->next = next;
-    if (next != NULL)
+
+    if (!adjustPageProtect(tracker, prev))
     {
-        next->prev = prev;
+        return false;
     }
+    prev->next = next;
+    if (!recoverPageProtect(tracker, prev))
+    {
+        return false;
+    }
+
+    if (next == NULL)
+    {
+        return true;
+    }
+
+    if (!adjustPageProtect(tracker, next))
+    {
+        return false;
+    }
+    next->prev = prev;
+    if (!recoverPageProtect(tracker, next))
+    {
+        return false;
+    }
+    return true;
 }
 
 __declspec(noinline)
