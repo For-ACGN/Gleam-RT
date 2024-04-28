@@ -61,12 +61,13 @@ void    MT_Encrypt();
 void    MT_Decrypt();
 void    MT_Clean();
 
-static bool    initTrackerAPI(MemoryTracker* tracker, Context* context);
-static bool    initTrackerEnvironment(MemoryTracker* tracker, Context* context);
-static bool    updateTrackerPointers(MemoryTracker* tracker);
-static bool    updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
-static uintptr allocatePage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
-static bool    freePage(MemoryTracker* tracker, uintptr address, uint32 type);
+static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
+static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context);
+static bool updateTrackerPointers(MemoryTracker* tracker);
+static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
+static void allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
+static bool freePage(MemoryTracker* tracker, uintptr address, uint32 type);
+static bool isPageWriteable(uint32 protect);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -231,20 +232,19 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
             success = false;
             break;
         }
-        page = allocatePage(tracker, page, size, protect);
+        allocPage(tracker, page, size, protect);
         break;
     }
-
     tracker->ReleaseMutex(tracker->Mutex);
     if (!success)
     {
         return NULL;
     }
-    return page;
+    return page + MEMORY_PAGE_HEADER_SIZE;
 }
 
 // write memory header data at the front of the actual memory page
-static uintptr allocatePage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect)
+static void allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect)
 {
     memoryPage* memPage = (memoryPage*)page;
 
@@ -255,7 +255,6 @@ static uintptr allocatePage(MemoryTracker* tracker, uintptr page, uint size, uin
 
     uintptr pad = page + MEMORY_PAGE_HEADER_SIZE - MEMORY_PAGE_PAD_SIZE;
     RandBuf((byte*)pad, MEMORY_PAGE_PAD_SIZE);
-    return page + MEMORY_PAGE_HEADER_SIZE;
 }
 
 __declspec(noinline)
@@ -292,10 +291,20 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint32 type)
     memoryPage* memPage = (memoryPage*)page;
     // delete this page in the memory page list
 
-
     // fill random data before call VirtualFree
     uint size = memPage->size;
+    if (isPageWriteable(memPage->protect))
+    {
+        RandBuf((byte*)page, MEMORY_PAGE_HEADER_SIZE + size);
+        return true;
+    } 
+    uint32 old;
+    if (!tracker->VirtualProtect(page, size, PAGE_READWRITE, &old))
+    {
+        return true;
+    }
     RandBuf((byte*)page, MEMORY_PAGE_HEADER_SIZE + size);
+    tracker->VirtualProtect(page, size, old, &old);
     return true;
 }
 
@@ -307,10 +316,34 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
     return tracker->VirtualProtect(address, size, new, old);
 }
 
+static bool isPageWriteable(uint32 protect)
+{
+    switch (protect)
+    {
+    case PAGE_READWRITE:
+        break;
+    case PAGE_WRITECOPY:
+        break;
+    case PAGE_EXECUTE_READWRITE:
+        break;
+    case PAGE_EXECUTE_WRITECOPY:
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
 __declspec(noinline)
 void* MT_MemAlloc(uint size)
 {
-    return (void*)MT_VirtualAlloc(0, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    uintptr addr = MT_VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (addr == NULL)
+    {
+        return NULL;
+    }
+    RandBuf((byte*)addr, (int64)size);
+    return (void*)addr;
 }
 
 __declspec(noinline)
