@@ -39,13 +39,11 @@ typedef struct memoryPage {
 
 typedef struct {
     // API addresses
-    VirtualAlloc          VirtualAlloc;
-    VirtualFree           VirtualFree;
-    VirtualProtect        VirtualProtect;
-    FlushInstructionCache FlushInstructionCache;
-    CreateMutexA          CreateMutexA;
-    ReleaseMutex          ReleaseMutex;
-    WaitForSingleObject   WaitForSingleObject;
+    VirtualAlloc        VirtualAlloc;
+    VirtualFree         VirtualFree;
+    VirtualProtect      VirtualProtect;
+    ReleaseMutex        ReleaseMutex;
+    WaitForSingleObject WaitForSingleObject;
 
     memoryPage* PageHead;
 
@@ -64,7 +62,7 @@ void    MT_Clean();
 
 static bool   initTrackerAPI(MemoryTracker* tracker, Context* context);
 static bool   initTrackerEnvironment(MemoryTracker* tracker, Context* context);
-static bool   updateTrackerPointers(MemoryTracker* tracker);
+static bool   updateTrackerPointers(MemoryTracker* tracker, Context* context);
 static bool   updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
 static bool   allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
 static bool   freePage(MemoryTracker* tracker, uintptr address);
@@ -97,7 +95,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
             success = false;
             break;
         }
-        if (!updateTrackerPointers(tracker))
+        if (!updateTrackerPointers(tracker, context))
         {
             success = false;
             break;
@@ -108,10 +106,6 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     {
         return NULL;
     }
-    // clean context data in structure
-    uintptr ctxBegin = (uintptr)(&tracker->FlushInstructionCache);
-    uintptr ctxSize  = (uintptr)(&tracker->ReleaseMutex) - ctxBegin;
-    RandBuf((byte*)ctxBegin, (int64)ctxSize);
     // create methods about tracker
     MemoryTracker_M* module = (MemoryTracker_M*)moduleAddr;
     // Windows API hooks
@@ -129,27 +123,25 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
 
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 {
-    tracker->VirtualAlloc          = context->VirtualAlloc;
-    tracker->VirtualFree           = context->VirtualFree;
-    tracker->VirtualProtect        = context->VirtualProtect;
-    tracker->FlushInstructionCache = context->FlushInstructionCache;
-    tracker->CreateMutexA          = context->CreateMutexA;
-    tracker->ReleaseMutex          = context->ReleaseMutex;
-    tracker->WaitForSingleObject   = context->WaitForSingleObject;
+    tracker->VirtualAlloc        = context->VirtualAlloc;
+    tracker->VirtualFree         = context->VirtualFree;
+    tracker->VirtualProtect      = context->VirtualProtect;
+    tracker->ReleaseMutex        = context->ReleaseMutex;
+    tracker->WaitForSingleObject = context->WaitForSingleObject;
     return true;
 }
 
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 {
-    tracker->Mutex     = context->Mutex;
+    tracker->Mutex    = context->Mutex;
     tracker->PageHead = NULL;
     return true;
 }
 
-static bool updateTrackerPointers(MemoryTracker* tracker)
+static bool updateTrackerPointers(MemoryTracker* tracker, Context* context)
 {
     uintptr memBegin = (uintptr)(&MT_VirtualAlloc);
-    uint    memSize = 8192;
+    uint    memSize  = 8192;
     // change memory protect
     uint32 old;
     if (!tracker->VirtualProtect(memBegin, memSize, PAGE_EXECUTE_READWRITE, &old))
@@ -188,7 +180,7 @@ static bool updateTrackerPointers(MemoryTracker* tracker)
     {
         return false;
     }
-    return tracker->FlushInstructionCache(-1, memBegin, memSize);
+    return context->FlushInstructionCache(-1, memBegin, memSize);
 }
 
 static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address)

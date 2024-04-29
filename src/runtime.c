@@ -49,7 +49,7 @@ void RT_Stop();
 static uintptr allocateRuntimeMemory(FindAPI_t findAPI);
 static bool initRuntimeAPI(Runtime* runtime);
 static bool initRuntimeEnvironment(Runtime* runtime);
-static bool initMemoryTracker(Runtime* runtime);
+static bool initMemoryTracker(Runtime* runtime, Context* context);
 static bool updateRuntimePointers(Runtime* runtime);
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
 static void cleanRuntime(Runtime* runtime);
@@ -71,7 +71,6 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
     runtime->SizeOfCode = size; 
     runtime->FindAPI = findAPI;
     runtime->StructMemPage = address;
-    runtime->Mutex = NULL;
     bool success = true;
     for (;;)
     {
@@ -97,8 +96,9 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
         cleanRuntime(runtime);
         return NULL;
     }
+    // clean context data in structure
     uintptr ctxBegin = (uintptr)(runtime);
-    uintptr ctxSize = (uintptr)(&runtime->ReleaseMutex) - ctxBegin;
+    uintptr ctxSize  = (uintptr)(&runtime->ReleaseMutex) - ctxBegin;
     RandBuf((byte*)ctxBegin, (int64)ctxSize);
     // create methods about Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
@@ -261,6 +261,9 @@ static bool initRuntimeAPI(Runtime* runtime)
 
 static bool initRuntimeEnvironment(Runtime* runtime)
 {
+    // initialize structure fields
+    runtime->Mutex = NULL;
+    runtime->MemoryTracker = NULL;
     // create global mutex
     HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
     if (hMutex == NULL)
@@ -268,17 +271,8 @@ static bool initRuntimeEnvironment(Runtime* runtime)
         return false;
     }
     runtime->Mutex = hMutex;
-
-    if (!initMemoryTracker(runtime))
-    {
-        return false;
-    }
-    return true;
-}
-
-static bool initMemoryTracker(Runtime* runtime)
-{
-    Context ctx = {
+    // create context data for initialize other modules
+    Context context = {
         .EntryPoint    = runtime->EntryPoint,
         .SizeOfCode    = runtime->SizeOfCode,
         .FindAPI       = runtime->FindAPI,
@@ -295,7 +289,16 @@ static bool initMemoryTracker(Runtime* runtime)
 
         .Mutex = runtime->Mutex,
     };
-    MemoryTracker_M* tracker = InitMemoryTracker(&ctx);
+    if (!initMemoryTracker(runtime, &context))
+    {
+        return false;
+    }
+    return true;
+}
+
+static bool initMemoryTracker(Runtime* runtime, Context* context)
+{
+    MemoryTracker_M* tracker = InitMemoryTracker(context);
     if (tracker == NULL)
     {
         return false;
