@@ -91,7 +91,7 @@ uintptr FindAPI(uint64 hash, uint64 key)
             return modBase + *(uint32*)(funcTable + ordinal * 4);
         }
     }
-    return 0;
+    return NULL;
 }
 
 static uint64 calcSeedHash(uint64 key)
@@ -212,7 +212,7 @@ uintptr FindAPI(uint32 hash, uint32 key)
             return modBase + *(uint32*)(funcTable + ordinal * 4);
         }
     }
-    return 0;
+    return NULL;
 }
 
 static uint32 calcSeedHash(uint32 key)

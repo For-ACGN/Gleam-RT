@@ -155,120 +155,40 @@ static uintptr allocateRuntimeMemory(FindAPI_t findAPI)
 
 static bool initRuntimeAPI(Runtime* runtime)
 {
-    FindAPI_t findAPI = runtime->FindAPI;
-
-#ifdef _WIN64
-    uint64 hash = 0x6AC498DF641A4FCB;
-    uint64 key  = 0xFF3BB21B9BA46CEA;
-#elif _WIN32
-    uint32 hash = 0xB47741D5;
-    uint32 key  = 0x8034C451;
-#endif
-    VirtualAlloc virtualAlloc = (VirtualAlloc)findAPI(hash, key);
-    if (virtualAlloc == NULL)
+    typedef struct {
+        uint64  hash;
+        uint64  key;
+        uintptr address;
+    } winapi;
+    winapi list[] = 
     {
-        return NULL;
-    }
-
-#ifdef _WIN64
-    hash = 0xAC150252A6CA3960;
-    key  = 0x12EFAEA421D60C3E;
-#elif _WIN32
-    hash = 0xF76A2ADE;
-    key  = 0x4D8938BD;
-#endif
-    VirtualFree virtualFree = (VirtualFree)findAPI(hash, key);
-    if (virtualFree == NULL)
+        {0x6AC498DF641A4FCB, 0xFF3BB21B9BA46CEA}, // VirtualAlloc
+        {0xAC150252A6CA3960, 0x12EFAEA421D60C3E}, // VirtualFree
+        {0xEA5B0C76C7946815, 0x8846C203C35DE586}, // VirtualProtect
+        {0x8172B49F66E495BA, 0x8F0D0796223B56C2}, // FlushInstructionCache
+        {0x31FE697F93D7510C, 0x77C8F05FE04ED22D}, // CreateMutexA
+        {0xEEFDEA7C0785B561, 0xA7B72CC8CD55C1D4}, // ReleaseMutex
+        {0xA524CD56CF8DFF7F, 0x5519595458CD47C8}, // WaitForSingleObject
+        {0xA25F7449D6939A01, 0x85D37F1D89B30D2E}, // CloseHandle
+    };
+    uintptr address;
+    for (int i = 0; i < arrlen(list); i++)
     {
-        return false;
+        address = runtime->FindAPI(list[i].hash, list[i].key);
+        if (address == NULL)
+        {
+            return false;
+        }
+        list[i].address = address;
     }
-
-#ifdef _WIN64
-     hash = 0xEA5B0C76C7946815;
-     key  = 0x8846C203C35DE586;
-#elif _WIN32
-     hash = 0xB2AC456D;
-     key  = 0x2A690F63;
-#endif
-    VirtualProtect virtualProtect = (VirtualProtect)findAPI(hash, key);
-    if (virtualProtect == NULL)
-    {
-        return false;
-    }
-
-#ifdef _WIN64
-    hash = 0x8172B49F66E495BA;
-    key  = 0x8F0D0796223B56C2;
-#elif _WIN32
-    hash = 0x87A2CEE8;
-    key  = 0x42A3C1AF;
-#endif
-    FlushInstructionCache flushInstructionCache = (FlushInstructionCache)findAPI(hash, key);
-    if (flushInstructionCache == NULL)
-    {
-        return false;
-    }
-
-#ifdef _WIN64
-     hash = 0x31FE697F93D7510C;
-     key  = 0x77C8F05FE04ED22D;
-#elif _WIN32
-     hash = 0x8F5BAED2;
-     key  = 0x43487DC7;
-#endif
-    CreateMutexA createMutexA = (CreateMutexA)findAPI(hash, key);
-    if (createMutexA == NULL)
-    {
-        return NULL;
-    }
-
-#ifdef _WIN64
-    hash = 0xEEFDEA7C0785B561;
-    key  = 0xA7B72CC8CD55C1D4;
-#elif _WIN32
-    hash = 0xFA42E55C;
-    key  = 0xEA9F1081;
-#endif
-    ReleaseMutex releaseMutex = (ReleaseMutex)findAPI(hash, key);
-    if (releaseMutex == NULL)
-    {
-        return NULL;
-    }
-
-#ifdef _WIN64
-    hash = 0xA524CD56CF8DFF7F;
-    key  = 0x5519595458CD47C8;
-#elif _WIN32
-    hash = 0xC21AB03D;
-    key  = 0xED3AAF22;
-#endif
-    WaitForSingleObject waitForSingleObject = (WaitForSingleObject)findAPI(hash, key);
-    if (waitForSingleObject == NULL)
-    {
-        return NULL;
-    }
-
-#ifdef _WIN64
-    hash = 0xA25F7449D6939A01;
-    key  = 0x85D37F1D89B30D2E;
-#elif _WIN32
-    hash = 0x60E108B2;
-    key  = 0x3C2DFF52;
-#endif
-    CloseHandle closeHandle = (CloseHandle)findAPI(hash, key);
-    if (closeHandle == NULL)
-    {
-        return NULL;
-    }
-
-    runtime->VirtualAlloc          = virtualAlloc;
-    runtime->VirtualFree           = virtualFree;
-    runtime->VirtualProtect        = virtualProtect;
-    runtime->FlushInstructionCache = flushInstructionCache;
-    runtime->CreateMutexA          = createMutexA;
-    runtime->ReleaseMutex          = releaseMutex;
-    runtime->WaitForSingleObject   = waitForSingleObject;
-    runtime->CloseHandle           = closeHandle;
+    runtime->VirtualAlloc          = (VirtualAlloc         )(list[0].address);
+    runtime->VirtualFree           = (VirtualFree          )(list[1].address);
+    runtime->VirtualProtect        = (VirtualProtect       )(list[2].address);
+    runtime->FlushInstructionCache = (FlushInstructionCache)(list[3].address);
+    runtime->CreateMutexA          = (CreateMutexA         )(list[4].address);
+    runtime->ReleaseMutex          = (ReleaseMutex         )(list[5].address);
+    runtime->WaitForSingleObject   = (WaitForSingleObject  )(list[6].address);
+    runtime->CloseHandle           = (CloseHandle          )(list[7].address);
     return true;
 }
 
