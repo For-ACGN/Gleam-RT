@@ -391,35 +391,51 @@ static Runtime* getRuntimePointer(uintptr pointer)
 }
 #pragma optimize("", on)
 
-__declspec(noinline) 
+__declspec(noinline)
+void RT_Sleep()
+{
+
+}
+
+__declspec(noinline)
 void RT_Hide()
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_HIDE);
 
-#ifdef _WIN64
-    uint64 hash = 0xB6A1D0D4A275D4B6;
-    uint64 key  = 0x64CB4D66EC0BEFD9;
-#elif _WIN32
-    uint32 hash = 0xC3DE112E;
-    uint32 key  = 0x8D9EA74F;
-#endif
-    runtime->FindAPI(hash, key);
+    if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return;
+    }
+
+
+
+    runtime->MemoryTracker->MemEncrypt();
+
+    runtime->ReleaseMutex(runtime->Mutex);
 }
 
 __declspec(noinline)
 void RT_Recover()
 {
-    // updateRuntimePointers will replace it to the actual address
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_RECOVER);
 
-    runtime->FindAPI(0, 0);
+    if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return;
+    }
+
+    runtime->ReleaseMutex(runtime->Mutex);
 }
 
 __declspec(noinline)
 void RT_Stop()
 {
-    // updateRuntimePointers will replace it to the actual address
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_STOP);
 
-    runtime->FindAPI(0, 0);
+    if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return;
+    }
+
+    runtime->ReleaseMutex(runtime->Mutex);
 }

@@ -279,15 +279,13 @@ static bool allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 pr
         }
     }
 
-    memoryPage* pageHead = tracker->PageHead;
     memoryPage* memPage  = (memoryPage*)page;
     memPage->size    = size;
     memPage->protect = protect;
     RandBuf(&memPage->iv[0], CRYPTO_IV_SIZE);
     memPage->prev = NULL;
-    memPage->next = pageHead;
 
-    // update head page
+    memoryPage* pageHead = tracker->PageHead;
     if (pageHead != NULL)
     {
         if (!adjustPageProtect(tracker, pageHead))
@@ -300,6 +298,7 @@ static bool allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 pr
             return false;
         }
     }
+    memPage->next = pageHead;
     
     // fill random padding data
     if (MEMORY_PAGE_PAD_SIZE != 0)
@@ -571,16 +570,12 @@ void MT_Encrypt()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_ENCRYPT);
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
-    {
-        return;
-    }
-
     memoryPage* page = tracker->PageHead;
     if (page != NULL)
     {
         for (;;)
         {
+            // must copy next page pointer before encrypt
             memoryPage* next = page->next;
             encryptPage(tracker, page);
             if (next == NULL)
@@ -590,8 +585,6 @@ void MT_Encrypt()
             page = next;
         }
     }
-
-    tracker->ReleaseMutex(tracker->Mutex);
 }
 
 static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
@@ -600,10 +593,12 @@ static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
     {
         return false;
     }
+
     // generate new key and IV
     RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
     RandBuf(&page->iv[0], CRYPTO_IV_SIZE);
 
+    // set the actual key to stack
     byte key[CRYPTO_KEY_SIZE];
     copy(&key[0], &page->key[0], CRYPTO_KEY_SIZE);
     copy(&key[16], page, sizeof(uintptr));
@@ -624,12 +619,6 @@ void MT_Decrypt()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_DECRYPT);
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
-    {
-        return;
-    }
-
-    tracker->ReleaseMutex(tracker->Mutex);
 }
 
 __declspec(noinline)
@@ -637,10 +626,4 @@ void MT_Clean()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
-    {
-        return;
-    }
-
-    tracker->ReleaseMutex(tracker->Mutex);
 }
