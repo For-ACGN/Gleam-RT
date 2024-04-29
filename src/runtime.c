@@ -95,11 +95,11 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
     if (!success)
     {
         cleanRuntime(runtime);
+        return NULL;
     }
-    // clean context data in runtime structure
-    // runtime->FindAPI        = NULL; // TODO recover it
-    // RandBuf((byte*)runtime + 8, sizeof(Runtime) - 8 - 16);
-    
+    uintptr ctxBegin = (uintptr)(runtime);
+    uintptr ctxSize = (uintptr)(&runtime->ReleaseMutex) - ctxBegin;
+    RandBuf((byte*)ctxBegin, (int64)ctxSize);
     // create methods about Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for IAT hooks

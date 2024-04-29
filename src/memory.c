@@ -46,7 +46,6 @@ typedef struct {
     CreateMutexA          CreateMutexA;
     ReleaseMutex          ReleaseMutex;
     WaitForSingleObject   WaitForSingleObject;
-    CloseHandle           CloseHandle;
 
     memoryPage* PageHead;
 
@@ -109,10 +108,10 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     {
         return NULL;
     }
-    // clean context data in runtime structure
-    tracker->FlushInstructionCache = NULL;
-    // RandBuf((byte*)runtime + 8, sizeof(Runtime) - 8 - 16);
-
+    // clean context data in structure
+    uintptr ctxBegin = (uintptr)(&tracker->FlushInstructionCache);
+    uintptr ctxSize  = (uintptr)(&tracker->ReleaseMutex) - ctxBegin;
+    RandBuf((byte*)ctxBegin, (int64)ctxSize);
     // create methods about tracker
     MemoryTracker_M* module = (MemoryTracker_M*)moduleAddr;
     // Windows API hooks
@@ -137,7 +136,6 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
     tracker->CreateMutexA          = context->CreateMutexA;
     tracker->ReleaseMutex          = context->ReleaseMutex;
     tracker->WaitForSingleObject   = context->WaitForSingleObject;
-    tracker->CloseHandle           = context->CloseHandle;
     return true;
 }
 
