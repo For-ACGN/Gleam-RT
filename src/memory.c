@@ -62,7 +62,7 @@ void    MT_Clean();
 
 static bool   initTrackerAPI(MemoryTracker* tracker, Context* context);
 static bool   initTrackerEnvironment(MemoryTracker* tracker, Context* context);
-static bool   updateTrackerPointers(MemoryTracker* tracker, Context* context);
+static bool   updateTrackerPointers(MemoryTracker* tracker);
 static bool   updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
 static bool   allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 protect);
 static bool   freePage(MemoryTracker* tracker, uintptr address);
@@ -95,7 +95,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
             success = false;
             break;
         }
-        if (!updateTrackerPointers(tracker, context))
+        if (!updateTrackerPointers(tracker))
         {
             success = false;
             break;
@@ -138,16 +138,8 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     return true;
 }
 
-static bool updateTrackerPointers(MemoryTracker* tracker, Context* context)
+static bool updateTrackerPointers(MemoryTracker* tracker)
 {
-    uintptr memBegin = (uintptr)(&MT_VirtualAlloc);
-    uint    memSize  = 8192;
-    // change memory protect
-    uint32 old;
-    if (!tracker->VirtualProtect(memBegin, memSize, PAGE_EXECUTE_READWRITE, &old))
-    {
-        return false;
-    }
     // update pointer in methods
     typedef struct {
         void*   address;
@@ -171,16 +163,7 @@ static bool updateTrackerPointers(MemoryTracker* tracker, Context* context)
             break;
         }
     }
-    // recovery memory protect
-    if (!tracker->VirtualProtect(memBegin, memSize, old, &old))
-    {
-        return false;
-    }
-    if (!success)
-    {
-        return false;
-    }
-    return context->FlushInstructionCache(-1, memBegin, memSize);
+    return success;
 }
 
 static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address)

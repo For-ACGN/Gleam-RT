@@ -52,6 +52,8 @@ static bool initRuntimeEnvironment(Runtime* runtime);
 static bool initMemoryTracker(Runtime* runtime, Context* context);
 static bool updateRuntimePointers(Runtime* runtime);
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
+static bool adjustPageProtect(Runtime* runtime, uint32* old);
+static bool recoverPageProtect(Runtime* runtime, uint32* old);
 static void cleanRuntime(Runtime* runtime);
 
 __declspec(noinline)
@@ -71,10 +73,16 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
     runtime->SizeOfCode = size; 
     runtime->FindAPI = findAPI;
     runtime->StructMemPage = address;
+    uint32 oldProtect = 0;
     bool success = true;
     for (;;)
     {
         if (!initRuntimeAPI(runtime))
+        {
+            success = false;
+            break;
+        }
+        if (!adjustPageProtect(runtime, &oldProtect))
         {
             success = false;
             break;
@@ -85,6 +93,11 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
             break;
         }
         if (!updateRuntimePointers(runtime))
+        {
+            success = false;
+            break;
+        }
+        if (!recoverPageProtect(runtime, &oldProtect))
         {
             success = false;
             break;
@@ -310,15 +323,6 @@ static bool initMemoryTracker(Runtime* runtime, Context* context)
 // change memory protect for dynamic update pointer that hard encode.
 static bool updateRuntimePointers(Runtime* runtime)
 {    
-    uintptr memBegin = (uintptr)(&RT_Hide);
-    uint    memSize  = 8192;
-    // change memory protect
-    uint32 old;
-    if (!runtime->VirtualProtect(memBegin, memSize, PAGE_EXECUTE_READWRITE, &old))
-    {
-        return false;
-    }
-    // update pointer in methods
     typedef struct {
         void*   address;
         uintptr pointer;
@@ -337,16 +341,7 @@ static bool updateRuntimePointers(Runtime* runtime)
             break;
         }
     }
-    // recovery memory protect
-    if (!runtime->VirtualProtect(memBegin, memSize, old, &old))
-    {
-        return false;
-    }
-    if (!success)
-    {
-        return false;
-    }
-    return runtime->FlushInstructionCache(-1, memBegin, memSize);
+    return success;
 }
 
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address)
@@ -366,6 +361,28 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
         break;
     }
     return success;
+}
+
+static bool adjustPageProtect(Runtime* runtime, uint32* old)
+{
+    uintptr memBegin = (uintptr)(&RT_Hide) - 4096;
+    uint    memSize  = 8192;
+    return runtime->VirtualProtect(memBegin, memSize, PAGE_EXECUTE_READWRITE, old);
+}
+
+static bool recoverPageProtect(Runtime* runtime, uint32* old)
+{
+    uintptr memBegin = (uintptr)(&RT_Hide) - 4096;
+    uint    memSize  = 8192;
+    if (!runtime->VirtualProtect(memBegin, memSize, *old, old))
+    {
+        return false;
+    }
+    if (!runtime->FlushInstructionCache(-1, memBegin, memSize))
+    {
+        return false;
+    }
+    return true;
 }
 
 static void cleanRuntime(Runtime* runtime)
