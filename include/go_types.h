@@ -53,4 +53,17 @@ typedef _Bool bool;
 // calculate array length
 #define arrlen(array) (sizeof(array)/sizeof(array[0]))
 
+// copy is used to copy source memory data to the destination.
+static void copy(void* dst, void* src, uint size)
+{
+    byte* d = (byte*)dst;
+    byte* s = (byte*)src;
+    for (uint i = 0; i < size; i++)
+    {
+        *d = *s;
+        d++;
+        s++;
+    }
+}
+
 #endif // GO_TYPES_H
