@@ -2,8 +2,8 @@
 #include "random.h"
 
 static uint64  rand(uint64 seed, uint64 m);
-static uintptr getStackAddr();
 static uint64  ror(uint64 value, uint8 bits);
+static uintptr getStackAddr();
 
 void RandBuf(byte* buf, int64 size)
 {
@@ -73,6 +73,11 @@ static uint64 rand(uint64 seed, uint64 m)
     return (a * seed + c) % m;
 }
 
+static uint64 ror(uint64 value, uint8 bits)
+{
+    return value >> bits | value << (64 - bits);
+}
+
 #pragma warning(push)
 #pragma warning(disable: 4172)
 static uintptr getStackAddr()
@@ -81,8 +86,3 @@ static uintptr getStackAddr()
     return (uintptr)(&stack);
 }
 #pragma warning(pop)
-
-static uint64 ror(uint64 value, uint8 bits)
-{
-    return value >> bits | value << (64 - bits);
-}
