@@ -347,8 +347,6 @@ void RT_Hide()
         return;
     }
 
-
-
     runtime->MemoryTracker->MemEncrypt();
 
     runtime->ReleaseMutex(runtime->Mutex);
@@ -363,6 +361,8 @@ void RT_Recover()
     {
         return;
     }
+
+    runtime->MemoryTracker->MemDecrypt();
 
     runtime->ReleaseMutex(runtime->Mutex);
 }

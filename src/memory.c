@@ -25,7 +25,8 @@
 
 typedef struct memoryPage {
     byte   key[CRYPTO_KEY_SIZE];
-    byte   iv[CRYPTO_IV_SIZE];
+    byte   iv0[CRYPTO_IV_SIZE];
+    byte   iv1[CRYPTO_IV_SIZE];
     uint   size;
     uint32 protect;
 
@@ -73,6 +74,7 @@ static bool   recoverPageProtect(MemoryTracker* tracker, memoryPage* page);
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageWriteable(uint32 protect);
 static bool   encryptPage(MemoryTracker* tracker, memoryPage* page);
+static bool   decryptPage(MemoryTracker* tracker, memoryPage* page);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -252,10 +254,12 @@ static bool allocPage(MemoryTracker* tracker, uintptr page, uint size, uint32 pr
         }
     }
 
-    memoryPage* memPage  = (memoryPage*)page;
-    memPage->size    = size;
+    memoryPage* memPage = (memoryPage*)page;
+    RandBuf(&memPage->key[0], CRYPTO_KEY_SIZE);
+    RandBuf(&memPage->iv0[0], CRYPTO_IV_SIZE);
+    RandBuf(&memPage->iv1[0], CRYPTO_IV_SIZE);
+    memPage->size = size;
     memPage->protect = protect;
-    RandBuf(&memPage->iv[0], CRYPTO_IV_SIZE);
     memPage->prev = NULL;
 
     memoryPage* pageHead = tracker->PageHead;
@@ -544,19 +548,20 @@ void MT_Encrypt()
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_ENCRYPT);
 
     memoryPage* page = tracker->PageHead;
-    if (page != NULL)
+    if (page == NULL)
     {
-        for (;;)
+        return;
+    }
+    for (;;)
+    {
+        // must copy next page pointer before encrypt
+        memoryPage* next = page->next;
+        encryptPage(tracker, page);
+        if (next == NULL)
         {
-            // must copy next page pointer before encrypt
-            memoryPage* next = page->next;
-            encryptPage(tracker, page);
-            if (next == NULL)
-            {
-                break;
-            }
-            page = next;
+            break;
         }
+        page = next;
     }
 }
 
@@ -569,16 +574,24 @@ static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
 
     // generate new key and IV
     RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
-    RandBuf(&page->iv[0], CRYPTO_IV_SIZE);
+    RandBuf(&page->iv0[0], CRYPTO_IV_SIZE);
+    RandBuf(&page->iv1[0], CRYPTO_IV_SIZE);
 
     // set the actual key to stack
+    uintptr pageAddr = (uintptr)page;
     byte key[CRYPTO_KEY_SIZE];
     copy(&key[0], &page->key[0], CRYPTO_KEY_SIZE);
-    copy(&key[16], page, sizeof(uintptr));
+    copy(&key[16], &pageAddr, sizeof(uintptr));
 
+    uint pageSize = page->size;
+    // encrypt size
     byte* buf  = (byte*)(&page->size);
-    uint  size = page->size - (CRYPTO_KEY_SIZE + CRYPTO_IV_SIZE);
-    EncryptBuf(buf, size, &key[0], &page->iv[0]);
+    uint  size = sizeof(uint);
+    EncryptBuf(buf, size, &key[0], &page->iv0[0]);
+    // encrypt other fields and page
+    buf  = (byte*)(&page->protect);
+    size = pageSize - offsetof(memoryPage, protect);
+    EncryptBuf(buf, size, &key[0], &page->iv1[0]);
 
     if (!recoverPageProtect(tracker, page))
     {
@@ -592,6 +605,50 @@ void MT_Decrypt()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_DECRYPT);
 
+    memoryPage* page = tracker->PageHead;
+    if (page == NULL)
+    {
+        return;
+    }
+    for (;;)
+    {
+        decryptPage(tracker, page);
+        memoryPage* next = page->next;
+        if (next == NULL)
+        {
+            break;
+        }
+        page = next;
+    }
+}
+
+static bool decryptPage(MemoryTracker* tracker, memoryPage* page)
+{
+    if (!adjustPageProtect(tracker, page))
+    {
+        return false;
+    }
+
+    // set the actual key to stack
+    uintptr pageAddr = (uintptr)page;
+    byte key[CRYPTO_KEY_SIZE];
+    copy(&key[0], &page->key[0], CRYPTO_KEY_SIZE);
+    copy(&key[16], &pageAddr, sizeof(uintptr));
+
+    // decrypt size
+    byte* buf  = (byte*)(&page->size);
+    uint  size = sizeof(uint);
+    DecryptBuf(buf, size, &key[0], &page->iv0[0]);
+    // decrypt other fields and page
+    buf  = (byte*)(&page->protect);
+    size = page->size - offsetof(memoryPage, protect);
+    DecryptBuf(buf, size, &key[0], &page->iv1[0]);
+
+    if (!recoverPageProtect(tracker, page))
+    {
+        return false;
+    }
+    return true;
 }
 
 __declspec(noinline)
