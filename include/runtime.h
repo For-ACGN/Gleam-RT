@@ -7,8 +7,8 @@
 
 typedef void* (*MemAlloc_t)(uint size);
 typedef bool  (*MemFree_t)(void* address);
-typedef void  (*Hide_t)();
-typedef void  (*Recover_t)();
+typedef bool  (*Hide_t)();
+typedef bool  (*Recover_t)();
 typedef void  (*Stop_t)();
 
 // Runtime_M contains exported runtime methods.

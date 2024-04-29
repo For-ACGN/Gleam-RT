@@ -7,8 +7,8 @@
 
 typedef void* (*MemAlloc_t)(uint size);
 typedef bool  (*MemFree_t)(void* address);
-typedef void  (*MemEncrypt_t)();
-typedef void  (*MemDecrypt_t)();
+typedef bool  (*MemEncrypt_t)();
+typedef bool  (*MemDecrypt_t)();
 typedef void  (*MemClean_t)();
 
 typedef struct {
