@@ -66,4 +66,6 @@ static void copy(void* dst, void* src, uint size)
     }
 }
 
+#define offsetof(struct, field) ((uintptr) & (((struct*)0)->field))
+
 #endif // GO_TYPES_H
