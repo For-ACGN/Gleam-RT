@@ -7,10 +7,8 @@
 
 typedef struct {
     // arguments for initialize runtime
-    uintptr   EntryPoint;
-    uint      SizeOfCode;
     FindAPI_t FindAPI;
-    uintptr   StructMemPage;
+    uintptr   MainMemPage;
 
     // context data about initialize runtime
     VirtualAlloc          VirtualAlloc;

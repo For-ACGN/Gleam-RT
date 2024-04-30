@@ -14,8 +14,6 @@ typedef void  (*Stop_t)();
 typedef struct {
     FindAPI_t FindAPI;
     bool      NotAdjustProtect;
-    uintptr   EntryPoint;
-    uint      SizeOfCode;
 } Runtime_Args;
 
 // Runtime_M contains exported runtime methods.
