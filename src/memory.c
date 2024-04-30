@@ -59,7 +59,7 @@ void*   MT_MemAlloc(uint size);
 bool    MT_MemFree(void* address);
 bool    MT_Encrypt();
 bool    MT_Decrypt();
-void    MT_Clean();
+bool    MT_Clean();
 
 static bool   initTrackerAPI(MemoryTracker* tracker, Context* context);
 static bool   initTrackerEnvironment(MemoryTracker* tracker, Context* context);
@@ -75,6 +75,7 @@ static uint32 replacePageProtect(uint32 protect);
 static bool   isPageWriteable(uint32 protect);
 static bool   encryptPage(MemoryTracker* tracker, memoryPage* page);
 static bool   decryptPage(MemoryTracker* tracker, memoryPage* page);
+static bool   cleanPage(MemoryTracker* tracker, memoryPage* page);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -206,7 +207,7 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
     }
 
     // adjust size and protect at sometime
-    if (size < 4096)
+    if (size <= 4096 - MEMORY_PAGE_HEADER_SIZE)
     {
         size += MEMORY_PAGE_HEADER_SIZE;
     } else {
@@ -365,7 +366,7 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
     // adjust size at sometime
     if (size != 0)
     {
-        if (size < 4096)
+        if (size <= 4096 - MEMORY_PAGE_HEADER_SIZE)
         {
             size += MEMORY_PAGE_HEADER_SIZE;
         } else {
@@ -653,8 +654,51 @@ static bool decryptPage(MemoryTracker* tracker, memoryPage* page)
 }
 
 __declspec(noinline)
-void MT_Clean()
+bool MT_Clean()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
+    memoryPage* page = tracker->PageHead;
+    if (page == NULL)
+    {
+        return true;
+    }
+    for (;;)
+    {
+        // must copy next page pointer before clean
+        memoryPage* next = page->next;
+        if (!cleanPage(tracker, page))
+        {
+            return false;
+        }
+        if (next == NULL)
+        {
+            break;
+        }
+        page = next;
+    }
+    return true;
+}
+
+static bool cleanPage(MemoryTracker* tracker, memoryPage* page)
+{
+    if (!adjustPageProtect(tracker, page))
+    {
+        return false;
+    }
+    // store fields before clean memory page
+    uint   size    = page->size;
+    uint32 protect = page->protect;
+    // fill random data before free
+    RandBuf((byte*)page, size);
+    // recovery memory protect
+    if (!isPageWriteable(protect))
+    {
+        uint32 old;
+        if (!tracker->VirtualProtect((uintptr)page, size, protect, &old))
+        {
+            return false;
+        }
+    }
+    return tracker->VirtualFree((uintptr)page, 0, MEM_RELEASE);
 }

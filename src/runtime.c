@@ -43,7 +43,7 @@ typedef struct {
 // methods about Runtime
 bool RT_Hide();
 bool RT_Recover();
-void RT_Stop();
+bool RT_Stop();
 
 static uintptr allocateRuntimeMemory(FindAPI_t findAPI);
 static bool initRuntimeAPI(Runtime* runtime);
@@ -395,15 +395,20 @@ bool RT_Recover()
 }
 
 __declspec(noinline)
-void RT_Stop()
+bool RT_Stop()
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_STOP);
 
     if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
-        return;
+        return false;
     }
 
+    if (!runtime->MemoryTracker->MemClean())
+    {
+        return false;
+    }
 
     runtime->ReleaseMutex(runtime->Mutex);
+    return true;
 }
