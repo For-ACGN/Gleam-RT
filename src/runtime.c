@@ -155,22 +155,37 @@ static uintptr allocateRuntimeMemory(FindAPI_t findAPI)
 
 static bool initRuntimeAPI(Runtime* runtime)
 {
-    typedef struct {
-        uint64  hash;
-        uint64  key;
-        uintptr address;
+#ifdef _WIN64
+    typedef struct { 
+        uint64 hash; uint64 key; uintptr address;
     } winapi;
     winapi list[] = 
     {
-        {0x6AC498DF641A4FCB, 0xFF3BB21B9BA46CEA}, // VirtualAlloc
-        {0xAC150252A6CA3960, 0x12EFAEA421D60C3E}, // VirtualFree
-        {0xEA5B0C76C7946815, 0x8846C203C35DE586}, // VirtualProtect
-        {0x8172B49F66E495BA, 0x8F0D0796223B56C2}, // FlushInstructionCache
-        {0x31FE697F93D7510C, 0x77C8F05FE04ED22D}, // CreateMutexA
-        {0xEEFDEA7C0785B561, 0xA7B72CC8CD55C1D4}, // ReleaseMutex
-        {0xA524CD56CF8DFF7F, 0x5519595458CD47C8}, // WaitForSingleObject
-        {0xA25F7449D6939A01, 0x85D37F1D89B30D2E}, // CloseHandle
+        { 0x6AC498DF641A4FCB, 0xFF3BB21B9BA46CEA }, // VirtualAlloc
+        { 0xAC150252A6CA3960, 0x12EFAEA421D60C3E }, // VirtualFree
+        { 0xEA5B0C76C7946815, 0x8846C203C35DE586 }, // VirtualProtect
+        { 0x8172B49F66E495BA, 0x8F0D0796223B56C2 }, // FlushInstructionCache
+        { 0x31FE697F93D7510C, 0x77C8F05FE04ED22D }, // CreateMutexA
+        { 0xEEFDEA7C0785B561, 0xA7B72CC8CD55C1D4 }, // ReleaseMutex
+        { 0xA524CD56CF8DFF7F, 0x5519595458CD47C8 }, // WaitForSingleObject
+        { 0xA25F7449D6939A01, 0x85D37F1D89B30D2E }, // CloseHandle
     };
+#elif _WIN32
+    typedef struct { 
+        uint32 hash; uint32 key; uintptr address;
+    } winapi;
+    winapi list[] = 
+    {
+        { 0xB47741D5, 0x8034C451 }, // VirtualAlloc
+        { 0xF76A2ADE, 0x4D8938BD }, // VirtualFree
+        { 0xB2AC456D, 0x2A690F63 }, // VirtualProtect
+        { 0x87A2CEE8, 0x42A3C1AF }, // FlushInstructionCache
+        { 0x8F5BAED2, 0x43487DC7 }, // CreateMutexA
+        { 0xFA42E55C, 0xEA9F1081 }, // ReleaseMutex
+        { 0xC21AB03D, 0xED3AAF22 }, // WaitForSingleObject
+        { 0x60E108B2, 0x3C2DFF52 }, // CloseHandle
+    };
+#endif
     uintptr address;
     for (int i = 0; i < arrlen(list); i++)
     {
@@ -205,7 +220,8 @@ static bool initRuntimeEnvironment(Runtime* runtime)
     }
     runtime->Mutex = hMutex;
     // create context data for initialize other modules
-    Context context = {
+    Context context = 
+    {
         .EntryPoint    = runtime->EntryPoint,
         .SizeOfCode    = runtime->SizeOfCode,
         .FindAPI       = runtime->FindAPI,
@@ -244,13 +260,13 @@ static bool initMemoryTracker(Runtime* runtime, Context* context)
 static bool updateRuntimePointers(Runtime* runtime)
 {    
     typedef struct {
-        void*   address;
-        uintptr pointer;
+        void* address; uintptr pointer;
     } method;
-    method methods[] = {
-        {&RT_Hide,    METHOD_ADDR_HIDE},
-        {&RT_Recover, METHOD_ADDR_RECOVER},
-        {&RT_Stop,    METHOD_ADDR_STOP},
+    method methods[] = 
+    {
+        { &RT_Hide,    METHOD_ADDR_HIDE },
+        { &RT_Recover, METHOD_ADDR_RECOVER },
+        { &RT_Stop,    METHOD_ADDR_STOP },
     };
     bool success = true;
     for (int i = 0; i < arrlen(methods); i++)

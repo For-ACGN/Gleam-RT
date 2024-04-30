@@ -144,17 +144,16 @@ static bool updateTrackerPointers(MemoryTracker* tracker)
 {
     // update pointer in methods
     typedef struct {
-        void*   address;
-        uintptr pointer;
+        void* address; uintptr pointer;
     } method;
     method methods[] = 
     {
-        {&MT_VirtualAlloc,   METHOD_ADDR_VIRTUAL_ALLOC},
-        {&MT_VirtualFree,    METHOD_ADDR_VIRTUAL_FREE},
-        {&MT_VirtualProtect, METHOD_ADDR_VIRTUAL_PROTECT},
-        {&MT_Encrypt,        METHOD_ADDR_ENCRYPT},
-        {&MT_Decrypt,        METHOD_ADDR_DECRYPT},
-        {&MT_Clean,          METHOD_ADDR_CLEAN},
+        { &MT_VirtualAlloc,   METHOD_ADDR_VIRTUAL_ALLOC },
+        { &MT_VirtualFree,    METHOD_ADDR_VIRTUAL_FREE },
+        { &MT_VirtualProtect, METHOD_ADDR_VIRTUAL_PROTECT },
+        { &MT_Encrypt,        METHOD_ADDR_ENCRYPT },
+        { &MT_Decrypt,        METHOD_ADDR_DECRYPT },
+        { &MT_Clean,          METHOD_ADDR_CLEAN },
     };
     bool success = true;
     for (int i = 0; i < arrlen(methods); i++)
