@@ -18,11 +18,9 @@
 #endif
 
 typedef struct {
-    // arguments
-    uintptr   EntryPoint;
-    uint      SizeOfCode;
-    FindAPI_t FindAPI;
-    uintptr   StructMemPage;
+    Runtime_Args* Args;
+
+    uintptr StructMemPage;
 
     // API addresses
     VirtualAlloc          VirtualAlloc;
@@ -57,9 +55,9 @@ static bool recoverPageProtect(Runtime* runtime, uint32* old);
 static void cleanRuntime(Runtime* runtime);
 
 __declspec(noinline)
-Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
+Runtime_M* InitRuntime(Runtime_Args* args)
 {
-    uintptr address = allocateRuntimeMemory(findAPI);
+    uintptr address = allocateRuntimeMemory(args->FindAPI);
     if (address == NULL)
     {
         return NULL;
@@ -69,9 +67,7 @@ Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI)
     uintptr moduleAddr  = address + 600 + RandUint(address) % 256;
     // initialize runtime
     Runtime* runtime = (Runtime*)runtimeAddr;
-    runtime->EntryPoint = entry;
-    runtime->SizeOfCode = size; 
-    runtime->FindAPI = findAPI;
+    runtime->Args = args;
     runtime->StructMemPage = address;
     uint32 oldProtect = 0;
     bool success = true;
@@ -189,7 +185,7 @@ static bool initRuntimeAPI(Runtime* runtime)
     uintptr address;
     for (int i = 0; i < arrlen(list); i++)
     {
-        address = runtime->FindAPI(list[i].hash, list[i].key);
+        address = runtime->Args->FindAPI(list[i].hash, list[i].key);
         if (address == NULL)
         {
             return false;
@@ -222,9 +218,9 @@ static bool initRuntimeEnvironment(Runtime* runtime)
     // create context data for initialize other modules
     Context context = 
     {
-        .EntryPoint    = runtime->EntryPoint,
-        .SizeOfCode    = runtime->SizeOfCode,
-        .FindAPI       = runtime->FindAPI,
+        .EntryPoint    = runtime->Args->EntryPoint,
+        .SizeOfCode    = runtime->Args->SizeOfCode,
+        .FindAPI       = runtime->Args->FindAPI,
         .StructMemPage = runtime->StructMemPage,
 
         .VirtualAlloc          = runtime->VirtualAlloc,
@@ -301,6 +297,10 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
 
 static bool adjustPageProtect(Runtime* runtime, uint32* old)
 {
+    if (runtime->Args->NotAdjustProtect)
+    {
+        return true;
+    }
     uintptr memBegin = (uintptr)(&RT_Hide) - 4096;
     uint    memSize  = 8192;
     return runtime->VirtualProtect(memBegin, memSize, PAGE_EXECUTE_READWRITE, old);
@@ -308,6 +308,10 @@ static bool adjustPageProtect(Runtime* runtime, uint32* old)
 
 static bool recoverPageProtect(Runtime* runtime, uint32* old)
 {
+    if (runtime->Args->NotAdjustProtect)
+    {
+        return true;
+    }
     uintptr memBegin = (uintptr)(&RT_Hide) - 4096;
     uint    memSize  = 8192;
     if (!runtime->VirtualProtect(memBegin, memSize, *old, old))
