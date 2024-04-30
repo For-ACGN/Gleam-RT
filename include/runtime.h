@@ -9,7 +9,7 @@ typedef void* (*MemAlloc_t)(uint size);
 typedef bool  (*MemFree_t)(void* address);
 typedef bool  (*Hide_t)();
 typedef bool  (*Recover_t)();
-typedef void  (*Stop_t)();
+typedef bool  (*Stop_t)();
 
 typedef struct {
     FindAPI_t FindAPI;
