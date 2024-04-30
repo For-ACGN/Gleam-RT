@@ -79,7 +79,7 @@ static bool   decryptPage(MemoryTracker* tracker, memoryPage* page);
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
     // set structure address
-    uintptr address = context->StructMemPage;
+    uintptr address = context->MainMemPage;
     uintptr trackerAddr = address + 1000 + RandUint(address) % 256;
     uintptr moduleAddr  = address + 1300 + RandUint(address) % 256;
     // initialize tracker

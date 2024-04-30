@@ -20,7 +20,8 @@
 typedef struct {
     Runtime_Args* Args;
 
-    uintptr StructMemPage;
+    // store all structures
+    uintptr MainMemPage;
 
     // API addresses
     VirtualAlloc          VirtualAlloc;
@@ -68,7 +69,7 @@ Runtime_M* InitRuntime(Runtime_Args* args)
     // initialize runtime
     Runtime* runtime = (Runtime*)runtimeAddr;
     runtime->Args = args;
-    runtime->StructMemPage = address;
+    runtime->MainMemPage = address;
     uint32 oldProtect = 0;
     bool success = true;
     for (;;)
@@ -218,10 +219,8 @@ static bool initRuntimeEnvironment(Runtime* runtime)
     // create context data for initialize other modules
     Context context = 
     {
-        .EntryPoint    = runtime->Args->EntryPoint,
-        .SizeOfCode    = runtime->Args->SizeOfCode,
-        .FindAPI       = runtime->Args->FindAPI,
-        .StructMemPage = runtime->StructMemPage,
+        .FindAPI     = runtime->Args->FindAPI,
+        .MainMemPage = runtime->MainMemPage,
 
         .VirtualAlloc          = runtime->VirtualAlloc,
         .VirtualFree           = runtime->VirtualFree,
@@ -335,10 +334,10 @@ static void cleanRuntime(Runtime* runtime)
 
     // must copy api address before call RandBuf
     VirtualFree virtualFree = runtime->VirtualFree;
-    RandBuf((byte*)runtime->StructMemPage, 4096);
+    RandBuf((byte*)runtime->MainMemPage, 4096);
     if (virtualFree != NULL)
     {
-        virtualFree(runtime->StructMemPage, 0, MEM_RELEASE);
+        virtualFree(runtime->MainMemPage, 0, MEM_RELEASE);
     }
 }
 
