@@ -11,6 +11,13 @@ typedef bool  (*Hide_t)();
 typedef bool  (*Recover_t)();
 typedef void  (*Stop_t)();
 
+typedef struct {
+    FindAPI_t FindAPI;
+    bool      NotAdjustProtect;
+    uintptr   EntryPoint;
+    uint      SizeOfCode;
+} Runtime_Args;
+
 // Runtime_M contains exported runtime methods.
 typedef struct {
     // for IAT hooks
@@ -30,7 +37,6 @@ typedef struct {
 } Runtime_M;
 
 // InitRuntime is used to initialize runtime and return module methods.
-// Input shellcode entry point and size, runtime will protect it too.
-Runtime_M* InitRuntime(uintptr entry, uint size, FindAPI_t findAPI);
+Runtime_M* InitRuntime(Runtime_Args* args);
 
 #endif // RUNTIME_H
