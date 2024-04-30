@@ -57,8 +57,8 @@ bool    MT_VirtualFree(uintptr address, uint size, uint32 type);
 bool    MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old);
 void*   MT_MemAlloc(uint size);
 bool    MT_MemFree(void* address);
-void    MT_Encrypt();
-void    MT_Decrypt();
+bool    MT_Encrypt();
+bool    MT_Decrypt();
 void    MT_Clean();
 
 static bool   initTrackerAPI(MemoryTracker* tracker, Context* context);
@@ -543,26 +543,30 @@ bool MT_MemFree(void* address)
 }
 
 __declspec(noinline)
-void MT_Encrypt()
+bool MT_Encrypt()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_ENCRYPT);
 
     memoryPage* page = tracker->PageHead;
     if (page == NULL)
     {
-        return;
+        return true;
     }
     for (;;)
     {
         // must copy next page pointer before encrypt
         memoryPage* next = page->next;
-        encryptPage(tracker, page);
+        if (!encryptPage(tracker, page))
+        {
+            return false;
+        }
         if (next == NULL)
         {
             break;
         }
         page = next;
     }
+    return true;
 }
 
 static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
@@ -584,35 +588,36 @@ static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
     copy(&key[16], &pageAddr, sizeof(uintptr));
 
     uint pageSize = page->size;
+
     // encrypt size
     byte* buf  = (byte*)(&page->size);
     uint  size = sizeof(uint);
     EncryptBuf(buf, size, &key[0], &page->iv0[0]);
+
     // encrypt other fields and page
     buf  = (byte*)(&page->protect);
     size = pageSize - offsetof(memoryPage, protect);
     EncryptBuf(buf, size, &key[0], &page->iv1[0]);
 
-    if (!recoverPageProtect(tracker, page))
-    {
-        return false;
-    }
     return true;
 }
 
 __declspec(noinline)
-void MT_Decrypt()
+bool MT_Decrypt()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_DECRYPT);
 
     memoryPage* page = tracker->PageHead;
     if (page == NULL)
     {
-        return;
+        return true;
     }
     for (;;)
     {
-        decryptPage(tracker, page);
+        if (!decryptPage(tracker, page))
+        {
+            return false;
+        }
         memoryPage* next = page->next;
         if (next == NULL)
         {
@@ -620,15 +625,11 @@ void MT_Decrypt()
         }
         page = next;
     }
+    return true;
 }
 
 static bool decryptPage(MemoryTracker* tracker, memoryPage* page)
 {
-    if (!adjustPageProtect(tracker, page))
-    {
-        return false;
-    }
-
     // set the actual key to stack
     uintptr pageAddr = (uintptr)page;
     byte key[CRYPTO_KEY_SIZE];
@@ -639,6 +640,7 @@ static bool decryptPage(MemoryTracker* tracker, memoryPage* page)
     byte* buf  = (byte*)(&page->size);
     uint  size = sizeof(uint);
     DecryptBuf(buf, size, &key[0], &page->iv0[0]);
+
     // decrypt other fields and page
     buf  = (byte*)(&page->protect);
     size = page->size - offsetof(memoryPage, protect);
