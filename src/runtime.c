@@ -5,6 +5,7 @@
 #include "random.h"
 #include "crypto.h"
 #include "memory.h"
+#include "thread.h"
 #include "runtime.h"
 
 // hard encoded address in methods for replace
@@ -39,6 +40,7 @@ typedef struct {
 
     // sub modules
     MemoryTracker_M* MemoryTracker;
+    ThreadTracker_M* ThreadTracker;
 } Runtime;
 
 // methods about Runtime
@@ -50,6 +52,7 @@ static uintptr allocateRuntimeMemory(FindAPI_t findAPI);
 static bool initRuntimeAPI(Runtime* runtime);
 static bool initRuntimeEnvironment(Runtime* runtime);
 static bool initMemoryTracker(Runtime* runtime, Context* context);
+static bool initThreadTracker(Runtime* runtime, Context* context);
 static bool updateRuntimePointers(Runtime* runtime);
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
 static bool adjustPageProtect(Runtime* runtime, uint32* old);
@@ -239,6 +242,10 @@ static bool initRuntimeEnvironment(Runtime* runtime)
     {
         return false;
     }
+    if (!initThreadTracker(runtime, &context))
+    {
+        return false;
+    }
     return true;
 }
 
@@ -250,6 +257,17 @@ static bool initMemoryTracker(Runtime* runtime, Context* context)
         return false;
     }
     runtime->MemoryTracker = tracker;
+    return true;
+}
+
+static bool initThreadTracker(Runtime* runtime, Context* context)
+{
+    ThreadTracker_M* tracker = InitThreadTracker(context);
+    if (tracker == NULL)
+    {
+        return false;
+    }
+    runtime->ThreadTracker = tracker;
     return true;
 }
 
