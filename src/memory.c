@@ -109,7 +109,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     {
         return NULL;
     }
-    // create methods about tracker
+    // create methods for tracker
     MemoryTracker_M* module = (MemoryTracker_M*)moduleAddr;
     // Windows API hooks
     module->VirtualAlloc   = (VirtualAlloc  )(&MT_VirtualAlloc);

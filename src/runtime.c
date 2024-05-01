@@ -112,7 +112,7 @@ Runtime_M* InitRuntime(Runtime_Args* args)
     uintptr ctxBegin = (uintptr)(runtime);
     uintptr ctxSize  = (uintptr)(&runtime->ReleaseMutex) - ctxBegin;
     RandBuf((byte*)ctxBegin, (int64)ctxSize);
-    // create methods about Runtime
+    // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for IAT hooks
     module->VirtualAlloc   = runtime->MemoryTracker->VirtualAlloc;
@@ -302,25 +302,25 @@ static bool adjustPageProtect(Runtime* runtime, uint32* old)
     {
         return true;
     }
-    uintptr memBegin = (uintptr)(&EncryptBuf);
-    uintptr memEnd   = (uintptr)(&RT_Stop);
-    uint    memSize  = memEnd - memBegin + 64;
-    return runtime->VirtualProtect(memBegin, memSize, PAGE_EXECUTE_READWRITE, old);
+    uintptr begin = (uintptr)(&EncryptBuf);
+    uintptr end   = (uintptr)(&RT_Stop);
+    uint    size  = end - begin + 64;
+    return runtime->VirtualProtect(begin, size, PAGE_EXECUTE_READWRITE, old);
 }
 
 static bool recoverPageProtect(Runtime* runtime, uint32* old)
 {
-    uintptr memBegin = (uintptr)(&EncryptBuf);
-    uintptr memEnd   = (uintptr)(&RT_Stop);
-    uint    memSize  = memEnd - memBegin + 64;
+    uintptr begin = (uintptr)(&EncryptBuf);
+    uintptr end   = (uintptr)(&RT_Stop);
+    uint    size  = end - begin + 64;
     if (!runtime->Args->NotAdjustProtect)
     {
-        if (!runtime->VirtualProtect(memBegin, memSize, *old, old))
+        if (!runtime->VirtualProtect(begin, size, *old, old))
         {
             return false;
         }
     }
-    return runtime->FlushInstructionCache(-1, memBegin, memSize);
+    return runtime->FlushInstructionCache(-1, begin, size);
 }
 
 static void cleanRuntime(Runtime* runtime)
