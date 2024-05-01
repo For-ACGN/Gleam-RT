@@ -143,7 +143,6 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 
 static bool updateTrackerPointers(MemoryTracker* tracker)
 {
-    // update pointer in methods
     typedef struct {
         void* address; uintptr pointer;
     } method;

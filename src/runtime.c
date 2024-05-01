@@ -271,7 +271,6 @@ static bool initThreadTracker(Runtime* runtime, Context* context)
     return true;
 }
 
-// change memory protect for dynamic update pointer that hard encode.
 static bool updateRuntimePointers(Runtime* runtime)
 {    
     typedef struct {
@@ -314,6 +313,7 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
     return success;
 }
 
+// change memory protect for dynamic update pointer that hard encode.
 static bool adjustPageProtect(Runtime* runtime, uint32* old)
 {
     if (runtime->Args->NotAdjustProtect)

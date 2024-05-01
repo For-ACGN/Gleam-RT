@@ -110,7 +110,7 @@ ThreadTracker_M* InitThreadTracker(Context* context)
 static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
 {
 
-    tracker->ReleaseMutex = context->ReleaseMutex;
+    tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
     return true;
 }
@@ -125,7 +125,8 @@ static bool updateTrackerPointers(ThreadTracker* tracker)
     typedef struct {
         void* address; uintptr pointer;
     } method;
-    method methods[] = {
+    method methods[] = 
+    {
         { &TT_ExitThread,      METHOD_ADDR_CREATE_THREAD },
         { &TT_SuspendThread,   METHOD_ADDR_EXIT_THREAD },
         { &TT_ResumeThread,    METHOD_ADDR_SUSPEND_THREAD },
