@@ -24,7 +24,7 @@
 #endif
 
 // make sure the memory address is 16 bytes aligned.
-#define MEMORY_PAGE_PAD_SIZE (sizeof(memoryPage) % 16)
+#define MEMORY_PAGE_PAD_SIZE    (sizeof(memoryPage) % 16)
 #define MEMORY_PAGE_HEADER_SIZE (sizeof(memoryPage) + MEMORY_PAGE_PAD_SIZE)
 
 typedef struct memoryPage {

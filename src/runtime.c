@@ -3,6 +3,7 @@
 #include "hash_api.h"
 #include "context.h"
 #include "random.h"
+#include "crypto.h"
 #include "memory.h"
 #include "runtime.h"
 
@@ -301,28 +302,25 @@ static bool adjustPageProtect(Runtime* runtime, uint32* old)
     {
         return true;
     }
-    uintptr memBegin = (uintptr)(&RT_Hide) - 4096;
-    uint    memSize  = 8192;
+    uintptr memBegin = (uintptr)(&EncryptBuf);
+    uintptr memEnd   = (uintptr)(&RT_Stop);
+    uint    memSize  = memEnd - memBegin + 64;
     return runtime->VirtualProtect(memBegin, memSize, PAGE_EXECUTE_READWRITE, old);
 }
 
 static bool recoverPageProtect(Runtime* runtime, uint32* old)
 {
-    if (runtime->Args->NotAdjustProtect)
+    uintptr memBegin = (uintptr)(&EncryptBuf);
+    uintptr memEnd   = (uintptr)(&RT_Stop);
+    uint    memSize  = memEnd - memBegin + 64;
+    if (!runtime->Args->NotAdjustProtect)
     {
-        return true;
+        if (!runtime->VirtualProtect(memBegin, memSize, *old, old))
+        {
+            return false;
+        }
     }
-    uintptr memBegin = (uintptr)(&RT_Hide) - 4096;
-    uint    memSize  = 8192;
-    if (!runtime->VirtualProtect(memBegin, memSize, *old, old))
-    {
-        return false;
-    }
-    if (!runtime->FlushInstructionCache(-1, memBegin, memSize))
-    {
-        return false;
-    }
-    return true;
+    return runtime->FlushInstructionCache(-1, memBegin, memSize);
 }
 
 static void cleanRuntime(Runtime* runtime)
