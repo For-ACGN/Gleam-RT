@@ -20,6 +20,20 @@ typedef struct {
     HANDLE Mutex;
 } ThreadTracker;
 
+// methods about thread tracker
+HANDLE TT_CreateThread
+(
+    uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
+    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
+);
+void   TT_ExitThread(uint32 dwExitCode);
+uint32 TT_SuspendThread(HANDLE hThread);
+uint32 TT_ResumeThread(HANDLE hThread);
+bool   TT_TerminateThread(HANDLE hThread, uint32 dwExitCode);
+bool   TT_SuspendAll();
+bool   TT_ResumeAll();
+bool   TT_Clean();
+
 static bool initTrackerAPI(ThreadTracker* tracker, Context* context);
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static bool updateTrackerPointers(ThreadTracker* tracker);
@@ -57,7 +71,19 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     {
         return NULL;
     }
-
+    // create methods for tracker
+    ThreadTracker_M* module = (ThreadTracker_M*)moduleAddr;
+    // Windows API hooks
+    module->CreateThread    = (CreateThread   )(&TT_CreateThread);
+    module->ExitThread      = (ExitThread     )(&TT_ExitThread);
+    module->SuspendThread   = (SuspendThread  )(&TT_SuspendThread);
+    module->ResumeThread    = (ResumeThread   )(&TT_ResumeThread);
+    module->TerminateThread = (TerminateThread)(&TT_TerminateThread);
+    // methods for runtime
+    module->ThdSuspendAll = &TT_SuspendAll;
+    module->ThdResumeAll  = &TT_ResumeAll;
+    module->ThdClean      = &TT_Clean;
+    return module;
 }
 
 static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
@@ -96,4 +122,56 @@ static bool updateTrackerPointer(ThreadTracker* tracker, void* method, uintptr a
         break;
     }
     return success;
+}
+
+__declspec(noinline)
+HANDLE TT_CreateThread
+(
+    uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
+    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
+)
+{
+
+}
+
+__declspec(noinline)
+void TT_ExitThread(uint32 dwExitCode)
+{
+
+}
+
+__declspec(noinline)
+uint32 TT_SuspendThread(HANDLE hThread)
+{
+
+}
+
+__declspec(noinline)
+uint32 TT_ResumeThread(HANDLE hThread)
+{
+
+}
+
+__declspec(noinline)
+bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
+{
+
+}
+
+__declspec(noinline)
+bool TT_SuspendAll()
+{
+
+}
+
+__declspec(noinline)
+bool TT_ResumeAll()
+{
+
+}
+
+__declspec(noinline)
+bool TT_Clean()
+{
+
 }
