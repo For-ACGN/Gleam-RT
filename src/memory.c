@@ -23,6 +23,10 @@
     #define METHOD_ADDR_CLEAN           0x7FFFFF05
 #endif
 
+// make sure the memory address is 16 bytes aligned.
+#define MEMORY_PAGE_PAD_SIZE (sizeof(memoryPage) % 16)
+#define MEMORY_PAGE_HEADER_SIZE (sizeof(memoryPage) + MEMORY_PAGE_PAD_SIZE)
+
 typedef struct memoryPage {
     byte   key[CRYPTO_KEY_SIZE];
     byte   iv0[CRYPTO_IV_SIZE];
@@ -33,10 +37,6 @@ typedef struct memoryPage {
     struct memoryPage* prev;
     struct memoryPage* next;
 } memoryPage;
-
-// make sure the memory address is 16 bytes aligned.
-#define MEMORY_PAGE_PAD_SIZE    (sizeof(memoryPage) % 16)
-#define MEMORY_PAGE_HEADER_SIZE (sizeof(memoryPage) + MEMORY_PAGE_PAD_SIZE)
 
 typedef struct {
     // API addresses

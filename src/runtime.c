@@ -66,45 +66,46 @@ Runtime_M* InitRuntime(Runtime_Args* args)
     // set structure address
     uintptr runtimeAddr = address + 300 + RandUint(address) % 256;
     uintptr moduleAddr  = address + 600 + RandUint(address) % 256;
-    // initialize runtime
+    // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     runtime->Args = args;
     runtime->MainMemPage = address;
-    uint32 oldProtect = 0;
-    bool success = true;
+    // initialize runtime
+    uint32 protect = 0;
+    uint   errCode = 0;
     for (;;)
     {
         if (!initRuntimeAPI(runtime))
         {
-            success = false;
+            errCode = 1;
             break;
         }
-        if (!adjustPageProtect(runtime, &oldProtect))
+        if (!adjustPageProtect(runtime, &protect))
         {
-            success = false;
+            errCode = 2;
             break;
         }
         if (!initRuntimeEnvironment(runtime))
         {
-            success = false;
+            errCode = 3;
             break;
         }
         if (!updateRuntimePointers(runtime))
         {
-            success = false;
+            errCode = 4;
             break;
         }
-        if (!recoverPageProtect(runtime, &oldProtect))
+        if (!recoverPageProtect(runtime, &protect))
         {
-            success = false;
+            errCode = 5;
             break;
         }
         break;
     }
-    if (!success)
+    if (errCode != 0)
     {
         cleanRuntime(runtime);
-        return NULL;
+        return (Runtime_M*)errCode;
     }
     // clean context data in structure
     uintptr ctxBegin = (uintptr)(runtime);
