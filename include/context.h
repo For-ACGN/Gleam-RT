@@ -14,7 +14,6 @@ typedef struct {
     VirtualAlloc          VirtualAlloc;
     VirtualFree           VirtualFree;
     VirtualProtect        VirtualProtect;
-    CreateThread          CreateThread;
     FlushInstructionCache FlushInstructionCache;
     CreateMutexA          CreateMutexA;
     ReleaseMutex          ReleaseMutex;

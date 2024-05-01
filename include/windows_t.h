@@ -9,6 +9,10 @@
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualfree
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualprotect
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createthread
+* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitthread
+* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-suspendthread
+* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-resumethread
+* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminatethread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-flushinstructioncache
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createmutexa
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-releasemutex
@@ -54,6 +58,26 @@ typedef HANDLE (*CreateThread)
 (
     uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
     uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
+);
+
+typedef void (*ExitThread)
+(
+    uint32 dwExitCode
+);
+
+typedef uint32 (*SuspendThread)
+(
+    HANDLE hThread
+);
+
+typedef uint32 (*ResumeThread)
+(
+    HANDLE hThread
+);
+
+typedef bool (*TerminateThread)
+(
+    HANDLE hThread, uint32 dwExitCode
 );
 
 typedef bool (*FlushInstructionCache)
