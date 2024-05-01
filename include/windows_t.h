@@ -12,12 +12,14 @@
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitthread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-suspendthread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-resumethread
+* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminatethread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-flushinstructioncache
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createmutexa
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-releasemutex
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
 * https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
+* https://learn.microsoft.com/zh-cn/windows/win32/api/handleapi/nf-handleapi-duplicatehandle
 */
 
 #define MEM_COMMIT  0x00001000
@@ -36,8 +38,9 @@
 #define INFINITE      0xFFFFFFFF
 #define WAIT_OBJECT_0 0x00000000
 
-typedef uint  HANDLE;
-typedef byte* LPCSTR;
+typedef uint    HANDLE;
+typedef HANDLE* LPHANDLE;
+typedef byte*   LPCSTR;
 
 typedef uintptr (*VirtualAlloc)
 (
@@ -75,6 +78,8 @@ typedef uint32 (*ResumeThread)
     HANDLE hThread
 );
 
+typedef HANDLE (*GetCurrentThread)();
+
 typedef bool (*TerminateThread)
 (
     HANDLE hThread, uint32 dwExitCode
@@ -98,6 +103,13 @@ typedef bool (*ReleaseMutex)
 typedef uint32 (*WaitForSingleObject)
 (
     HANDLE hHandle, uint32 dwMilliseconds
+);
+
+typedef bool (*DuplicateHandle)
+(
+    HANDLE hSourceProcessHandle, HANDLE hSourceHandle,
+    HANDLE hTargetProcessHandle, LPHANDLE lpTargetHandle,
+    uint32 dwDesiredAccess, bool bInheritHandle, uint32 dwOptions
 );
 
 typedef bool (*CloseHandle)
