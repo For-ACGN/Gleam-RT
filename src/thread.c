@@ -26,6 +26,13 @@
     #define METHOD_ADDR_CLEAN            0x7FFFFF17
 #endif
 
+#define MAX_NUM_THREADS (THREADS_PAGE_SIZE / sizeof(thread))
+
+typedef struct {
+    uint32 threadID;
+    HANDLE hThread;
+} thread;
+
 typedef struct {
     // API addresses
     CreateThread        CreateThread;
@@ -39,9 +46,9 @@ typedef struct {
     DuplicateHandle     DuplicateHandle;
     CloseHandle         CloseHandle;
 
-    // store all thread handle
+    // store all threads info
     uint32  NumThreads;
-    HANDLE* ThreadHandles;
+    thread* Threads;
 
     HANDLE Mutex;
 } ThreadTracker;
@@ -166,6 +173,16 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
 
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
 {
+    thread* page = (thread*)context->TTMemPage;
+    tracker->NumThreads = 0;
+    tracker->Threads    = page;
+    // clean memory page
+    for (int i = 0; i < MAX_NUM_THREADS; i++)
+    {
+        page->threadID = 0;
+        page->hThread  = NULL;
+        page++;
+    }
     tracker->Mutex = context->Mutex;
     return true;
 }

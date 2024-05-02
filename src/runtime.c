@@ -263,9 +263,8 @@ static uint initMemoryTracker(Runtime* runtime, Context* context)
 
 static uint initThreadTracker(Runtime* runtime, Context* context)
 {
-    // allocate memory page for store thread handles,
-    // 63KB will become 64KB by MemoryTracker.
-    uintptr* page = (uintptr*)(runtime->MemoryTracker->MemAlloc(63 * 1024));
+    // allocate memory page for store thread id and handles
+    void* page = runtime->MemoryTracker->MemAlloc(THREADS_PAGE_SIZE);
     if (page == NULL)
     {
         return 0xF4;
