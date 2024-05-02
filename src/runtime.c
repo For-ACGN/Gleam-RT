@@ -7,6 +7,7 @@
 #include "memory.h"
 #include "thread.h"
 #include "runtime.h"
+#include "epilogue.h"
 
 // hard encoded address in methods for replace
 #ifdef _WIN64
@@ -320,17 +321,17 @@ static bool adjustPageProtect(Runtime* runtime, uint32* old)
     {
         return true;
     }
-    uintptr begin = (uintptr)(&EncryptBuf);
-    uintptr end   = (uintptr)(&RT_Stop);
-    uint    size  = end - begin + 64;
+    uintptr begin = (uintptr)(&InitRuntime);
+    uintptr end   = (uintptr)(&Epilogue);
+    uint    size  = end - begin;
     return runtime->VirtualProtect(begin, size, PAGE_EXECUTE_READWRITE, old);
 }
 
 static bool recoverPageProtect(Runtime* runtime, uint32* old)
 {
-    uintptr begin = (uintptr)(&EncryptBuf);
-    uintptr end   = (uintptr)(&RT_Stop);
-    uint    size  = end - begin + 64;
+    uintptr begin = (uintptr)(&InitRuntime);
+    uintptr end   = (uintptr)(&Epilogue);
+    uint    size  = end - begin;
     if (!runtime->Args->NotAdjustProtect)
     {
         if (!runtime->VirtualProtect(begin, size, *old, old))
