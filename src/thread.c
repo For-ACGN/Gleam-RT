@@ -7,23 +7,23 @@
 
 // hard encoded address in methods for replace
 #ifdef _WIN64
-    #define METHOD_ADDR_CREATE_THREAD     0x7FFFFFFFFFFFFF10
-    #define METHOD_ADDR_EXIT_THREAD       0x7FFFFFFFFFFFFF11
-    #define METHOD_ADDR_SUSPEND_THREAD    0x7FFFFFFFFFFFFF12
-    #define METHOD_ADDR_RESUME_THREAD     0x7FFFFFFFFFFFFF13
-    #define METHOD_ADDR_TERMINATE_THREAD  0x7FFFFFFFFFFFFF14
-    #define METHOD_ADDR_SUSPEND_ALL       0x7FFFFFFFFFFFFF15
-    #define METHOD_ADDR_RESUME_ALL        0x7FFFFFFFFFFFFF15
-    #define METHOD_ADDR_CLEAN             0x7FFFFFFFFFFFFF16
+    #define METHOD_ADDR_CREATE_THREAD    0x7FFFFFFFFFFFFF10
+    #define METHOD_ADDR_EXIT_THREAD      0x7FFFFFFFFFFFFF11
+    #define METHOD_ADDR_SUSPEND_THREAD   0x7FFFFFFFFFFFFF12
+    #define METHOD_ADDR_RESUME_THREAD    0x7FFFFFFFFFFFFF13
+    #define METHOD_ADDR_TERMINATE_THREAD 0x7FFFFFFFFFFFFF14
+    #define METHOD_ADDR_SUSPEND_ALL      0x7FFFFFFFFFFFFF15
+    #define METHOD_ADDR_RESUME_ALL       0x7FFFFFFFFFFFFF15
+    #define METHOD_ADDR_CLEAN            0x7FFFFFFFFFFFFF16
 #elif _WIN32
-    #define METHOD_ADDR_CREATE_THREAD     0x7FFFFF10
-    #define METHOD_ADDR_EXIT_THREAD       0x7FFFFF11
-    #define METHOD_ADDR_SUSPEND_THREAD    0x7FFFFF12
-    #define METHOD_ADDR_RESUME_THREAD     0x7FFFFF13
-    #define METHOD_ADDR_TERMINATE_THREAD  0x7FFFFF14
-    #define METHOD_ADDR_SUSPEND_ALL       0x7FFFFF15
-    #define METHOD_ADDR_RESUME_ALL        0x7FFFFF15
-    #define METHOD_ADDR_CLEAN             0x7FFFFF16
+    #define METHOD_ADDR_CREATE_THREAD    0x7FFFFF10
+    #define METHOD_ADDR_EXIT_THREAD      0x7FFFFF11
+    #define METHOD_ADDR_SUSPEND_THREAD   0x7FFFFF12
+    #define METHOD_ADDR_RESUME_THREAD    0x7FFFFF13
+    #define METHOD_ADDR_TERMINATE_THREAD 0x7FFFFF14
+    #define METHOD_ADDR_SUSPEND_ALL      0x7FFFFF15
+    #define METHOD_ADDR_RESUME_ALL       0x7FFFFF15
+    #define METHOD_ADDR_CLEAN            0x7FFFFF16
 #endif
 
 typedef struct {
@@ -37,6 +37,7 @@ typedef struct {
     ReleaseMutex        ReleaseMutex;
     WaitForSingleObject WaitForSingleObject;
     DuplicateHandle     DuplicateHandle;
+    CloseHandle         CloseHandle;
 
     HANDLE Mutex;
 } ThreadTracker;
@@ -73,7 +74,7 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     {
         if (!initTrackerAPI(tracker, context))
         {
-            success = false;
+            success = false; // TODO repalce to errCode
             break;
         }
         if (!initTrackerEnvironment(tracker, context))
@@ -109,15 +110,64 @@ ThreadTracker_M* InitThreadTracker(Context* context)
 
 static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
 {
+#ifdef _WIN64
+    typedef struct { 
+        uint64 hash; uint64 key; uintptr address;
+    } winapi;
+    winapi list[] = 
+    {
+        { 0x430932D6A2AC04EA, 0x9AF52A6480DA3C93 }, // CreateThread
+        { 0x91238A1B4E365AB0, 0x6C621931AE641330 }, // ExitThread
+        { 0x3A4D5132CF0D20D8, 0x89E05A81B86A26AE }, // SuspendThread
+        { 0xB1917786CE5B5A94, 0x6BC3328C112C6DDA }, // ResumeThread
+        { 0x2E2244FC09448B85, 0xB8EAA92FB10C7BDE }, // GetCurrentThread
+        { 0xFB891A810F1ABF9A, 0x253BBD721EBD81F0 }, // TerminateThread
+        { 0xF7A5A49D19409FFC, 0x6F23FAA4C20FF4D3 }, // DuplicateHandle
+    };
+#elif _WIN32
+    typedef struct { 
+        uint32 hash; uint32 key; uintptr address;
+    } winapi;
+    winapi list[] = 
+    {
+        { 0xB9D69C9D, 0xCAB90EB6 }, // CreateThread
+        { 0x1D1F85DD, 0x41A9BD17 }, // ExitThread
+        { 0x26C71141, 0xF3C390BD }, // SuspendThread
+        { 0x20FFDC31, 0x1D4EA347 }, // ResumeThread
+        { 0xA7B638FD, 0xAE13B043 }, // GetCurrentThread
+        { 0xBA134972, 0x295F9DD2 }, // TerminateThread
+        { 0x0E7ED8B9, 0x025067E9 }, // DuplicateHandle
+    };
+#endif
+    uintptr address;
+    for (int i = 0; i < arrlen(list); i++)
+    {
+        address = context->FindAPI(list[i].hash, list[i].key);
+        if (address == NULL)
+        {
+            return false;
+        }
+        list[i].address = address;
+    }
+
+    tracker->CreateThread     = (CreateThread    )(list[0].address);
+    tracker->ExitThread       = (ExitThread      )(list[1].address);
+    tracker->SuspendThread    = (SuspendThread   )(list[2].address);
+    tracker->ResumeThread     = (ResumeThread    )(list[3].address);
+    tracker->GetCurrentThread = (GetCurrentThread)(list[4].address);
+    tracker->TerminateThread  = (TerminateThread )(list[5].address);
+    tracker->DuplicateHandle  = (DuplicateHandle )(list[6].address);
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
+    tracker->CloseHandle         = context->CloseHandle;
     return true;
 }
 
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
 {
-
+    tracker->Mutex = context->Mutex;
+    return true;
 }
 
 static bool updateTrackerPointers(ThreadTracker* tracker)

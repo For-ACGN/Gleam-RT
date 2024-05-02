@@ -198,6 +198,7 @@ static bool initRuntimeAPI(Runtime* runtime)
         }
         list[i].address = address;
     }
+
     runtime->VirtualAlloc          = (VirtualAlloc         )(list[0].address);
     runtime->VirtualFree           = (VirtualFree          )(list[1].address);
     runtime->VirtualProtect        = (VirtualProtect       )(list[2].address);
