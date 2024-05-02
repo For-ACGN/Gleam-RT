@@ -85,29 +85,29 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     uintptr moduleAddr  = address + 1300 + RandUint(address) % 256;
     // initialize tracker
     MemoryTracker* tracker = (MemoryTracker*)trackerAddr;
-    bool success = true;
+    uint errCode = 0;
     for (;;)
     {
         if (!initTrackerAPI(tracker, context))
         {
-            success = false;
+            errCode = 0x01;
             break;
         }
         if (!initTrackerEnvironment(tracker, context))
         {
-            success = false;
+            errCode = 0x02;
             break;
         }
         if (!updateTrackerPointers(tracker))
         {
-            success = false;
+            errCode = 0x03;
             break;
         }
         break;
     }
-    if (!success)
+    if (errCode != 0x00)
     {
-        return NULL;
+        return (MemoryTracker_M*)errCode;
     }
     // create methods for tracker
     MemoryTracker_M* module = (MemoryTracker_M*)moduleAddr;

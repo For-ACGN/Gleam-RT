@@ -13,8 +13,8 @@
     #define METHOD_ADDR_RESUME_THREAD    0x7FFFFFFFFFFFFF13
     #define METHOD_ADDR_TERMINATE_THREAD 0x7FFFFFFFFFFFFF14
     #define METHOD_ADDR_SUSPEND_ALL      0x7FFFFFFFFFFFFF15
-    #define METHOD_ADDR_RESUME_ALL       0x7FFFFFFFFFFFFF15
-    #define METHOD_ADDR_CLEAN            0x7FFFFFFFFFFFFF16
+    #define METHOD_ADDR_RESUME_ALL       0x7FFFFFFFFFFFFF16
+    #define METHOD_ADDR_CLEAN            0x7FFFFFFFFFFFFF17
 #elif _WIN32
     #define METHOD_ADDR_CREATE_THREAD    0x7FFFFF10
     #define METHOD_ADDR_EXIT_THREAD      0x7FFFFF11
@@ -22,8 +22,8 @@
     #define METHOD_ADDR_RESUME_THREAD    0x7FFFFF13
     #define METHOD_ADDR_TERMINATE_THREAD 0x7FFFFF14
     #define METHOD_ADDR_SUSPEND_ALL      0x7FFFFF15
-    #define METHOD_ADDR_RESUME_ALL       0x7FFFFF15
-    #define METHOD_ADDR_CLEAN            0x7FFFFF16
+    #define METHOD_ADDR_RESUME_ALL       0x7FFFFF16
+    #define METHOD_ADDR_CLEAN            0x7FFFFF17
 #endif
 
 typedef struct {
@@ -69,29 +69,29 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     uintptr moduleAddr  = address + 2300 + RandUint(address) % 256;
     // initialize tracker
     ThreadTracker* tracker = (ThreadTracker*)trackerAddr;
-    bool success = true;
+    uint errCode = 0;
     for (;;)
     {
         if (!initTrackerAPI(tracker, context))
         {
-            success = false;
+            errCode = 0x11;
             break;
         }
         if (!initTrackerEnvironment(tracker, context))
         {
-            success = false;
+            errCode = 0x12;
             break;
         }
         if (!updateTrackerPointers(tracker))
         {
-            success = false;
+            errCode = 0x13;
             break;
         }
         break;
     }
-    if (!success)
+    if (errCode != 0x00)
     {
-        return NULL;
+        return (ThreadTracker_M*)errCode;
     }
     // create methods for tracker
     ThreadTracker_M* module = (ThreadTracker_M*)moduleAddr;
@@ -185,7 +185,7 @@ static bool updateTrackerPointers(ThreadTracker* tracker)
         { &TT_SuspendAll,      METHOD_ADDR_SUSPEND_ALL },
         { &TT_ResumeAll,       METHOD_ADDR_RESUME_ALL },
         { &TT_Clean,           METHOD_ADDR_CLEAN},
-    };        
+    };
     bool success = true;
     for (int i = 0; i < arrlen(methods); i++)
     {
@@ -315,6 +315,11 @@ bool TT_SuspendAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_SUSPEND_ALL);
 
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return false;
+    }
+
     tracker->ReleaseMutex(tracker->Mutex);
 
     return NULL;
@@ -325,6 +330,11 @@ bool TT_ResumeAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_RESUME_ALL);
 
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return false;
+    }
+
     tracker->ReleaseMutex(tracker->Mutex);
     return NULL;
 }
@@ -333,6 +343,11 @@ __declspec(noinline)
 bool TT_Clean()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
+
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return false;
+    }
 
     tracker->ReleaseMutex(tracker->Mutex);
     return NULL;
