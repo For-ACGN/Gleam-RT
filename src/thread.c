@@ -110,11 +110,11 @@ ThreadTracker_M* InitThreadTracker(Context* context)
 
 static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
 {
-#ifdef _WIN64
     typedef struct { 
-        uint64 hash; uint64 key; uintptr address;
+        uint hash; uint key; uintptr address;
     } winapi;
-    winapi list[] = 
+    winapi list[] =
+#ifdef _WIN64
     {
         { 0x430932D6A2AC04EA, 0x9AF52A6480DA3C93 }, // CreateThread
         { 0x91238A1B4E365AB0, 0x6C621931AE641330 }, // ExitThread
@@ -125,10 +125,6 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0xF7A5A49D19409FFC, 0x6F23FAA4C20FF4D3 }, // DuplicateHandle
     };
 #elif _WIN32
-    typedef struct { 
-        uint32 hash; uint32 key; uintptr address;
-    } winapi;
-    winapi list[] = 
     {
         { 0xB9D69C9D, 0xCAB90EB6 }, // CreateThread
         { 0x1D1F85DD, 0x41A9BD17 }, // ExitThread

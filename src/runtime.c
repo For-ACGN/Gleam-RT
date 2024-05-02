@@ -135,11 +135,11 @@ Runtime_M* InitRuntime(Runtime_Args* args)
 static uintptr allocateRuntimeMemory(FindAPI_t findAPI)
 {
 #ifdef _WIN64
-    uint64 hash = 0xB6A1D0D4A275D4B6;
-    uint64 key  = 0x64CB4D66EC0BEFD9;
+    uint hash = 0xB6A1D0D4A275D4B6;
+    uint key  = 0x64CB4D66EC0BEFD9;
 #elif _WIN32
-    uint32 hash = 0xC3DE112E;
-    uint32 key  = 0x8D9EA74F;
+    uint hash = 0xC3DE112E;
+    uint key  = 0x8D9EA74F;
 #endif
     VirtualAlloc virtualAlloc = (VirtualAlloc)findAPI(hash, key);
     if (virtualAlloc == NULL)
@@ -157,11 +157,11 @@ static uintptr allocateRuntimeMemory(FindAPI_t findAPI)
 
 static bool initRuntimeAPI(Runtime* runtime)
 {
-#ifdef _WIN64
     typedef struct { 
-        uint64 hash; uint64 key; uintptr address;
+        uint hash; uint key; uintptr address;
     } winapi;
-    winapi list[] = 
+    winapi list[] =
+#ifdef _WIN64
     {
         { 0x6AC498DF641A4FCB, 0xFF3BB21B9BA46CEA }, // VirtualAlloc
         { 0xAC150252A6CA3960, 0x12EFAEA421D60C3E }, // VirtualFree
@@ -173,10 +173,6 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0xA25F7449D6939A01, 0x85D37F1D89B30D2E }, // CloseHandle
     };
 #elif _WIN32
-    typedef struct { 
-        uint32 hash; uint32 key; uintptr address;
-    } winapi;
-    winapi list[] = 
     {
         { 0xB47741D5, 0x8034C451 }, // VirtualAlloc
         { 0xF76A2ADE, 0x4D8938BD }, // VirtualFree
