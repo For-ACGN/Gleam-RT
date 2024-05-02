@@ -39,6 +39,10 @@ typedef struct {
     DuplicateHandle     DuplicateHandle;
     CloseHandle         CloseHandle;
 
+    // store all thread handle
+    uint32  NumThreads;
+    HANDLE* ThreadHandles;
+
     HANDLE Mutex;
 } ThreadTracker;
 

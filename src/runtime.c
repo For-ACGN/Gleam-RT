@@ -236,14 +236,14 @@ static uint initRuntimeEnvironment(Runtime* runtime)
 
         .Mutex = runtime->Mutex,
     };
-    uint errCode = 0;
+    uint errCode = 0x00;
     errCode = initMemoryTracker(runtime, &context);
-    if (errCode != 0)
+    if (errCode != 0x00)
     {
         return errCode;
     }
     errCode = initThreadTracker(runtime, &context);
-    if (errCode != 0)
+    if (errCode != 0x00)
     {
         return errCode;
     }
@@ -258,18 +258,27 @@ static uint initMemoryTracker(Runtime* runtime, Context* context)
         return (uint)tracker;
     }
     runtime->MemoryTracker = tracker;
-    return 0;
+    return 0x00;
 }
 
 static uint initThreadTracker(Runtime* runtime, Context* context)
 {
+    // allocate memory page for store thread handles,
+    // 63KB will become 64KB by MemoryTracker.
+    uintptr* page = (uintptr*)(runtime->MemoryTracker->MemAlloc(63 * 1024));
+    if (page == NULL)
+    {
+        return 0xF4;
+    }
+    context->TTMemPage = (uintptr)page;
+
     ThreadTracker_M* tracker = InitThreadTracker(context);
     if (tracker < (ThreadTracker_M*)(0x20))
     {
         return (uint)tracker;
     }
     runtime->ThreadTracker = tracker;
-    return 0;
+    return 0x00;
 }
 
 static bool updateRuntimePointers(Runtime* runtime)
@@ -349,6 +358,9 @@ static void cleanRuntime(Runtime* runtime)
     {
         closeHandle(runtime->Mutex);
     }
+
+    // TODO Protect ASM self
+    // TODO Remove self
 
     // must copy api address before call RandBuf
     VirtualFree virtualFree = runtime->VirtualFree;

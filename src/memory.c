@@ -519,6 +519,7 @@ static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect)
         {
             return false;
         }
+        break;
     }
     return true;
 }
