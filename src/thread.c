@@ -74,7 +74,7 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     {
         if (!initTrackerAPI(tracker, context))
         {
-            success = false; // TODO repalce to errCode
+            success = false;
             break;
         }
         if (!initTrackerEnvironment(tracker, context))
@@ -177,13 +177,14 @@ static bool updateTrackerPointers(ThreadTracker* tracker)
     } method;
     method methods[] = 
     {
-        { &TT_ExitThread,      METHOD_ADDR_CREATE_THREAD },
-        { &TT_SuspendThread,   METHOD_ADDR_EXIT_THREAD },
-        { &TT_ResumeThread,    METHOD_ADDR_SUSPEND_THREAD },
-        { &TT_TerminateThread, METHOD_ADDR_RESUME_THREAD },
-        { &TT_SuspendAll,      METHOD_ADDR_TERMINATE_THREAD },
-        { &TT_ResumeAll,       METHOD_ADDR_SUSPEND_ALL },
-        { &TT_Clean,           METHOD_ADDR_RESUME_ALL },
+        { &TT_CreateThread,    METHOD_ADDR_CREATE_THREAD },
+        { &TT_ExitThread,      METHOD_ADDR_EXIT_THREAD },
+        { &TT_SuspendThread,   METHOD_ADDR_SUSPEND_THREAD },
+        { &TT_ResumeThread,    METHOD_ADDR_RESUME_THREAD },
+        { &TT_TerminateThread, METHOD_ADDR_TERMINATE_THREAD },
+        { &TT_SuspendAll,      METHOD_ADDR_SUSPEND_ALL },
+        { &TT_ResumeAll,       METHOD_ADDR_RESUME_ALL },
+        { &TT_Clean,           METHOD_ADDR_CLEAN},
     };        
     bool success = true;
     for (int i = 0; i < arrlen(methods); i++)
@@ -234,7 +235,21 @@ HANDLE TT_CreateThread
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_CREATE_THREAD);
 
-    return NULL;
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return NULL;
+    }
+
+    HANDLE hThread = tracker->CreateThread(
+        lpThreadAttributes, dwStackSize, lpStartAddress,
+        lpParameter, dwCreationFlags, lpThreadId
+    );
+    if (hThread == NULL)
+    {
+        return NULL;
+    }
+
+    tracker->ReleaseMutex(tracker->Mutex);
 }
 
 __declspec(noinline)
@@ -242,12 +257,25 @@ void TT_ExitThread(uint32 dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_EXIT_THREAD);
 
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return;
+    }
+
+    tracker->ReleaseMutex(tracker->Mutex);
 }
 
 __declspec(noinline)
 uint32 TT_SuspendThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_SUSPEND_THREAD);
+
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return -1;
+    }
+
+    tracker->ReleaseMutex(tracker->Mutex);
 
     return NULL;
 }
@@ -257,6 +285,13 @@ uint32 TT_ResumeThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_RESUME_THREAD);
 
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return -1;
+    }
+
+    tracker->ReleaseMutex(tracker->Mutex);
+
     return NULL;
 }
 
@@ -264,6 +299,13 @@ __declspec(noinline)
 bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_TERMINATE_THREAD);
+
+    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return false;
+    }
+
+    tracker->ReleaseMutex(tracker->Mutex);
 
     return NULL;
 }
@@ -273,6 +315,8 @@ bool TT_SuspendAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_SUSPEND_ALL);
 
+    tracker->ReleaseMutex(tracker->Mutex);
+
     return NULL;
 }
 
@@ -281,6 +325,7 @@ bool TT_ResumeAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_RESUME_ALL);
 
+    tracker->ReleaseMutex(tracker->Mutex);
     return NULL;
 }
 
@@ -289,5 +334,6 @@ bool TT_Clean()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
+    tracker->ReleaseMutex(tracker->Mutex);
     return NULL;
 }
