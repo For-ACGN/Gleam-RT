@@ -54,8 +54,7 @@ typedef struct {
 } ThreadTracker;
 
 // methods about thread tracker
-HANDLE TT_CreateThread
-(
+HANDLE TT_CreateThread(
     uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
     uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
 );
@@ -71,6 +70,8 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context);
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static bool updateTrackerPointers(ThreadTracker* tracker);
 static bool updateTrackerPointer(ThreadTracker* tracker, void* method, uintptr address);
+static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
+static bool delThread(ThreadTracker* tracker, uint32 threadID);
 
 ThreadTracker_M* InitThreadTracker(Context* context)
 {
@@ -244,8 +245,7 @@ static ThreadTracker* getTrackerPointer(uintptr pointer)
 #pragma optimize("", on)
 
 __declspec(noinline)
-HANDLE TT_CreateThread
-(
+HANDLE TT_CreateThread(
     uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
     uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
 )
@@ -257,16 +257,69 @@ HANDLE TT_CreateThread
         return NULL;
     }
 
-    HANDLE hThread = tracker->CreateThread(
-        lpThreadAttributes, dwStackSize, lpStartAddress,
-        lpParameter, dwCreationFlags, lpThreadId
-    );
-    if (hThread == NULL)
+    uint32 threadID;
+    HANDLE hThread;
+
+    bool success = true;
+    for (;;)
     {
-        return NULL;
+        hThread = tracker->CreateThread(
+            lpThreadAttributes, dwStackSize, lpStartAddress,
+            lpParameter, dwCreationFlags, &threadID
+        );
+        if (hThread == NULL)
+        {
+            success = false;
+            break;
+        }
+        if (!addThread(tracker, threadID, hThread))
+        {
+            success = false;
+            break;
+        }
+        break;
     }
 
     tracker->ReleaseMutex(tracker->Mutex);
+
+    if (!success)
+    {
+        return NULL;
+    }
+    *lpThreadId = threadID;
+    return hThread;
+}
+
+static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
+{
+    if (tracker->NumThreads >= MAX_NUM_THREADS)
+    {
+        return false;
+    }
+
+    // clone handle
+
+    // search space for store structure
+    thread* threads = tracker->Threads;
+    thread* thread  = NULL; 
+    for (int i = 0; i <= MAX_NUM_THREADS; i++)
+    {
+        if (threads->threadID != 0 || threads->hThread != NULL)
+        {
+            threads++;
+            continue;
+        }
+        thread = threads;
+        break;
+    }
+    if (thread == NULL)
+    {
+        return false;
+    }
+    threads->threadID = threadID;
+    threads->hThread  = hThread;
+    tracker->NumThreads++;
+    return true;
 }
 
 __declspec(noinline)
@@ -280,6 +333,34 @@ void TT_ExitThread(uint32 dwExitCode)
     }
 
     tracker->ReleaseMutex(tracker->Mutex);
+}
+
+static bool delThread(ThreadTracker* tracker, uint32 threadID)
+{
+    // search the target structure
+    thread* threads = tracker->Threads;
+    thread* thread  = NULL;
+    for (int i = 0; i <= MAX_NUM_THREADS; i++)
+    {
+        if (threads->threadID != threadID)
+        {
+            threads++;
+            continue;
+        }
+        thread = threads;
+        break;
+    }
+    if (thread == NULL)
+    {
+        return false;
+    }
+
+    // Close Handle
+
+    threads->threadID = 0;
+    threads->hThread  = NULL;
+    tracker->NumThreads--;
+    return true;
 }
 
 __declspec(noinline)
