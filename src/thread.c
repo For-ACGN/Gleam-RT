@@ -39,7 +39,8 @@ typedef struct {
     ExitThread          ExitThread;
     SuspendThread       SuspendThread;
     ResumeThread        ResumeThread;
-    GetCurrentThread    GetCurrentThread;
+    GetThreadID         GetThreadID;
+    GetCurrentThreadID  GetCurrentThreadID;
     TerminateThread     TerminateThread;
     ReleaseMutex        ReleaseMutex;
     WaitForSingleObject WaitForSingleObject;
@@ -132,7 +133,8 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0x91238A1B4E365AB0, 0x6C621931AE641330 }, // ExitThread
         { 0x3A4D5132CF0D20D8, 0x89E05A81B86A26AE }, // SuspendThread
         { 0xB1917786CE5B5A94, 0x6BC3328C112C6DDA }, // ResumeThread
-        { 0x2E2244FC09448B85, 0xB8EAA92FB10C7BDE }, // GetCurrentThread
+        { 0x5133BE509803E44E, 0x20498B6AFFAED91B }, // GetThreadId
+        { 0x9AF119F551D952CF, 0x5A1B9D61A26B22D7 }, // GetCurrentThreadId
         { 0xFB891A810F1ABF9A, 0x253BBD721EBD81F0 }, // TerminateThread
         { 0xF7A5A49D19409FFC, 0x6F23FAA4C20FF4D3 }, // DuplicateHandle
     };
@@ -142,7 +144,8 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0x1D1F85DD, 0x41A9BD17 }, // ExitThread
         { 0x26C71141, 0xF3C390BD }, // SuspendThread
         { 0x20FFDC31, 0x1D4EA347 }, // ResumeThread
-        { 0xA7B638FD, 0xAE13B043 }, // GetCurrentThread
+        { 0xFE77EB3E, 0x81CB68B1 }, // GetThreadId
+        { 0x2884E5D9, 0xA933632C }, // GetCurrentThreadId
         { 0xBA134972, 0x295F9DD2 }, // TerminateThread
         { 0x0E7ED8B9, 0x025067E9 }, // DuplicateHandle
     };
@@ -158,13 +161,14 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         list[i].address = address;
     }
 
-    tracker->CreateThread     = (CreateThread    )(list[0].address);
-    tracker->ExitThread       = (ExitThread      )(list[1].address);
-    tracker->SuspendThread    = (SuspendThread   )(list[2].address);
-    tracker->ResumeThread     = (ResumeThread    )(list[3].address);
-    tracker->GetCurrentThread = (GetCurrentThread)(list[4].address);
-    tracker->TerminateThread  = (TerminateThread )(list[5].address);
-    tracker->DuplicateHandle  = (DuplicateHandle )(list[6].address);
+    tracker->CreateThread       = (CreateThread      )(list[0].address);
+    tracker->ExitThread         = (ExitThread        )(list[1].address);
+    tracker->SuspendThread      = (SuspendThread     )(list[2].address);
+    tracker->ResumeThread       = (ResumeThread      )(list[3].address);
+    tracker->GetThreadID        = (GetThreadID       )(list[4].address);
+    tracker->GetCurrentThreadID = (GetCurrentThreadID)(list[5].address);
+    tracker->TerminateThread    = (TerminateThread   )(list[6].address);
+    tracker->DuplicateHandle    = (DuplicateHandle   )(list[7].address);
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
@@ -174,15 +178,15 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
 
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
 {
-    thread* page = (thread*)context->TTMemPage;
+    thread* threads = (thread*)context->TTMemPage;
     tracker->NumThreads = 0;
-    tracker->Threads    = page;
+    tracker->Threads    = threads;
     // clean memory page
     for (int i = 0; i < MAX_NUM_THREADS; i++)
     {
-        page->threadID = 0;
-        page->hThread  = NULL;
-        page++;
+        threads->threadID = 0;
+        threads->hThread = NULL;
+        threads++;
     }
     tracker->Mutex = context->Mutex;
     return true;
