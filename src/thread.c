@@ -185,8 +185,18 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
     for (int i = 0; i < MAX_NUM_THREADS; i++)
     {
         threads->threadID = 0;
-        threads->hThread = NULL;
+        threads->hThread  = NULL;
         threads++;
+    }
+    // add current thread for special exe like Golang
+    uint32 threadID = tracker->GetCurrentThreadID();
+    if (threadID == 0)
+    {
+        return false;
+    }
+    if (!addThread(tracker, threadID, CURRENT_THREAD))
+    {
+        return false;
     }
     tracker->Mutex = context->Mutex;
     return true;
@@ -394,8 +404,9 @@ uint32 TT_SuspendThread(HANDLE hThread)
         return -1;
     }
    
-    uint32 threadID = tracker->GetThreadID(hThread);
     uint32 count;
+
+    uint32 threadID = tracker->GetThreadID(hThread);
     if (threadID == tracker->GetCurrentThreadID() || threadID == 0)
     {
         tracker->ReleaseMutex(tracker->Mutex);
@@ -404,6 +415,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
         count = tracker->SuspendThread(hThread);
         tracker->ReleaseMutex(tracker->Mutex);
     }
+
     return count;
 }
 
@@ -484,7 +496,7 @@ bool TT_SuspendAll()
         }
         threads++;
     }
-    return error;
+    return !error;
 }
 
 __declspec(noinline)
@@ -526,7 +538,7 @@ bool TT_ResumeAll()
         }
         threads++;
     }
-    return error;
+    return !error;
 }
 
 __declspec(noinline)
@@ -560,6 +572,14 @@ bool TT_Clean()
             }
         }
 
+        if (!tracker->CloseHandle(threads->hThread))
+        {
+            error = true;
+        }
+        threads->threadID = 0;
+        threads->hThread  = NULL;
+        tracker->NumThreads--;
+
         numThread++;
         if (numThread >= tracker->NumThreads)
         {
@@ -567,5 +587,5 @@ bool TT_Clean()
         }
         threads++;
     }
-    return error;
+    return !error;
 }
