@@ -267,6 +267,11 @@ HANDLE TT_CreateThread(
     bool success = true;
     for (;;)
     {
+        if (tracker->NumThreads >= MAX_NUM_THREADS)
+        {
+            success = false;
+            break;
+        }
         hThread = tracker->CreateThread(
             lpThreadAttributes, dwStackSize, lpStartAddress,
             lpParameter, dwCreationFlags, &threadID
@@ -296,13 +301,16 @@ HANDLE TT_CreateThread(
 
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
 {
-    if (tracker->NumThreads >= MAX_NUM_THREADS)
+    // duplicate thread handle
+    HANDLE dupHandle;
+    if (!tracker->DuplicateHandle(
+        CURRENT_PROCESS, hThread, CURRENT_PROCESS, &dupHandle,
+        0, false, DUPLICATE_SAME_ACCESS
+    ))
     {
+        tracker->CloseHandle(hThread);
         return false;
     }
-
-    // clone handle
-
     // search space for store structure
     thread* threads = tracker->Threads;
     thread* thread  = NULL; 
@@ -316,12 +324,15 @@ static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
         thread = threads;
         break;
     }
+    // unexpected case
     if (thread == NULL)
     {
+        tracker->CloseHandle(hThread);
+        tracker->CloseHandle(dupHandle);
         return false;
     }
-    threads->threadID = threadID;
-    threads->hThread  = hThread;
+    thread->threadID = threadID;
+    thread->hThread = dupHandle;
     tracker->NumThreads++;
     return true;
 }
@@ -361,8 +372,8 @@ static bool delThread(ThreadTracker* tracker, uint32 threadID)
 
     // Close Handle
 
-    threads->threadID = 0;
-    threads->hThread  = NULL;
+    thread->threadID = 0;
+    thread->hThread  = NULL;
     tracker->NumThreads--;
     return true;
 }

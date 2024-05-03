@@ -347,7 +347,7 @@ static bool recoverPageProtect(Runtime* runtime, uint32* old)
             return false;
         }
     }
-    return runtime->FlushInstructionCache(-1, begin, size);
+    return runtime->FlushInstructionCache(CURRENT_PROCESS, begin, size);
 }
 
 static void cleanRuntime(Runtime* runtime)
