@@ -431,9 +431,25 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
         return false;
     }
 
+    bool success = true;
+    for (;;)
+    {
+        uint32 threadID = tracker->GetThreadID(hThread);
+        if (threadID != 0)
+        {
+            delThread(tracker, threadID);
+        }
+        if (!tracker->TerminateThread(hThread, dwExitCode))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
     tracker->ReleaseMutex(tracker->Mutex);
 
-    return NULL;
+    return success;
 }
 
 __declspec(noinline)
@@ -441,14 +457,32 @@ bool TT_SuspendAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_SUSPEND_ALL);
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    thread* threads   = tracker->Threads;
+    uint32  numThread = 0;
+
+    bool error = false;
+    for (int i = 0; i < MAX_NUM_THREADS; i++)
     {
-        return false;
+        if (threads->threadID == 0 || threads->hThread == NULL)
+        {
+            threads++;
+            continue;
+        }
+
+        uint32 count = tracker->SuspendThread(threads->hThread);
+        if (count == -1)
+        {
+            error = true;
+        }
+
+        numThread++;
+        if (numThread >= tracker->NumThreads)
+        {
+            break;
+        }
+        threads++;
     }
-
-    tracker->ReleaseMutex(tracker->Mutex);
-
-    return NULL;
+    return error;
 }
 
 __declspec(noinline)
@@ -456,12 +490,7 @@ bool TT_ResumeAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_RESUME_ALL);
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
-    {
-        return false;
-    }
 
-    tracker->ReleaseMutex(tracker->Mutex);
     return NULL;
 }
 
@@ -470,11 +499,6 @@ bool TT_Clean()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
-    {
-        return false;
-    }
 
-    tracker->ReleaseMutex(tracker->Mutex);
     return NULL;
 }
