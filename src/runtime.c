@@ -236,7 +236,7 @@ static uint initRuntimeEnvironment(Runtime* runtime)
 
         .Mutex = runtime->Mutex,
     };
-    uint errCode = 0x00;
+    uint errCode;
     errCode = initMemoryTracker(runtime, &context);
     if (errCode != 0x00)
     {
@@ -395,13 +395,24 @@ bool RT_Hide()
         return false;
     }
 
-    if (!runtime->MemoryTracker->MemEncrypt())
+    bool success = true;
+    for (;;)
     {
-        return false;
+        if (!runtime->ThreadTracker->ThdSuspendAll())
+        {
+            success = false;
+            break;
+        }
+        if (!runtime->MemoryTracker->MemEncrypt())
+        {
+            success = false;
+            break;
+        }
+        break;
     }
 
     runtime->ReleaseMutex(runtime->Mutex);
-    return true;
+    return success;
 }
 
 __declspec(noinline)
@@ -414,13 +425,24 @@ bool RT_Recover()
         return false;
     }
 
-    if (!runtime->MemoryTracker->MemDecrypt())
+    bool success = true;
+    for (;;)
     {
-        return false;
+        if (!runtime->MemoryTracker->MemDecrypt())
+        {
+            success = false;
+            break;
+        }
+        if (!runtime->ThreadTracker->ThdResumeAll())
+        {
+            success = false;
+            break;
+        }
+        break;
     }
 
     runtime->ReleaseMutex(runtime->Mutex);
-    return true;
+    return success;
 }
 
 __declspec(noinline)
@@ -433,11 +455,22 @@ bool RT_Stop()
         return false;
     }
 
-    if (!runtime->MemoryTracker->MemClean())
+    bool success = true;
+    for (;;)
     {
-        return false;
+        if (!runtime->ThreadTracker->ThdClean())
+        {
+            success = false;
+            break;
+        }
+        if (!runtime->MemoryTracker->MemClean())
+        {
+            success = false;
+            break;
+        }
+        break;
     }
 
     runtime->ReleaseMutex(runtime->Mutex);
-    return true;
+    return success;
 }
