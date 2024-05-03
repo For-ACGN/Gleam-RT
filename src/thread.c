@@ -348,7 +348,10 @@ void TT_ExitThread(uint32 dwExitCode)
     }
 
     uint32 threadID = tracker->GetCurrentThreadID();
-    delThread(tracker, threadID);
+    if (threadID != 0)
+    {
+        delThread(tracker, threadID);
+    }
 
     tracker->ReleaseMutex(tracker->Mutex);
 
@@ -431,31 +434,27 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
         return false;
     }
 
-    bool success = true;
-    for (;;)
+    uint32 threadID = tracker->GetThreadID(hThread);
+    if (threadID != 0)
     {
-        uint32 threadID = tracker->GetThreadID(hThread);
-        if (threadID != 0)
-        {
-            delThread(tracker, threadID);
-        }
-        if (!tracker->TerminateThread(hThread, dwExitCode))
-        {
-            success = false;
-            break;
-        }
-        break;
+        delThread(tracker, threadID);
     }
 
     tracker->ReleaseMutex(tracker->Mutex);
 
-    return success;
+    return tracker->TerminateThread(hThread, dwExitCode);
 }
 
 __declspec(noinline)
 bool TT_SuspendAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_SUSPEND_ALL);
+
+    uint32 threadID = tracker->GetCurrentThreadID();
+    if (threadID == 0)
+    {
+        return false;
+    }
 
     thread* threads   = tracker->Threads;
     uint32  numThread = 0;
@@ -469,10 +468,13 @@ bool TT_SuspendAll()
             continue;
         }
 
-        uint32 count = tracker->SuspendThread(threads->hThread);
-        if (count == -1)
+        if (threads->threadID != threadID)
         {
-            error = true;
+            uint32 count = tracker->SuspendThread(threads->hThread);
+            if (count == -1)
+            {
+                error = true;
+            }
         }
 
         numThread++;
@@ -490,8 +492,41 @@ bool TT_ResumeAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_RESUME_ALL);
 
+    uint32 threadID = tracker->GetCurrentThreadID();
+    if (threadID == 0)
+    {
+        return false;
+    }
 
-    return NULL;
+    thread* threads   = tracker->Threads;
+    uint32  numThread = 0;
+
+    bool error = false;
+    for (int i = 0; i < MAX_NUM_THREADS; i++)
+    {
+        if (threads->threadID == 0 || threads->hThread == NULL)
+        {
+            threads++;
+            continue;
+        }
+
+        if (threads->threadID != threadID)
+        {
+            uint32 count = tracker->ResumeThread(threads->hThread);
+            if (count == -1)
+            {
+                error = true;
+            }
+        }
+
+        numThread++;
+        if (numThread >= tracker->NumThreads)
+        {
+            break;
+        }
+        threads++;
+    }
+    return error;
 }
 
 __declspec(noinline)
@@ -499,6 +534,38 @@ bool TT_Clean()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
+    uint32 threadID = tracker->GetCurrentThreadID();
+    if (threadID == 0)
+    {
+        return false;
+    }
 
-    return NULL;
+    thread* threads   = tracker->Threads;
+    uint32  numThread = 0;
+
+    bool error = false;
+    for (int i = 0; i < MAX_NUM_THREADS; i++)
+    {
+        if (threads->threadID == 0 || threads->hThread == NULL)
+        {
+            threads++;
+            continue;
+        }
+
+        if (threads->threadID != threadID)
+        {
+            if (!tracker->TerminateThread(threads->hThread, 0))
+            {
+                error = true;
+            }
+        }
+
+        numThread++;
+        if (numThread >= tracker->NumThreads)
+        {
+            break;
+        }
+        threads++;
+    }
+    return error;
 }
