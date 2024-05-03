@@ -72,7 +72,7 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static bool updateTrackerPointers(ThreadTracker* tracker);
 static bool updateTrackerPointer(ThreadTracker* tracker, void* method, uintptr address);
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
-static bool delThread(ThreadTracker* tracker, uint32 threadID);
+static void delThread(ThreadTracker* tracker, uint32 threadID);
 
 ThreadTracker_M* InitThreadTracker(Context* context)
 {
@@ -347,12 +347,17 @@ void TT_ExitThread(uint32 dwExitCode)
         return;
     }
 
+    uint32 threadID = tracker->GetCurrentThreadID();
+    delThread(tracker, threadID);
+
     tracker->ReleaseMutex(tracker->Mutex);
+
+    tracker->ExitThread(dwExitCode);
 }
 
-static bool delThread(ThreadTracker* tracker, uint32 threadID)
+static void delThread(ThreadTracker* tracker, uint32 threadID)
 {
-    // search the target structure
+    // search the target thread
     thread* threads = tracker->Threads;
     thread* thread  = NULL;
     for (int i = 0; i <= MAX_NUM_THREADS; i++)
@@ -367,15 +372,13 @@ static bool delThread(ThreadTracker* tracker, uint32 threadID)
     }
     if (thread == NULL)
     {
-        return false;
+        return;
     }
-
-    // Close Handle
-
+    // remove thread info in array.
+    tracker->CloseHandle(thread->hThread);
     thread->threadID = 0;
     thread->hThread  = NULL;
     tracker->NumThreads--;
-    return true;
 }
 
 __declspec(noinline)
@@ -387,10 +390,18 @@ uint32 TT_SuspendThread(HANDLE hThread)
     {
         return -1;
     }
-
-    tracker->ReleaseMutex(tracker->Mutex);
-
-    return NULL;
+   
+    uint32 threadID = tracker->GetThreadID(hThread);
+    uint32 count;
+    if (threadID == tracker->GetCurrentThreadID() || threadID == 0)
+    {
+        tracker->ReleaseMutex(tracker->Mutex);
+        count = tracker->SuspendThread(hThread);
+    } else {
+        count = tracker->SuspendThread(hThread);
+        tracker->ReleaseMutex(tracker->Mutex);
+    }
+    return count;
 }
 
 __declspec(noinline)
@@ -403,9 +414,11 @@ uint32 TT_ResumeThread(HANDLE hThread)
         return -1;
     }
 
+    uint32 count = tracker->ResumeThread(hThread);
+
     tracker->ReleaseMutex(tracker->Mutex);
 
-    return NULL;
+    return count;
 }
 
 __declspec(noinline)
