@@ -12,15 +12,18 @@
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitthread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-suspendthread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-resumethread
-* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthread
+* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getthreadid
+* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthreadid
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminatethread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-flushinstructioncache
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createmutexa
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-releasemutex
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
+* https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-duplicatehandle
 * https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
-* https://learn.microsoft.com/zh-cn/windows/win32/api/handleapi/nf-handleapi-duplicatehandle
 */
+
+#define CURRENT_PROCESS (HANDLE)(-1)
 
 #define MEM_COMMIT  0x00001000
 #define MEM_RESERVE 0x00002000
@@ -37,6 +40,8 @@
 
 #define INFINITE      0xFFFFFFFF
 #define WAIT_OBJECT_0 0x00000000
+
+#define DUPLICATE_SAME_ACCESS 0x00000002
 
 typedef uint    HANDLE;
 typedef HANDLE* LPHANDLE;
@@ -78,7 +83,12 @@ typedef uint32 (*ResumeThread)
     HANDLE hThread
 );
 
-typedef HANDLE (*GetCurrentThread)();
+typedef uint32 (*GetThreadID)
+(
+    HANDLE hThread
+);
+
+typedef uint32 (*GetCurrentThreadID)();
 
 typedef bool (*TerminateThread)
 (
