@@ -11,13 +11,15 @@
 
 // hard encoded address in methods for replace
 #ifdef _WIN64
-    #define METHOD_ADDR_HIDE    0x7FFFFFFFFFFFFFF0
-    #define METHOD_ADDR_RECOVER 0x7FFFFFFFFFFFFFF1
-    #define METHOD_ADDR_STOP    0x7FFFFFFFFFFFFFF2
+    #define METHOD_ADDR_SLEEP   0x7FFFFFFFFFFFFFF0
+    #define METHOD_ADDR_HIDE    0x7FFFFFFFFFFFFFF1
+    #define METHOD_ADDR_RECOVER 0x7FFFFFFFFFFFFFF2
+    #define METHOD_ADDR_STOP    0x7FFFFFFFFFFFFFF3
 #elif _WIN32
-    #define METHOD_ADDR_HIDE    0x7FFFFFF0
-    #define METHOD_ADDR_RECOVER 0x7FFFFFF1
-    #define METHOD_ADDR_STOP    0x7FFFFFF2
+    #define METHOD_ADDR_SLEEP   0x7FFFFFF0
+    #define METHOD_ADDR_HIDE    0x7FFFFFF1
+    #define METHOD_ADDR_RECOVER 0x7FFFFFF2
+    #define METHOD_ADDR_STOP    0x7FFFFFF3
 #endif
 
 typedef struct {
@@ -45,6 +47,7 @@ typedef struct {
 } Runtime;
 
 // methods about Runtime
+bool RT_Sleep(uint32 milliseconds);
 bool RT_Hide();
 bool RT_Recover();
 bool RT_Stop();
@@ -59,6 +62,9 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
 static bool adjustPageProtect(Runtime* runtime, uint32* old);
 static bool recoverPageProtect(Runtime* runtime, uint32* old);
 static void cleanRuntime(Runtime* runtime);
+static bool sleep(Runtime* runtime, uint32 milliseconds);
+static bool hide(Runtime* runtime);
+static bool recover(Runtime* runtime);
 
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Args* args)
@@ -114,18 +120,24 @@ Runtime_M* InitRuntime(Runtime_Args* args)
     }
     // clean context data in structure
     uintptr ctxBegin = (uintptr)(runtime);
-    uintptr ctxSize  = (uintptr)(&runtime->ReleaseMutex) - ctxBegin;
+    uintptr ctxSize  = (uintptr)(&runtime->CreateMutexA) - ctxBegin;
     RandBuf((byte*)ctxBegin, (int64)ctxSize);
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for IAT hooks
-    module->VirtualAlloc   = runtime->MemoryTracker->VirtualAlloc;
-    module->VirtualFree    = runtime->MemoryTracker->VirtualFree;
-    module->VirtualProtect = runtime->MemoryTracker->VirtualProtect;
-    // for general shellcode
-    module->MemAlloc = runtime->MemoryTracker->MemAlloc;
-    module->MemFree  = runtime->MemoryTracker->MemFree;
+    module->VirtualAlloc    = runtime->MemoryTracker->VirtualAlloc;
+    module->VirtualFree     = runtime->MemoryTracker->VirtualFree;
+    module->VirtualProtect  = runtime->MemoryTracker->VirtualProtect;
+    module->CreateThread    = runtime->ThreadTracker->CreateThread;
+    module->ExitThread      = runtime->ThreadTracker->ExitThread;
+    module->SuspendThread   = runtime->ThreadTracker->SuspendThread;
+    module->ResumeThread    = runtime->ThreadTracker->ResumeThread;
+    module->TerminateThread = runtime->ThreadTracker->TerminateThread;
+    // for develop shellcode
+    module->Alloc = runtime->MemoryTracker->MemAlloc;
+    module->Free  = runtime->MemoryTracker->MemFree;
     // runtime core methods
+    module->Sleep   = &RT_Sleep;
     module->Hide    = &RT_Hide;
     module->Recover = &RT_Recover;
     module->Stop    = &RT_Stop;
@@ -287,6 +299,7 @@ static bool updateRuntimePointers(Runtime* runtime)
     } method;
     method methods[] = 
     {
+        { &RT_Sleep,   METHOD_ADDR_SLEEP },
         { &RT_Hide,    METHOD_ADDR_HIDE },
         { &RT_Recover, METHOD_ADDR_RECOVER },
         { &RT_Stop,    METHOD_ADDR_STOP },
@@ -380,9 +393,56 @@ static Runtime* getRuntimePointer(uintptr pointer)
 #pragma optimize("", on)
 
 __declspec(noinline)
-void RT_Sleep()
+bool RT_Sleep(uint32 milliseconds)
 {
+    Runtime* runtime = getRuntimePointer(METHOD_ADDR_SLEEP);
 
+    if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
+    {
+        return false;
+    }
+
+    bool success = true;
+    for (;;)
+    {
+        if (!hide(runtime))
+        {
+            success = false;
+            break;
+        }
+        if (!sleep(runtime, milliseconds))
+        {
+            success = false;
+        }
+        if (!recover(runtime))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
+    runtime->ReleaseMutex(runtime->Mutex);
+    return success;
+}
+
+// TODO fix bug
+static bool sleep(Runtime* runtime, uint32 milliseconds)
+{
+    HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
+    if (hMutex == NULL)
+    {
+        return false;
+    }
+    if (milliseconds < 100)
+    {
+        milliseconds = 100;
+    }
+    // will deadlock until timeout
+    runtime->WaitForSingleObject(hMutex, milliseconds);
+    runtime->WaitForSingleObject(hMutex, milliseconds);
+    runtime->ReleaseMutex(hMutex);
+    return runtime->CloseHandle(hMutex);
 }
 
 __declspec(noinline)
@@ -394,7 +454,13 @@ bool RT_Hide()
     {
         return false;
     }
+    bool success = hide(runtime);
+    runtime->ReleaseMutex(runtime->Mutex);
+    return success;
+}
 
+static bool hide(Runtime* runtime)
+{
     bool success = true;
     for (;;)
     {
@@ -410,8 +476,6 @@ bool RT_Hide()
         }
         break;
     }
-
-    runtime->ReleaseMutex(runtime->Mutex);
     return success;
 }
 
@@ -424,7 +488,13 @@ bool RT_Recover()
     {
         return false;
     }
+    bool success = recover(runtime);
+    runtime->ReleaseMutex(runtime->Mutex);
+    return success;
+}
 
+static bool recover(Runtime* runtime)
+{
     bool success = true;
     for (;;)
     {
@@ -440,8 +510,6 @@ bool RT_Recover()
         }
         break;
     }
-
-    runtime->ReleaseMutex(runtime->Mutex);
     return success;
 }
 
