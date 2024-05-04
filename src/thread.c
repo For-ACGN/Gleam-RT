@@ -78,8 +78,8 @@ ThreadTracker_M* InitThreadTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 2000 + RandUint(address) % 256;
-    uintptr moduleAddr  = address + 2300 + RandUint(address) % 256;
+    uintptr trackerAddr = address + 2100 + RandUint(address) % 256;
+    uintptr moduleAddr  = address + 2700 + RandUint(address) % 256;
     // initialize tracker
     ThreadTracker* tracker = (ThreadTracker*)trackerAddr;
     uint errCode = 0;
@@ -462,8 +462,8 @@ bool TT_SuspendAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_SUSPEND_ALL);
 
-    uint32 threadID = tracker->GetCurrentThreadID();
-    if (threadID == 0)
+    uint32 currentTID = tracker->GetCurrentThreadID();
+    if (currentTID == 0)
     {
         return false;
     }
@@ -480,12 +480,12 @@ bool TT_SuspendAll()
             continue;
         }
 
-        if (threads->threadID != threadID)
+        if (threads->threadID != currentTID)
         {
             uint32 count = tracker->SuspendThread(threads->hThread);
             if (count == -1)
             {
-                error = true;
+                delThread(tracker, threads->threadID);
             }
         }
 
@@ -504,8 +504,8 @@ bool TT_ResumeAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_RESUME_ALL);
 
-    uint32 threadID = tracker->GetCurrentThreadID();
-    if (threadID == 0)
+    uint32 currentTID = tracker->GetCurrentThreadID();
+    if (currentTID == 0)
     {
         return false;
     }
@@ -522,12 +522,12 @@ bool TT_ResumeAll()
             continue;
         }
 
-        if (threads->threadID != threadID)
+        if (threads->threadID != currentTID)
         {
             uint32 count = tracker->ResumeThread(threads->hThread);
             if (count == -1)
             {
-                error = true;
+                delThread(tracker, threads->threadID);
             }
         }
 
@@ -546,8 +546,8 @@ bool TT_Clean()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
-    uint32 threadID = tracker->GetCurrentThreadID();
-    if (threadID == 0)
+    uint32 currentTID = tracker->GetCurrentThreadID();
+    if (currentTID == 0)
     {
         return false;
     }
@@ -564,7 +564,7 @@ bool TT_Clean()
             continue;
         }
 
-        if (threads->threadID != threadID)
+        if (threads->threadID != currentTID)
         {
             if (!tracker->TerminateThread(threads->hThread, 0))
             {

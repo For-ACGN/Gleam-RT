@@ -38,6 +38,9 @@ typedef struct {
     WaitForSingleObject   WaitForSingleObject;
     CloseHandle           CloseHandle;
 
+    // for simulate Sleep
+    HANDLE hProcess;
+
     // global mutex
     HANDLE Mutex;
 
@@ -76,7 +79,7 @@ Runtime_M* InitRuntime(Runtime_Args* args)
     }
     // set structure address
     uintptr runtimeAddr = address + 300 + RandUint(address) % 256;
-    uintptr moduleAddr  = address + 600 + RandUint(address) % 256;
+    uintptr moduleAddr  = address + 900 + RandUint(address) % 256;
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     runtime->Args = args;
@@ -438,8 +441,11 @@ static bool sleep(Runtime* runtime, uint32 milliseconds)
     {
         milliseconds = 100;
     }
+
+
+
     // will deadlock until timeout
-    runtime->WaitForSingleObject(hMutex, milliseconds);
+    runtime->WaitForSingleObject(CURRENT_PROCESS, milliseconds);
     runtime->WaitForSingleObject(hMutex, milliseconds);
     runtime->ReleaseMutex(hMutex);
     return runtime->CloseHandle(hMutex);
