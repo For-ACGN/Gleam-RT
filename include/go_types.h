@@ -51,7 +51,13 @@ typedef _Bool bool;
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFFui64
 
 // calculate array length
-#define arrlen(array) (sizeof(array)/sizeof(array[0]))
+#ifndef arrlen
+#define arrlen(array) (sizeof(array) / sizeof(array[0]))
+#endif
+
+#ifndef offsetof
+#define offsetof(struct, field) ((uintptr) & (((struct*)0)->field))
+#endif
 
 // copy is used to copy source memory data to the destination.
 static void copy(void* dst, void* src, uint size)
@@ -65,7 +71,5 @@ static void copy(void* dst, void* src, uint size)
         s++;
     }
 }
-
-#define offsetof(struct, field) ((uintptr) & (((struct*)0)->field))
 
 #endif // GO_TYPES_H
