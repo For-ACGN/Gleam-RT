@@ -28,6 +28,12 @@
     #define METHOD_ADDR_STOP    0x7FFFFFF5
 #endif
 
+// for IAT hooks
+typedef struct {
+    uintptr Original;
+    uintptr Hook;
+} Hook;
+
 typedef struct {
     Runtime_Args* Args;
 
@@ -45,6 +51,9 @@ typedef struct {
     WaitForSingleObject   WaitForSingleObject;
     DuplicateHandle       DuplicateHandle;
     CloseHandle           CloseHandle;
+
+    // IAT hooks about GetProcAddress
+    Hook Hooks[10];
 
     // runtime data
     HANDLE hProcess; // for simulate Sleep
@@ -74,7 +83,10 @@ static bool updateRuntimePointers(Runtime* runtime);
 static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
 static bool adjustPageProtect(Runtime* runtime, uint32* old);
 static bool recoverPageProtect(Runtime* runtime, uint32* old);
+static bool initIATHooks(Runtime* runtime);
 static void cleanRuntime(Runtime* runtime);
+
+static uintptr replaceToHook(Runtime* runtime, uintptr proc);
 static bool sleep(Runtime* runtime, uint32 milliseconds);
 static bool hide(Runtime* runtime);
 static bool recover(Runtime* runtime);
@@ -124,6 +136,11 @@ Runtime_M* InitRuntime(Runtime_Args* args)
             errCode = 0xF5;
             break;
         }
+        if (!initIATHooks(runtime))
+        {
+            errCode = 0xF6;
+            break;
+        }
         break;
     }
     if (errCode != 0x00)
@@ -138,16 +155,9 @@ Runtime_M* InitRuntime(Runtime_Args* args)
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for IAT hooks
-    // 
-    // 
-    // module->VirtualAlloc    = runtime->MemoryTracker->VirtualAlloc;
-    // module->VirtualFree     = runtime->MemoryTracker->VirtualFree;
-    // module->VirtualProtect  = runtime->MemoryTracker->VirtualProtect;
-    // module->CreateThread    = runtime->ThreadTracker->CreateThread;
-    // module->ExitThread      = runtime->ThreadTracker->ExitThread;
-    // module->SuspendThread   = runtime->ThreadTracker->SuspendThread;
-    // module->ResumeThread    = runtime->ThreadTracker->ResumeThread;
-    // module->TerminateThread = runtime->ThreadTracker->TerminateThread;
+    module->GetProcAddress       = &RT_GetProcAddress;
+    module->GetProcAddressByName = &RT_GetProcAddressByName;
+    module->GetProcAddressByHash = &RT_GetProcAddressByHash;
     // for develop shellcode
     module->Alloc = runtime->MemoryTracker->MemAlloc;
     module->Free  = runtime->MemoryTracker->MemFree;
@@ -398,6 +408,53 @@ static bool recoverPageProtect(Runtime* runtime, uint32* old)
     return runtime->FlushInstructionCache(CURRENT_PROCESS, begin, size);
 }
 
+static bool initIATHooks(Runtime* runtime)
+{
+    typedef struct {
+        uint hash; uint key; void* hook;
+    } item;
+    item items[] = 
+#ifdef _WIN64
+    {
+        { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, &RT_GetProcAddress },
+        { 0xCED5CC955152CD43, 0xAA22C83C068CB037, &RT_Sleep },
+        { 0x18A3895F35B741C8, 0x96C9890F48D55E7E, runtime->MemoryTracker->VirtualAlloc },
+        { 0xDB54AA6683574A8B, 0x3137DE2D71D3FF3E, runtime->MemoryTracker->VirtualFree },
+        { 0xF5469C21B43D23E5, 0xF80028997F625A05, runtime->MemoryTracker->VirtualProtect },
+        { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, runtime->ThreadTracker->CreateThread },
+        { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, runtime->ThreadTracker->ExitThread },
+        { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, runtime->ThreadTracker->SuspendThread },
+        { 0x226860209E13A99A, 0xE1BD9D8C64FAF97D, runtime->ThreadTracker->ResumeThread },
+        { 0x248E1CDD11AB444F, 0x195932EA70030929, runtime->ThreadTracker->TerminateThread },
+    };
+#elif _WIN32
+    {
+        { 0x5E5065D4, 0x63CDAD01, &RT_GetProcAddress },
+        { 0x705D4FAD, 0x94CF33BF, &RT_Sleep },
+        { 0xD5B65767, 0xF3A27766, runtime->MemoryTracker->VirtualAlloc },
+        { 0x4F0FC063, 0x182F3CC6, runtime->MemoryTracker->VirtualFree },
+        { 0xEBD60441, 0x280A4A9F, runtime->MemoryTracker->VirtualProtect },
+        { 0x20744CA1, 0x4FA1647D, runtime->ThreadTracker->CreateThread },
+        { 0xED42C0F0, 0xC59EBA39, runtime->ThreadTracker->ExitThread },
+        { 0x133B00D5, 0x48E02627, runtime->ThreadTracker->SuspendThread },
+        { 0xA02B4251, 0x5287173F, runtime->ThreadTracker->ResumeThread },
+        { 0x6EF0E2AA, 0xE014E29F, runtime->ThreadTracker->TerminateThread },
+    };
+#endif
+    uintptr proc;
+    for (int i = 0; i < arrlen(items); i++)
+    {
+        proc = FindAPI(items[i].hash, items[i].key);
+        if (proc == NULL)
+        {
+            return false;
+        }
+        runtime->Hooks[i].Original = proc;
+        runtime->Hooks[i].Hook     = (uintptr)items[i].hook;
+    }
+    return true;
+}
+
 static void cleanRuntime(Runtime* runtime)
 {
     CloseHandle closeHandle = runtime->CloseHandle;
@@ -447,7 +504,7 @@ uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
     {
         return proc;
     }
-
+    return replaceToHook(runtime, proc);
 }
 
 __declspec(noinline)
@@ -464,7 +521,20 @@ uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
     {
         return proc;
     }
+    return replaceToHook(runtime, proc);
+}
 
+static uintptr replaceToHook(Runtime* runtime, uintptr proc)
+{
+    for (int i = 0; i < arrlen(runtime->Hooks); i++)
+    {
+        if (proc != runtime->Hooks[i].Original)
+        {
+            continue;
+        }
+        return runtime->Hooks[i].Hook;
+    }
+    return proc;
 }
 
 __declspec(noinline)
