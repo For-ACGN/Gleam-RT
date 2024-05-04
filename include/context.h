@@ -15,10 +15,9 @@ typedef struct {
     VirtualAlloc          VirtualAlloc;
     VirtualFree           VirtualFree;
     VirtualProtect        VirtualProtect;
-    FlushInstructionCache FlushInstructionCache;
-    CreateMutexA          CreateMutexA;
     ReleaseMutex          ReleaseMutex;
     WaitForSingleObject   WaitForSingleObject;
+    DuplicateHandle       DuplicateHandle;
     CloseHandle           CloseHandle;
 
     // runtime context data

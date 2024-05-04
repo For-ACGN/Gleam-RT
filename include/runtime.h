@@ -5,11 +5,17 @@
 #include "windows_t.h"
 #include "hash_api.h"
 
-typedef void* (*MemAlloc_t)(uint size);
-typedef bool  (*MemFree_t)(void* address);
-typedef bool  (*Hide_t)();
-typedef bool  (*Recover_t)();
-typedef bool  (*Stop_t)();
+typedef void* (*Alloc_t)(uint size);
+typedef bool  (*Free_t)(void* address);
+
+typedef uintptr (*GetProcAddress_t)(HMODULE hModule, LPCSTR lpProcName);
+typedef uintptr (*GetProcAddressByName_t)(HMODULE hModule, LPCSTR lpProcName, bool hook);
+typedef uintptr (*GetProcAddressByHash_t)(uint hash, uint key, bool hook);
+
+typedef bool (*Sleep_t)(uint32 milliseconds);
+typedef bool (*Hide_t)();
+typedef bool (*Recover_t)();
+typedef bool (*Stop_t)();
 
 typedef struct {
     FindAPI_t FindAPI;
@@ -18,17 +24,17 @@ typedef struct {
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
-    // for IAT hooks
-    VirtualAlloc   VirtualAlloc;
-    VirtualFree    VirtualFree;
-    VirtualProtect VirtualProtect;
-    CreateThread   CreateThread;
+    // for shellcode 
+    Alloc_t Alloc;
+    Free_t  Free;
 
-    // for general shellcode
-    MemAlloc_t MemAlloc;
-    MemFree_t  MemFree;
+    // for IAT hooks
+    GetProcAddress_t       GetProcAddress;
+    GetProcAddressByName_t GetProcAddressByName;
+    GetProcAddressByHash_t GetProcAddressByHash;
 
     // runtime core methods
+    Sleep_t   Sleep;
     Hide_t    Hide;
     Recover_t Recover;
     Stop_t    Stop;
