@@ -136,7 +136,7 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0x5133BE509803E44E, 0x20498B6AFFAED91B }, // GetThreadId
         { 0x9AF119F551D952CF, 0x5A1B9D61A26B22D7 }, // GetCurrentThreadId
         { 0xFB891A810F1ABF9A, 0x253BBD721EBD81F0 }, // TerminateThread
-        { 0xF7A5A49D19409FFC, 0x6F23FAA4C20FF4D3 }, // DuplicateHandle
+        
     };
 #elif _WIN32
     {
@@ -147,7 +147,7 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0xFE77EB3E, 0x81CB68B1 }, // GetThreadId
         { 0x2884E5D9, 0xA933632C }, // GetCurrentThreadId
         { 0xBA134972, 0x295F9DD2 }, // TerminateThread
-        { 0x0E7ED8B9, 0x025067E9 }, // DuplicateHandle
+        
     };
 #endif
     uintptr address;
@@ -168,10 +168,10 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
     tracker->GetThreadID        = (GetThreadID       )(list[4].address);
     tracker->GetCurrentThreadID = (GetCurrentThreadID)(list[5].address);
     tracker->TerminateThread    = (TerminateThread   )(list[6].address);
-    tracker->DuplicateHandle    = (DuplicateHandle   )(list[7].address);
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
+    tracker->DuplicateHandle     = context->DuplicateHandle;
     tracker->CloseHandle         = context->CloseHandle;
     return true;
 }

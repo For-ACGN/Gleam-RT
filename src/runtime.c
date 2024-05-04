@@ -36,13 +36,12 @@ typedef struct {
     CreateMutexA          CreateMutexA;
     ReleaseMutex          ReleaseMutex;
     WaitForSingleObject   WaitForSingleObject;
+    DuplicateHandle       DuplicateHandle;
     CloseHandle           CloseHandle;
 
-    // for simulate Sleep
-    HANDLE hProcess;
-
-    // global mutex
-    HANDLE Mutex;
+    // runtime data
+    HANDLE hProcess; // for simulate Sleep
+    HANDLE Mutex;    // global mutex
 
     // sub modules
     MemoryTracker_M* MemoryTracker;
@@ -186,6 +185,7 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0x31FE697F93D7510C, 0x77C8F05FE04ED22D }, // CreateMutexA
         { 0xEEFDEA7C0785B561, 0xA7B72CC8CD55C1D4 }, // ReleaseMutex
         { 0xA524CD56CF8DFF7F, 0x5519595458CD47C8 }, // WaitForSingleObject
+        { 0xF7A5A49D19409FFC, 0x6F23FAA4C20FF4D3 }, // DuplicateHandle
         { 0xA25F7449D6939A01, 0x85D37F1D89B30D2E }, // CloseHandle
     };
 #elif _WIN32
@@ -197,6 +197,7 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0x8F5BAED2, 0x43487DC7 }, // CreateMutexA
         { 0xFA42E55C, 0xEA9F1081 }, // ReleaseMutex
         { 0xC21AB03D, 0xED3AAF22 }, // WaitForSingleObject
+        { 0x0E7ED8B9, 0x025067E9 }, // DuplicateHandle
         { 0x60E108B2, 0x3C2DFF52 }, // CloseHandle
     };
 #endif
@@ -218,20 +219,33 @@ static bool initRuntimeAPI(Runtime* runtime)
     runtime->CreateMutexA          = (CreateMutexA         )(list[4].address);
     runtime->ReleaseMutex          = (ReleaseMutex         )(list[5].address);
     runtime->WaitForSingleObject   = (WaitForSingleObject  )(list[6].address);
-    runtime->CloseHandle           = (CloseHandle          )(list[7].address);
+    runtime->DuplicateHandle       = (DuplicateHandle      )(list[7].address);
+    runtime->CloseHandle           = (CloseHandle          )(list[8].address);
     return true;
 }
 
 static uint initRuntimeEnvironment(Runtime* runtime)
 {
     // initialize structure fields
-    runtime->Mutex = NULL;
+    runtime->hProcess = NULL;
+    runtime->Mutex    = NULL;
     runtime->MemoryTracker = NULL;
+    runtime->ThreadTracker = NULL;
+    // duplicate current process handle
+    HANDLE dupHandle;
+    if (!runtime->DuplicateHandle(
+        CURRENT_PROCESS, CURRENT_PROCESS, CURRENT_PROCESS, &dupHandle,
+        0, false, DUPLICATE_SAME_ACCESS
+    ))
+    {
+        return 0xF3;
+    }
+    runtime->hProcess = dupHandle;
     // create global mutex
     HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
     if (hMutex == NULL)
     {
-        return 0xF3;
+        return 0xF4;
     }
     runtime->Mutex = hMutex;
     // create context data for initialize other modules
@@ -243,10 +257,9 @@ static uint initRuntimeEnvironment(Runtime* runtime)
         .VirtualAlloc          = runtime->VirtualAlloc,
         .VirtualFree           = runtime->VirtualFree,
         .VirtualProtect        = runtime->VirtualProtect,
-        .FlushInstructionCache = runtime->FlushInstructionCache,
-        .CreateMutexA          = runtime->CreateMutexA,
         .ReleaseMutex          = runtime->ReleaseMutex,
         .WaitForSingleObject   = runtime->WaitForSingleObject,
+        .DuplicateHandle       = runtime->DuplicateHandle,
         .CloseHandle           = runtime->CloseHandle,
 
         .Mutex = runtime->Mutex,
@@ -429,26 +442,13 @@ bool RT_Sleep(uint32 milliseconds)
     return success;
 }
 
-// TODO fix bug
 static bool sleep(Runtime* runtime, uint32 milliseconds)
 {
-    HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
-    if (hMutex == NULL)
-    {
-        return false;
-    }
     if (milliseconds < 100)
     {
         milliseconds = 100;
     }
-
-
-
-    // will deadlock until timeout
-    runtime->WaitForSingleObject(CURRENT_PROCESS, milliseconds);
-    runtime->WaitForSingleObject(hMutex, milliseconds);
-    runtime->ReleaseMutex(hMutex);
-    return runtime->CloseHandle(hMutex);
+    return runtime->WaitForSingleObject(runtime->hProcess, milliseconds);
 }
 
 __declspec(noinline)
