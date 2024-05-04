@@ -11,15 +11,21 @@
 
 // hard encoded address in methods for replace
 #ifdef _WIN64
-    #define METHOD_ADDR_SLEEP   0x7FFFFFFFFFFFFFF0
-    #define METHOD_ADDR_HIDE    0x7FFFFFFFFFFFFFF1
-    #define METHOD_ADDR_RECOVER 0x7FFFFFFFFFFFFFF2
-    #define METHOD_ADDR_STOP    0x7FFFFFFFFFFFFFF3
+    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME 0x7FFFFFFFFFFFFFF0
+    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH 0x7FFFFFFFFFFFFFF1
+
+    #define METHOD_ADDR_SLEEP   0x7FFFFFFFFFFFFFF2
+    #define METHOD_ADDR_HIDE    0x7FFFFFFFFFFFFFF3
+    #define METHOD_ADDR_RECOVER 0x7FFFFFFFFFFFFFF4
+    #define METHOD_ADDR_STOP    0x7FFFFFFFFFFFFFF5
 #elif _WIN32
-    #define METHOD_ADDR_SLEEP   0x7FFFFFF0
-    #define METHOD_ADDR_HIDE    0x7FFFFFF1
-    #define METHOD_ADDR_RECOVER 0x7FFFFFF2
-    #define METHOD_ADDR_STOP    0x7FFFFFF3
+    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME 0x7FFFFFF0
+    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH 0x7FFFFFF1
+
+    #define METHOD_ADDR_SLEEP   0x7FFFFFF2
+    #define METHOD_ADDR_HIDE    0x7FFFFFF3
+    #define METHOD_ADDR_RECOVER 0x7FFFFFF4
+    #define METHOD_ADDR_STOP    0x7FFFFFF5
 #endif
 
 typedef struct {
@@ -29,6 +35,7 @@ typedef struct {
     uintptr MainMemPage;
 
     // API addresses
+    GetProcAddress        GetProcAddress;
     VirtualAlloc          VirtualAlloc;
     VirtualFree           VirtualFree;
     VirtualProtect        VirtualProtect;
@@ -49,6 +56,10 @@ typedef struct {
 } Runtime;
 
 // methods about Runtime
+uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
+uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
+uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook);
+
 bool RT_Sleep(uint32 milliseconds);
 bool RT_Hide();
 bool RT_Recover();
@@ -127,14 +138,16 @@ Runtime_M* InitRuntime(Runtime_Args* args)
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for IAT hooks
-    module->VirtualAlloc    = runtime->MemoryTracker->VirtualAlloc;
-    module->VirtualFree     = runtime->MemoryTracker->VirtualFree;
-    module->VirtualProtect  = runtime->MemoryTracker->VirtualProtect;
-    module->CreateThread    = runtime->ThreadTracker->CreateThread;
-    module->ExitThread      = runtime->ThreadTracker->ExitThread;
-    module->SuspendThread   = runtime->ThreadTracker->SuspendThread;
-    module->ResumeThread    = runtime->ThreadTracker->ResumeThread;
-    module->TerminateThread = runtime->ThreadTracker->TerminateThread;
+    // 
+    // 
+    // module->VirtualAlloc    = runtime->MemoryTracker->VirtualAlloc;
+    // module->VirtualFree     = runtime->MemoryTracker->VirtualFree;
+    // module->VirtualProtect  = runtime->MemoryTracker->VirtualProtect;
+    // module->CreateThread    = runtime->ThreadTracker->CreateThread;
+    // module->ExitThread      = runtime->ThreadTracker->ExitThread;
+    // module->SuspendThread   = runtime->ThreadTracker->SuspendThread;
+    // module->ResumeThread    = runtime->ThreadTracker->ResumeThread;
+    // module->TerminateThread = runtime->ThreadTracker->TerminateThread;
     // for develop shellcode
     module->Alloc = runtime->MemoryTracker->MemAlloc;
     module->Free  = runtime->MemoryTracker->MemFree;
@@ -178,6 +191,7 @@ static bool initRuntimeAPI(Runtime* runtime)
     winapi list[] =
 #ifdef _WIN64
     {
+        { 0x7C1C9D36D30E0B75, 0x1ACD25CE8A87875A }, // GetProcAddress
         { 0x6AC498DF641A4FCB, 0xFF3BB21B9BA46CEA }, // VirtualAlloc
         { 0xAC150252A6CA3960, 0x12EFAEA421D60C3E }, // VirtualFree
         { 0xEA5B0C76C7946815, 0x8846C203C35DE586 }, // VirtualProtect
@@ -190,6 +204,7 @@ static bool initRuntimeAPI(Runtime* runtime)
     };
 #elif _WIN32
     {
+        { 0x1CE92A4E, 0xBFF4B241 }, // GetProcAddress
         { 0xB47741D5, 0x8034C451 }, // VirtualAlloc
         { 0xF76A2ADE, 0x4D8938BD }, // VirtualFree
         { 0xB2AC456D, 0x2A690F63 }, // VirtualProtect
@@ -212,15 +227,16 @@ static bool initRuntimeAPI(Runtime* runtime)
         list[i].address = address;
     }
 
-    runtime->VirtualAlloc          = (VirtualAlloc         )(list[0].address);
-    runtime->VirtualFree           = (VirtualFree          )(list[1].address);
-    runtime->VirtualProtect        = (VirtualProtect       )(list[2].address);
-    runtime->FlushInstructionCache = (FlushInstructionCache)(list[3].address);
-    runtime->CreateMutexA          = (CreateMutexA         )(list[4].address);
-    runtime->ReleaseMutex          = (ReleaseMutex         )(list[5].address);
-    runtime->WaitForSingleObject   = (WaitForSingleObject  )(list[6].address);
-    runtime->DuplicateHandle       = (DuplicateHandle      )(list[7].address);
-    runtime->CloseHandle           = (CloseHandle          )(list[8].address);
+    runtime->GetProcAddress        = (GetProcAddress       )(list[0].address);
+    runtime->VirtualAlloc          = (VirtualAlloc         )(list[1].address);
+    runtime->VirtualFree           = (VirtualFree          )(list[2].address);
+    runtime->VirtualProtect        = (VirtualProtect       )(list[3].address);
+    runtime->FlushInstructionCache = (FlushInstructionCache)(list[4].address);
+    runtime->CreateMutexA          = (CreateMutexA         )(list[5].address);
+    runtime->ReleaseMutex          = (ReleaseMutex         )(list[6].address);
+    runtime->WaitForSingleObject   = (WaitForSingleObject  )(list[7].address);
+    runtime->DuplicateHandle       = (DuplicateHandle      )(list[8].address);
+    runtime->CloseHandle           = (CloseHandle          )(list[9].address);
     return true;
 }
 
@@ -315,6 +331,9 @@ static bool updateRuntimePointers(Runtime* runtime)
     } method;
     method methods[] = 
     {
+        { &RT_GetProcAddressByName, METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME },
+        { &RT_GetProcAddressByHash, METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH },
+
         { &RT_Sleep,   METHOD_ADDR_SLEEP },
         { &RT_Hide,    METHOD_ADDR_HIDE },
         { &RT_Recover, METHOD_ADDR_RECOVER },
@@ -407,6 +426,46 @@ static Runtime* getRuntimePointer(uintptr pointer)
     return (Runtime*)(pointer);
 }
 #pragma optimize("", on)
+
+__declspec(noinline)
+uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
+{
+    return RT_GetProcAddressByName(hModule, lpProcName, true);
+}
+
+__declspec(noinline)
+uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
+{
+    Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME);
+
+    uintptr proc = runtime->GetProcAddress(hModule, lpProcName);
+    if (proc == NULL)
+    {
+        return NULL;
+    }
+    if (!hook)
+    {
+        return proc;
+    }
+
+}
+
+__declspec(noinline)
+uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
+{
+    Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH);
+
+    uintptr proc = FindAPI(hash, key);
+    if (proc == NULL)
+    {
+        return NULL;
+    }
+    if (!hook)
+    {
+        return proc;
+    }
+
+}
 
 __declspec(noinline)
 bool RT_Sleep(uint32 milliseconds)
