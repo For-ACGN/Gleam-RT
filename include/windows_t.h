@@ -5,6 +5,7 @@
 
 /* 
 * Documents:
+* https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getprocaddress
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualfree
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualprotect
@@ -24,6 +25,7 @@
 */
 
 #define CURRENT_PROCESS (HANDLE)(-1)
+#define CURRENT_THREAD  (HANDLE)(-2)
 
 #define MEM_COMMIT  0x00001000
 #define MEM_RESERVE 0x00002000
@@ -43,9 +45,15 @@
 
 #define DUPLICATE_SAME_ACCESS 0x00000002
 
+typedef uint    HMODULE;
 typedef uint    HANDLE;
 typedef HANDLE* LPHANDLE;
 typedef byte*   LPCSTR;
+
+typedef uintptr (*GetProcAddress)
+(
+    HMODULE hModule, LPCSTR lpProcName
+);
 
 typedef uintptr (*VirtualAlloc)
 (
