@@ -41,16 +41,16 @@ typedef struct {
     uintptr MainMemPage;
 
     // API addresses
-    GetProcAddress        GetProcAddress;
-    VirtualAlloc          VirtualAlloc;
-    VirtualFree           VirtualFree;
-    VirtualProtect        VirtualProtect;
-    FlushInstructionCache FlushInstructionCache;
-    CreateMutexA          CreateMutexA;
-    ReleaseMutex          ReleaseMutex;
-    WaitForSingleObject   WaitForSingleObject;
-    DuplicateHandle       DuplicateHandle;
-    CloseHandle           CloseHandle;
+    VirtualAlloc_t          VirtualAlloc;
+    VirtualFree_t           VirtualFree;
+    VirtualProtect_t        VirtualProtect;
+    FlushInstructionCache_t FlushInstructionCache;
+    CreateMutexA_t          CreateMutexA;
+    ReleaseMutex_t          ReleaseMutex;
+    WaitForSingleObject_t   WaitForSingleObject;
+    DuplicateHandle_t       DuplicateHandle;
+    CloseHandle_t           CloseHandle;
+    GetProcAddress_t        GetProcAddress;
 
     // IAT hooks about GetProcAddress
     Hook Hooks[10];
@@ -74,7 +74,7 @@ bool RT_Hide();
 bool RT_Recover();
 bool RT_Stop();
 
-static uintptr allocateRuntimeMemory(FindAPI_t findAPI);
+static uintptr allocateRuntimeMemory();
 static bool initRuntimeAPI(Runtime* runtime);
 static uint initRuntimeEnvironment(Runtime* runtime);
 static uint initMemoryTracker(Runtime* runtime, Context* context);
@@ -94,7 +94,7 @@ static bool recover(Runtime* runtime);
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Args* args)
 {
-    uintptr address = allocateRuntimeMemory(args->FindAPI);
+    uintptr address = allocateRuntimeMemory();
     if (address == NULL)
     {
         return NULL;
@@ -149,18 +149,18 @@ Runtime_M* InitRuntime(Runtime_Args* args)
         return (Runtime_M*)errCode;
     }
     // clean context data in structure
-    uintptr ctxBegin = (uintptr)(runtime);
-    uintptr ctxSize  = (uintptr)(&runtime->CreateMutexA) - ctxBegin;
+    uintptr ctxBegin = (uintptr)(&runtime->VirtualAlloc);
+    uintptr ctxSize  = (uintptr)(&runtime->ReleaseMutex) - ctxBegin;
     RandBuf((byte*)ctxBegin, (int64)ctxSize);
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
+    // for develop shellcode
+    module->Alloc = runtime->MemoryTracker->MemAlloc;
+    module->Free  = runtime->MemoryTracker->MemFree;
     // for IAT hooks
     module->GetProcAddress       = &RT_GetProcAddress;
     module->GetProcAddressByName = &RT_GetProcAddressByName;
     module->GetProcAddressByHash = &RT_GetProcAddressByHash;
-    // for develop shellcode
-    module->Alloc = runtime->MemoryTracker->MemAlloc;
-    module->Free  = runtime->MemoryTracker->MemFree;
     // runtime core methods
     module->Sleep   = &RT_Sleep;
     module->Hide    = &RT_Hide;
@@ -170,7 +170,7 @@ Runtime_M* InitRuntime(Runtime_Args* args)
 }
 
 // allocate memory for store structures.
-static uintptr allocateRuntimeMemory(FindAPI_t findAPI)
+static uintptr allocateRuntimeMemory()
 {
 #ifdef _WIN64
     uint hash = 0xB6A1D0D4A275D4B6;
@@ -179,7 +179,7 @@ static uintptr allocateRuntimeMemory(FindAPI_t findAPI)
     uint hash = 0xC3DE112E;
     uint key  = 0x8D9EA74F;
 #endif
-    VirtualAlloc virtualAlloc = (VirtualAlloc)findAPI(hash, key);
+    VirtualAlloc_t virtualAlloc = (VirtualAlloc_t)FindAPI(hash, key);
     if (virtualAlloc == NULL)
     {
         return NULL;
@@ -201,7 +201,6 @@ static bool initRuntimeAPI(Runtime* runtime)
     winapi list[] =
 #ifdef _WIN64
     {
-        { 0x7C1C9D36D30E0B75, 0x1ACD25CE8A87875A }, // GetProcAddress
         { 0x6AC498DF641A4FCB, 0xFF3BB21B9BA46CEA }, // VirtualAlloc
         { 0xAC150252A6CA3960, 0x12EFAEA421D60C3E }, // VirtualFree
         { 0xEA5B0C76C7946815, 0x8846C203C35DE586 }, // VirtualProtect
@@ -211,10 +210,10 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0xA524CD56CF8DFF7F, 0x5519595458CD47C8 }, // WaitForSingleObject
         { 0xF7A5A49D19409FFC, 0x6F23FAA4C20FF4D3 }, // DuplicateHandle
         { 0xA25F7449D6939A01, 0x85D37F1D89B30D2E }, // CloseHandle
+        { 0x7C1C9D36D30E0B75, 0x1ACD25CE8A87875A }, // GetProcAddress
     };
 #elif _WIN32
     {
-        { 0x1CE92A4E, 0xBFF4B241 }, // GetProcAddress
         { 0xB47741D5, 0x8034C451 }, // VirtualAlloc
         { 0xF76A2ADE, 0x4D8938BD }, // VirtualFree
         { 0xB2AC456D, 0x2A690F63 }, // VirtualProtect
@@ -224,29 +223,30 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0xC21AB03D, 0xED3AAF22 }, // WaitForSingleObject
         { 0x0E7ED8B9, 0x025067E9 }, // DuplicateHandle
         { 0x60E108B2, 0x3C2DFF52 }, // CloseHandle
+        { 0x1CE92A4E, 0xBFF4B241 }, // GetProcAddress
     };
 #endif
     uintptr address;
     for (int i = 0; i < arrlen(list); i++)
     {
-        address = runtime->Args->FindAPI(list[i].hash, list[i].key);
+        address = FindAPI(list[i].hash, list[i].key);
         if (address == NULL)
         {
             return false;
         }
         list[i].address = address;
     }
-
-    runtime->GetProcAddress        = (GetProcAddress       )(list[0].address);
-    runtime->VirtualAlloc          = (VirtualAlloc         )(list[1].address);
-    runtime->VirtualFree           = (VirtualFree          )(list[2].address);
-    runtime->VirtualProtect        = (VirtualProtect       )(list[3].address);
-    runtime->FlushInstructionCache = (FlushInstructionCache)(list[4].address);
-    runtime->CreateMutexA          = (CreateMutexA         )(list[5].address);
-    runtime->ReleaseMutex          = (ReleaseMutex         )(list[6].address);
-    runtime->WaitForSingleObject   = (WaitForSingleObject  )(list[7].address);
-    runtime->DuplicateHandle       = (DuplicateHandle      )(list[8].address);
-    runtime->CloseHandle           = (CloseHandle          )(list[9].address);
+    
+    runtime->VirtualAlloc          = (VirtualAlloc_t         )(list[0].address);
+    runtime->VirtualFree           = (VirtualFree_t          )(list[1].address);
+    runtime->VirtualProtect        = (VirtualProtect_t       )(list[2].address);
+    runtime->FlushInstructionCache = (FlushInstructionCache_t)(list[3].address);
+    runtime->CreateMutexA          = (CreateMutexA_t         )(list[4].address);
+    runtime->ReleaseMutex          = (ReleaseMutex_t         )(list[5].address);
+    runtime->WaitForSingleObject   = (WaitForSingleObject_t  )(list[6].address);
+    runtime->DuplicateHandle       = (DuplicateHandle_t      )(list[7].address);
+    runtime->CloseHandle           = (CloseHandle_t          )(list[8].address);
+    runtime->GetProcAddress        = (GetProcAddress_t       )(list[9].address);
     return true;
 }
 
@@ -277,7 +277,6 @@ static uint initRuntimeEnvironment(Runtime* runtime)
     // create context data for initialize other modules
     Context context = 
     {
-        .FindAPI     = runtime->Args->FindAPI,
         .MainMemPage = runtime->MainMemPage,
 
         .VirtualAlloc          = runtime->VirtualAlloc,
@@ -413,7 +412,7 @@ static bool initIATHooks(Runtime* runtime)
     typedef struct {
         uint hash; uint key; void* hook;
     } item;
-    item items[] = 
+    item items[] =
 #ifdef _WIN64
     {
         { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, &RT_GetProcAddress },
@@ -457,7 +456,7 @@ static bool initIATHooks(Runtime* runtime)
 
 static void cleanRuntime(Runtime* runtime)
 {
-    CloseHandle closeHandle = runtime->CloseHandle;
+    CloseHandle_t closeHandle = runtime->CloseHandle;
     if (closeHandle != NULL && runtime->Mutex != NULL)
     {
         closeHandle(runtime->Mutex);
@@ -467,7 +466,7 @@ static void cleanRuntime(Runtime* runtime)
     // TODO Remove self
 
     // must copy api address before call RandBuf
-    VirtualFree virtualFree = runtime->VirtualFree;
+    VirtualFree_t virtualFree = runtime->VirtualFree;
     RandBuf((byte*)runtime->MainMemPage, 4096);
     if (virtualFree != NULL)
     {
@@ -495,6 +494,8 @@ uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME);
 
+    // TODO is GetProcAddressByName and GetProcAddressByHash
+
     uintptr proc = runtime->GetProcAddress(hModule, lpProcName);
     if (proc == NULL)
     {
@@ -511,6 +512,8 @@ __declspec(noinline)
 uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH);
+
+    // TODO is GetProcAddressByName and GetProcAddressByHash
 
     uintptr proc = FindAPI(hash, key);
     if (proc == NULL)

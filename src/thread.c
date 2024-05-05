@@ -35,17 +35,17 @@ typedef struct {
 
 typedef struct {
     // API addresses
-    CreateThread        CreateThread;
-    ExitThread          ExitThread;
-    SuspendThread       SuspendThread;
-    ResumeThread        ResumeThread;
-    GetThreadID         GetThreadID;
-    GetCurrentThreadID  GetCurrentThreadID;
-    TerminateThread     TerminateThread;
-    ReleaseMutex        ReleaseMutex;
-    WaitForSingleObject WaitForSingleObject;
-    DuplicateHandle     DuplicateHandle;
-    CloseHandle         CloseHandle;
+    CreateThread_t        CreateThread;
+    ExitThread_t          ExitThread;
+    SuspendThread_t       SuspendThread;
+    ResumeThread_t        ResumeThread;
+    GetThreadID_t         GetThreadID;
+    GetCurrentThreadID_t  GetCurrentThreadID;
+    TerminateThread_t     TerminateThread;
+    ReleaseMutex_t        ReleaseMutex;
+    WaitForSingleObject_t WaitForSingleObject;
+    DuplicateHandle_t     DuplicateHandle;
+    CloseHandle_t         CloseHandle;
 
     // store all threads info
     uint32  NumThreads;
@@ -109,11 +109,11 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     // create methods for tracker
     ThreadTracker_M* module = (ThreadTracker_M*)moduleAddr;
     // Windows API hooks
-    module->CreateThread    = (CreateThread   )(&TT_CreateThread);
-    module->ExitThread      = (ExitThread     )(&TT_ExitThread);
-    module->SuspendThread   = (SuspendThread  )(&TT_SuspendThread);
-    module->ResumeThread    = (ResumeThread   )(&TT_ResumeThread);
-    module->TerminateThread = (TerminateThread)(&TT_TerminateThread);
+    module->CreateThread    = (CreateThread_t   )(&TT_CreateThread);
+    module->ExitThread      = (ExitThread_t     )(&TT_ExitThread);
+    module->SuspendThread   = (SuspendThread_t  )(&TT_SuspendThread);
+    module->ResumeThread    = (ResumeThread_t   )(&TT_ResumeThread);
+    module->TerminateThread = (TerminateThread_t)(&TT_TerminateThread);
     // methods for runtime
     module->ThdSuspendAll = &TT_SuspendAll;
     module->ThdResumeAll  = &TT_ResumeAll;
@@ -136,7 +136,6 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0x5133BE509803E44E, 0x20498B6AFFAED91B }, // GetThreadId
         { 0x9AF119F551D952CF, 0x5A1B9D61A26B22D7 }, // GetCurrentThreadId
         { 0xFB891A810F1ABF9A, 0x253BBD721EBD81F0 }, // TerminateThread
-        
     };
 #elif _WIN32
     {
@@ -147,13 +146,12 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0xFE77EB3E, 0x81CB68B1 }, // GetThreadId
         { 0x2884E5D9, 0xA933632C }, // GetCurrentThreadId
         { 0xBA134972, 0x295F9DD2 }, // TerminateThread
-        
     };
 #endif
     uintptr address;
     for (int i = 0; i < arrlen(list); i++)
     {
-        address = context->FindAPI(list[i].hash, list[i].key);
+        address = FindAPI(list[i].hash, list[i].key);
         if (address == NULL)
         {
             return false;
@@ -161,13 +159,13 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         list[i].address = address;
     }
 
-    tracker->CreateThread       = (CreateThread      )(list[0].address);
-    tracker->ExitThread         = (ExitThread        )(list[1].address);
-    tracker->SuspendThread      = (SuspendThread     )(list[2].address);
-    tracker->ResumeThread       = (ResumeThread      )(list[3].address);
-    tracker->GetThreadID        = (GetThreadID       )(list[4].address);
-    tracker->GetCurrentThreadID = (GetCurrentThreadID)(list[5].address);
-    tracker->TerminateThread    = (TerminateThread   )(list[6].address);
+    tracker->CreateThread       = (CreateThread_t      )(list[0].address);
+    tracker->ExitThread         = (ExitThread_t        )(list[1].address);
+    tracker->SuspendThread      = (SuspendThread_t     )(list[2].address);
+    tracker->ResumeThread       = (ResumeThread_t      )(list[3].address);
+    tracker->GetThreadID        = (GetThreadID_t       )(list[4].address);
+    tracker->GetCurrentThreadID = (GetCurrentThreadID_t)(list[5].address);
+    tracker->TerminateThread    = (TerminateThread_t   )(list[6].address);
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;

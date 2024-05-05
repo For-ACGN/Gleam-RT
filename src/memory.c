@@ -40,11 +40,11 @@ typedef struct memoryPage {
 
 typedef struct {
     // API addresses
-    VirtualAlloc        VirtualAlloc;
-    VirtualFree         VirtualFree;
-    VirtualProtect      VirtualProtect;
-    ReleaseMutex        ReleaseMutex;
-    WaitForSingleObject WaitForSingleObject;
+    VirtualAlloc_t        VirtualAlloc;
+    VirtualFree_t         VirtualFree;
+    VirtualProtect_t      VirtualProtect;
+    ReleaseMutex_t        ReleaseMutex;
+    WaitForSingleObject_t WaitForSingleObject;
 
     memoryPage* PageHead;
 
@@ -112,9 +112,9 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     // create methods for tracker
     MemoryTracker_M* module = (MemoryTracker_M*)moduleAddr;
     // Windows API hooks
-    module->VirtualAlloc   = (VirtualAlloc  )(&MT_VirtualAlloc);
-    module->VirtualFree    = (VirtualFree   )(&MT_VirtualFree);
-    module->VirtualProtect = (VirtualProtect)(&MT_VirtualProtect);
+    module->VirtualAlloc   = (VirtualAlloc_t  )(&MT_VirtualAlloc);
+    module->VirtualFree    = (VirtualFree_t   )(&MT_VirtualFree);
+    module->VirtualProtect = (VirtualProtect_t)(&MT_VirtualProtect);
     // methods for runtime
     module->MemAlloc   = &MT_MemAlloc;
     module->MemFree    = &MT_MemFree;
