@@ -35,7 +35,7 @@ typedef struct {
 } Hook;
 
 typedef struct {
-    Runtime_Args* Args;
+    Runtime_Opts* Options;
 
     // store all structures
     uintptr MainMemPage;
@@ -92,7 +92,7 @@ static bool hide(Runtime* runtime);
 static bool recover(Runtime* runtime);
 
 __declspec(noinline)
-Runtime_M* InitRuntime(Runtime_Args* args)
+Runtime_M* InitRuntime(Runtime_Opts* opts)
 {
     uintptr address = allocateRuntimeMemory();
     if (address == NULL)
@@ -104,7 +104,7 @@ Runtime_M* InitRuntime(Runtime_Args* args)
     uintptr moduleAddr  = address + 900 + RandUint(address) % 256;
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
-    runtime->Args = args;
+    runtime->Options = opts;
     runtime->MainMemPage = address;
     // initialize runtime
     uint32 protect = 0;
@@ -382,7 +382,7 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
 // change memory protect for dynamic update pointer that hard encode.
 static bool adjustPageProtect(Runtime* runtime, uint32* old)
 {
-    if (runtime->Args->NotAdjustProtect)
+    if (runtime->Options->NotAdjustProtect)
     {
         return true;
     }
@@ -397,7 +397,7 @@ static bool recoverPageProtect(Runtime* runtime, uint32* old)
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
     uint    size  = end - begin;
-    if (!runtime->Args->NotAdjustProtect)
+    if (!runtime->Options->NotAdjustProtect)
     {
         if (!runtime->VirtualProtect(begin, size, *old, old))
         {

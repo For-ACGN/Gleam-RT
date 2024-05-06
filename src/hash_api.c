@@ -234,7 +234,8 @@ uint64 HashAPI64_W(byte* module, byte* function, uint64 key)
     {
         byte b0 = *(module + 0);
         byte b1 = *(module + 1);
-        if (b0 >= 'a')
+        // check is ASCII
+        if (b1 == 0x00 && b0 >= 'a')
         {
             b0 -= 0x20;
         }
@@ -354,7 +355,8 @@ uint32 HashAPI32_W(byte* module, byte* function, uint32 key)
     {
         byte b0 = *(module + 0);
         byte b1 = *(module + 1);
-        if (b0 >= 'a')
+        // check is ASCII
+        if (b1 == 0x00 && b0 >= 'a')
         {
             b0 -= 0x20;
         }
