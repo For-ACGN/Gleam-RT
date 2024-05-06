@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "go_types.h"
 #include "windows_t.h"
 #include "hash_api.h"
@@ -200,6 +202,8 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_ALLOC);
 
+    printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
+
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
         return NULL;
@@ -224,6 +228,17 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
             success = false;
             break;
         }
+
+        tracker->ReleaseMutex(tracker->Mutex);
+        return page;
+
+
+        if (type == MEM_RESERVE)
+        {
+            tracker->ReleaseMutex(tracker->Mutex);
+            return page;
+        }
+
         if (!allocPage(tracker, page, size, protect))
         {
             success = false;
@@ -357,6 +372,9 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_FREE);
 
+    printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
+    // return true;
+
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
         return false;
@@ -473,6 +491,8 @@ __declspec(noinline)
 bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_PROTECT);
+
+    printf("VirtualProtect: 0x%llX, %llu, 0x%X\n", address, size, new);
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {

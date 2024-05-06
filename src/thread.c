@@ -303,7 +303,10 @@ HANDLE TT_CreateThread(
     {
         return NULL;
     }
-    *lpThreadId = threadID;
+    if (lpThreadId != NULL)
+    {
+        *lpThreadId = threadID;
+    }
     return hThread;
 }
 
