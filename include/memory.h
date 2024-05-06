@@ -12,9 +12,9 @@ typedef bool  (*MemDecrypt_t)();
 typedef bool  (*MemClean_t)();
 
 typedef struct {
-    VirtualAlloc   VirtualAlloc;
-    VirtualFree    VirtualFree;
-    VirtualProtect VirtualProtect;
+    VirtualAlloc_t   VirtualAlloc;
+    VirtualFree_t    VirtualFree;
+    VirtualProtect_t VirtualProtect;
 
     MemAlloc_t   MemAlloc;
     MemFree_t    MemFree;

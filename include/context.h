@@ -3,22 +3,20 @@
 
 #include "go_types.h"
 #include "windows_t.h"
-#include "hash_api.h"
 
 typedef struct {
     // arguments for initialize runtime
-    FindAPI_t FindAPI;
     uintptr   MainMemPage;
     uintptr   TTMemPage;
 
     // context data about initialize runtime
-    VirtualAlloc          VirtualAlloc;
-    VirtualFree           VirtualFree;
-    VirtualProtect        VirtualProtect;
-    ReleaseMutex          ReleaseMutex;
-    WaitForSingleObject   WaitForSingleObject;
-    DuplicateHandle       DuplicateHandle;
-    CloseHandle           CloseHandle;
+    VirtualAlloc_t        VirtualAlloc;
+    VirtualFree_t         VirtualFree;
+    VirtualProtect_t      VirtualProtect;
+    ReleaseMutex_t        ReleaseMutex;
+    WaitForSingleObject_t WaitForSingleObject;
+    DuplicateHandle_t     DuplicateHandle;
+    CloseHandle_t         CloseHandle;
 
     // runtime context data
     HANDLE Mutex;

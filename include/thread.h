@@ -13,11 +13,11 @@ typedef bool (*ThdResumeAll_t)();
 typedef bool (*ThdClean_t)();
 
 typedef struct {
-    CreateThread    CreateThread;
-    ExitThread      ExitThread;
-    SuspendThread   SuspendThread;
-    ResumeThread    ResumeThread;
-    TerminateThread TerminateThread;
+    CreateThread_t    CreateThread;
+    ExitThread_t      ExitThread;
+    SuspendThread_t   SuspendThread;
+    ResumeThread_t    ResumeThread;
+    TerminateThread_t TerminateThread;
 
     ThdSuspendAll_t ThdSuspendAll;
     ThdResumeAll_t  ThdResumeAll;

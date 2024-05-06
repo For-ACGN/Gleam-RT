@@ -3,7 +3,6 @@
 
 #include "go_types.h"
 #include "windows_t.h"
-#include "hash_api.h"
 
 typedef void* (*Alloc_t)(uint size);
 typedef bool  (*Free_t)(void* address);
@@ -18,13 +17,12 @@ typedef bool (*Recover_t)();
 typedef bool (*Stop_t)();
 
 typedef struct {
-    FindAPI_t FindAPI;
-    bool      NotAdjustProtect;
+    bool NotAdjustProtect;
 } Runtime_Args;
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
-    // for shellcode 
+    // for shellcode
     Alloc_t Alloc;
     Free_t  Free;
 
