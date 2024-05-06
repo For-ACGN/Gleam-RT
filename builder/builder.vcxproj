@@ -98,24 +98,26 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\crypto.c" />
-    <ClCompile Include="..\src\hash_api.c" />
-    <ClCompile Include="..\src\memory.c" />
-    <ClCompile Include="..\src\random.c" />
-    <ClCompile Include="..\src\runtime.c" />
-    <ClCompile Include="..\src\thread.c" />
     <ClCompile Include="builder.c" />
+    <ClCompile Include="..\src\runtime.c" />
+    <ClCompile Include="..\src\hash_api.c" />
+    <ClCompile Include="..\src\random.c" />
+    <ClCompile Include="..\src\crypto.c" />
+    <ClCompile Include="..\src\memory.c" />
+    <ClCompile Include="..\src\thread.c" />
+    <ClCompile Include="..\src\epilogue.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\context.h" />
-    <ClInclude Include="..\include\crypto.h" />
     <ClInclude Include="..\include\go_types.h" />
+	<ClInclude Include="..\include\windows_t.h" />
     <ClInclude Include="..\include\hash_api.h" />
-    <ClInclude Include="..\include\memory.h" />
     <ClInclude Include="..\include\random.h" />
-    <ClInclude Include="..\include\runtime.h" />
+	<ClInclude Include="..\include\crypto.h" />
+	<ClInclude Include="..\include\context.h" />
+	<ClInclude Include="..\include\memory.h" />
     <ClInclude Include="..\include\thread.h" />
-    <ClInclude Include="..\include\windows_t.h" />
+	<ClInclude Include="..\include\runtime.h" />
+	<ClInclude Include="..\include\epilogue.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

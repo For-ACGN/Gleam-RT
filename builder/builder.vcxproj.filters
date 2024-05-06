@@ -36,6 +36,9 @@
     <ClCompile Include="builder.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\epilogue.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\crypto.h">
@@ -63,6 +66,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\include\context.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\epilogue.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
