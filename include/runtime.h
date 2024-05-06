@@ -17,8 +17,9 @@ typedef bool (*Recover_t)();
 typedef bool (*Stop_t)();
 
 typedef struct {
+    // not adjust current memory page protect
     bool NotAdjustProtect;
-} Runtime_Args;
+} Runtime_Opts;
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
@@ -39,6 +40,6 @@ typedef struct {
 } Runtime_M;
 
 // InitRuntime is used to initialize runtime and return module methods.
-Runtime_M* InitRuntime(Runtime_Args* args);
+Runtime_M* InitRuntime(Runtime_Opts* opts);
 
 #endif // RUNTIME_H
