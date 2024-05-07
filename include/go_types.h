@@ -66,6 +66,24 @@ static uint strlen_a(byte* s)
     return l;
 }
 
+// calculate Unicode string length.
+static uint strlen_w(byte* s)
+{
+    uint l = 0;
+    for (;;)
+    {
+        byte b0 = *(s + 0);
+        byte b1 = *(s + 1);
+        if (b0 == 0x00 && b1 == 0x00)
+        {
+            break;
+        }
+        l++;
+        s += 2;
+    }
+    return l;
+}
+
 // calculate array length
 #ifndef arrlen
 #define arrlen(array) (sizeof(array) / sizeof(array[0]))
