@@ -9,8 +9,12 @@ int main()
     }
     if (!TestCrypto())
     {
-        return 1;
+        return 2;
     }
-    printf("all tests passed!\n");
+    if (!TestRuntime())
+    {
+        return 3;
+    }
+    printf("All tests passed!\n");
     return 0;
 }

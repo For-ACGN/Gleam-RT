@@ -11,20 +11,38 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\crypto.c" />
+    <ClCompile Include="..\src\runtime.c" />
+    <ClCompile Include="..\src\hash_api.c" />
+	<ClCompile Include="..\src\list_md.c" />
     <ClCompile Include="..\src\random.c" />
+    <ClCompile Include="..\src\crypto.c" />
+    <ClCompile Include="..\src\memory.c" />
+    <ClCompile Include="..\src\thread.c" />
+    <ClCompile Include="..\src\epilogue.c" />
     <ClCompile Include="crypto_test.c" />
+    <ClCompile Include="memory_test.c" />
     <ClCompile Include="random_test.c" />
+    <ClCompile Include="runtime_test.c" />
     <ClCompile Include="test.c">
       <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Default</InlineFunctionExpansion>
       <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</InlineFunctionExpansion>
       <FavorSizeOrSpeed Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Size</FavorSizeOrSpeed>
       <FavorSizeOrSpeed Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Size</FavorSizeOrSpeed>
     </ClCompile>
+    <ClCompile Include="thread_test.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\crypto.h" />
+    <ClInclude Include="..\include\go_types.h" />
+    <ClInclude Include="..\include\windows_t.h" />
+    <ClInclude Include="..\include\hash_api.h" />
+	<ClInclude Include="..\include\list_md.h" />
     <ClInclude Include="..\include\random.h" />
+    <ClInclude Include="..\include\crypto.h" />
+    <ClInclude Include="..\include\context.h" />
+    <ClInclude Include="..\include\memory.h" />
+    <ClInclude Include="..\include\thread.h" />
+    <ClInclude Include="..\include\runtime.h" />
+    <ClInclude Include="..\include\epilogue.h" />
     <ClInclude Include="test.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -80,10 +98,11 @@
       <AdditionalIncludeDirectories>$(SolutionDir)include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <DebugInformationFormat>None</DebugInformationFormat>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <CallingConvention>StdCall</CallingConvention>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <Optimization>MinSpace</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -103,10 +122,11 @@
       <AdditionalIncludeDirectories>$(SolutionDir)include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <DebugInformationFormat>None</DebugInformationFormat>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <CallingConvention>StdCall</CallingConvention>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <Optimization>MinSpace</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

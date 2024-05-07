@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "go_types.h"
 #include "random.h"
+#include "test.h"
 
 static void TestRandBuf();
 static void TestRandByte();

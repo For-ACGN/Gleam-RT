@@ -5,5 +5,6 @@
 
 bool TestRandom();
 bool TestCrypto();
+bool TestRuntime();
 
 #endif // TEST_H
