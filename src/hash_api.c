@@ -202,6 +202,7 @@ uint64 HashAPI64_A(byte* module, byte* function, uint64 key)
         modHash = ror64(modHash, ROR_MOD_64);
         modHash += b;
         modHash = ror64(modHash, ROR_MOD_64);
+        modHash += 0;
         if (b == 0x00)
         {
             break;
@@ -234,10 +235,13 @@ uint64 HashAPI64_W(byte* module, byte* function, uint64 key)
     {
         byte b0 = *(module + 0);
         byte b1 = *(module + 1);
-        // check is ASCII
-        if (b1 == 0x00 && b0 >= 'a')
+        if (b0 >= 'a')
         {
             b0 -= 0x20;
+        }
+        if (b1 >= 'a')
+        {
+            b1 -= 0x20;
         }
         modHash = ror64(modHash, ROR_MOD_64);
         modHash += b0;
@@ -323,6 +327,7 @@ uint32 HashAPI32_A(byte* module, byte* function, uint32 key)
         modHash = ror32(modHash, ROR_MOD_32);
         modHash += b;
         modHash = ror32(modHash, ROR_MOD_32);
+        modHash += 0;
         if (b == 0x00)
         {
             break;
@@ -355,10 +360,13 @@ uint32 HashAPI32_W(byte* module, byte* function, uint32 key)
     {
         byte b0 = *(module + 0);
         byte b1 = *(module + 1);
-        // check is ASCII
-        if (b1 == 0x00 && b0 >= 'a')
+        if (b0 >= 'a')
         {
             b0 -= 0x20;
+        }
+        if (b1 >= 'a')
+        {
+            b1 -= 0x20;
         }
         modHash = ror32(modHash, ROR_MOD_32);
         modHash += b0;
