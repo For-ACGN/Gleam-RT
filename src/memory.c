@@ -605,8 +605,8 @@ static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
     // set the actual key to stack
     uintptr pageAddr = (uintptr)page;
     byte key[CRYPTO_KEY_SIZE];
-    copy(&key[0], &page->key[0], CRYPTO_KEY_SIZE);
-    copy(&key[16], &pageAddr, sizeof(uintptr));
+    mem_copy(&key[0], &page->key[0], CRYPTO_KEY_SIZE);
+    mem_copy(&key[16], &pageAddr, sizeof(uintptr));
 
     uint pageSize = page->size;
 
@@ -654,8 +654,8 @@ static bool decryptPage(MemoryTracker* tracker, memoryPage* page)
     // set the actual key to stack
     uintptr pageAddr = (uintptr)page;
     byte key[CRYPTO_KEY_SIZE];
-    copy(&key[0], &page->key[0], CRYPTO_KEY_SIZE);
-    copy(&key[16], &pageAddr, sizeof(uintptr));
+    mem_copy(&key[0], &page->key[0], CRYPTO_KEY_SIZE);
+    mem_copy(&key[16], &pageAddr, sizeof(uintptr));
 
     // decrypt size
     byte* buf  = (byte*)(&page->size);

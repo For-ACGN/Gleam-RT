@@ -53,7 +53,7 @@ bool List_Insert(List* list, void* data)
         {
             continue;
         }
-        copy(addr, data, list->Unit);
+        mem_copy(addr, data, list->Unit);
         break;
     }
     list->Len++;
@@ -67,19 +67,20 @@ bool List_Delete(List* list, uint index)
         return false;
     }
     byte* addr = (byte*)(list->Data) + index * list->Unit;
-    memset(addr, 0, list->Unit);
+    mem_clean(addr, list->Unit);
     list->Len--;
     return true;
 }
 
 bool List_Resize(List* list, uint cap)
 {
+    uint  size = cap * list->Unit;
     void* data;
     if (list->Data != NULL)
     {
-        data = list->ctx.realloc(list->Data, cap * list->Unit);
+        data = list->ctx.realloc(list->Data, size);
     } else {
-        data = list->ctx.malloc(cap * list->Unit);
+        data = list->ctx.malloc(size);
     }
     if (data == NULL)
     {
