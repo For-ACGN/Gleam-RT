@@ -736,15 +736,20 @@ void* RT_realloc(void* address, uint size)
     {
         return RT_malloc(size);
     }
-
+    // allocate new memory
     void* newAddr = RT_malloc(size);
     if (newAddr == NULL)
     {
         return NULL;
     }
-
+    // copy data to new memory
     uint oldSize = *(uint*)((uintptr)(address)-16);
     mem_copy(newAddr, address, oldSize);
+    // free old memory
+    if (!RT_free(address))
+    {
+        return NULL;
+    }
     return newAddr;
 }
 
@@ -753,5 +758,9 @@ bool RT_free(void* address)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_FREE);
 
-    return runtime->VirtualFree((uintptr)(address)-16, 0, MEM_RELEASE);
+    // clean the buffer data before call VirtualFree.
+    uintptr addr = (uintptr)(address)-16;
+    uint    size = *(uint*)addr;
+    mem_clean((byte*)addr, size);
+    return runtime->VirtualFree(addr, 0, MEM_RELEASE);
 }

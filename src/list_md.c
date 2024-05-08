@@ -91,6 +91,12 @@ bool List_Resize(List* list, uint cap)
     return true;
 }
 
+uint List_Size(List* list)
+{
+    return list->Cap * list->Unit;
+}
+
+
 bool List_Free(List* list)
 {
     return list->ctx.free(list->Data);
