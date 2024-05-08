@@ -50,6 +50,16 @@ typedef _Bool bool;
 #define UINT32_MAX 0xFFFFFFFFui32
 #define UINT64_MAX 0xFFFFFFFFFFFFFFFFui64
 
+// calculate the array length
+#ifndef arrlen
+#define arrlen(array) (sizeof(array) / sizeof(array[0]))
+#endif
+
+// calculate the structure field offset of the structure
+#ifndef offsetof
+#define offsetof(struct, field) ((uintptr) & (((struct*)0)->field))
+#endif
+
 // calculate ACSII string length.
 static uint strlen_a(byte* s)
 {
@@ -84,17 +94,8 @@ static uint strlen_w(byte* s)
     return l;
 }
 
-// calculate array length
-#ifndef arrlen
-#define arrlen(array) (sizeof(array) / sizeof(array[0]))
-#endif
-
-#ifndef offsetof
-#define offsetof(struct, field) ((uintptr) & (((struct*)0)->field))
-#endif
-
-// copy is used to copy source memory data to the destination.
-static void copy(void* dst, void* src, uint size)
+// mem_copy is used to copy source memory data to the destination.
+static void mem_copy(void* dst, void* src, uint size)
 {
     byte* d = (byte*)dst;
     byte* s = (byte*)src;
@@ -104,6 +105,23 @@ static void copy(void* dst, void* src, uint size)
         d++;
         s++;
     }
+}
+
+// mem_set is used to fill the memory with value.
+static void mem_set(void* ptr, byte val, uint num)
+{
+    byte* addr = (byte*)ptr;
+    for (uint i = 0; i < num; i++)
+    {
+        *addr = val;
+        addr++;
+    }
+}
+
+// mem_clean is used to fill the memory with zero.
+static void mem_clean(void* ptr, uint num)
+{
+    mem_set(ptr, 0, num);
 }
 
 #endif // GO_TYPES_H
