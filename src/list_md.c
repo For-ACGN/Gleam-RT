@@ -10,6 +10,15 @@ void List_Init(List* list, List_Ctx* ctx, uint unit)
     list->Unit = unit;
 }
 
+void* List_Get(List* list, uint index)
+{
+    if (index + 1 > list->Cap)
+    {
+        return NULL;
+    }
+    return (void*)((uintptr)(list->Data) + index * list->Unit);
+}
+
 bool List_Insert(List* list, void* data)
 {
     bool resized = false;
@@ -60,13 +69,36 @@ bool List_Insert(List* list, void* data)
     return true;
 }
 
-bool List_Delete(List* list, uint index)
+bool List_Delete(List* list, void* data, uint equal)
 {
-    if (index + 1 > list->Cap)
+    uint equLen = equal;
+    if (equLen == 0)
+    {
+        equLen = list->Unit;
+    }
+    uint target = 0;
+    uint index  = 0;
+    for (uint num = 0; num < list->Len; index++)
+    {
+        void* item = List_Get(list, index);
+        if (mem_zero(item, equLen))
+        {
+            continue;
+        }
+        if (!mem_equal(item, data, equLen))
+        {
+            num++;
+            continue;
+        }
+        target = index;
+        break;
+    }
+    if (target == 0)
     {
         return false;
     }
-    byte* addr = (byte*)(list->Data) + index * list->Unit;
+    byte* addr = (byte*)(list->Data) + target * list->Unit;
+    mem_copy(data, addr, list->Unit);
     mem_clean(addr, list->Unit);
     list->Len--;
     return true;
@@ -95,7 +127,6 @@ uint List_Size(List* list)
 {
     return list->Cap * list->Unit;
 }
-
 
 bool List_Free(List* list)
 {
