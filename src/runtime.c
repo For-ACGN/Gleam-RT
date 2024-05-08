@@ -11,21 +11,29 @@
 
 // hard encoded address in methods for replace
 #ifdef _WIN64
-    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME 0x7FFFFFFFFFFFFFF0
-    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH 0x7FFFFFFFFFFFFFF1
+    #define METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL 0x7FFFFFFFFFFFFFF0
+    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME  0x7FFFFFFFFFFFFFF1
+    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH  0x7FFFFFFFFFFFFFF2
 
-    #define METHOD_ADDR_SLEEP   0x7FFFFFFFFFFFFFF2
-    #define METHOD_ADDR_HIDE    0x7FFFFFFFFFFFFFF3
-    #define METHOD_ADDR_RECOVER 0x7FFFFFFFFFFFFFF4
-    #define METHOD_ADDR_STOP    0x7FFFFFFFFFFFFFF5
+    #define METHOD_ADDR_SLEEP   0x7FFFFFFFFFFFFFF3
+    #define METHOD_ADDR_HIDE    0x7FFFFFFFFFFFFFF4
+    #define METHOD_ADDR_RECOVER 0x7FFFFFFFFFFFFFF5
+    #define METHOD_ADDR_STOP    0x7FFFFFFFFFFFFFF6
+
+    #define METHOD_ADDR_MALLOC 0x7FFFFFFFFFFFFFF7
+    #define METHOD_ADDR_FREE   0x7FFFFFFFFFFFFFF8
 #elif _WIN32
-    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME 0x7FFFFFF0
-    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH 0x7FFFFFF1
+    #define METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL 0x7FFFFFF0
+    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME  0x7FFFFFF1
+    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH  0x7FFFFFF2
 
-    #define METHOD_ADDR_SLEEP   0x7FFFFFF2
-    #define METHOD_ADDR_HIDE    0x7FFFFFF3
-    #define METHOD_ADDR_RECOVER 0x7FFFFFF4
-    #define METHOD_ADDR_STOP    0x7FFFFFF5
+    #define METHOD_ADDR_SLEEP   0x7FFFFFF3
+    #define METHOD_ADDR_HIDE    0x7FFFFFF4
+    #define METHOD_ADDR_RECOVER 0x7FFFFFF5
+    #define METHOD_ADDR_STOP    0x7FFFFFF6
+
+    #define METHOD_ADDR_MALLOC 0x7FFFFFF7
+    #define METHOD_ADDR_FREE   0x7FFFFFF8
 #endif
 
 // for IAT hooks
@@ -64,8 +72,9 @@ typedef struct {
     ThreadTracker_M* ThreadTracker;
 } Runtime;
 
-// methods about Runtime
+// export methods about Runtime
 uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
+uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook);
 
@@ -73,6 +82,11 @@ bool RT_Sleep(uint32 milliseconds);
 bool RT_Hide();
 bool RT_Recover();
 bool RT_Stop();
+
+// internal methods about Runtime
+void* RT_malloc(uint size);
+void* RT_realloc(void* address, uint size);
+bool  RT_free(void* address);
 
 static uintptr allocateRuntimeMemory();
 static bool initRuntimeAPI(Runtime* runtime);
@@ -121,24 +135,24 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
             errCode = 0xF2;
             break;
         }
+        if (!updateRuntimePointers(runtime))
+        {
+            errCode = 0xF3;
+            break;
+        }
         errCode = initRuntimeEnvironment(runtime);
         if (errCode != 0x00)
         {
             break;
         }
-        if (!updateRuntimePointers(runtime))
-        {
-            errCode = 0xF4;
-            break;
-        }
         if (!recoverPageProtect(runtime, &protect))
         {
-            errCode = 0xF5;
+            errCode = 0xFA;
             break;
         }
         if (!initIATHooks(runtime))
         {
-            errCode = 0xF6;
+            errCode = 0xFB;
             break;
         }
         break;
@@ -149,7 +163,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         return (Runtime_M*)errCode;
     }
     // clean context data in structure
-    uintptr ctxBegin = (uintptr)(&runtime->VirtualAlloc);
+    uintptr ctxBegin = (uintptr)(&runtime->VirtualProtect);
     uintptr ctxSize  = (uintptr)(&runtime->ReleaseMutex) - ctxBegin;
     RandBuf((byte*)ctxBegin, (int64)ctxSize);
     // create methods for Runtime
@@ -158,9 +172,10 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->Alloc = runtime->MemoryTracker->MemAlloc;
     module->Free  = runtime->MemoryTracker->MemFree;
     // for IAT hooks
-    module->GetProcAddress       = &RT_GetProcAddress;
-    module->GetProcAddressByName = &RT_GetProcAddressByName;
-    module->GetProcAddressByHash = &RT_GetProcAddressByHash;
+    module->GetProcAddress         = &RT_GetProcAddress;
+    module->GetProcAddressOriginal = &RT_GetProcAddressOriginal;
+    module->GetProcAddressByName   = &RT_GetProcAddressByName;
+    module->GetProcAddressByHash   = &RT_GetProcAddressByHash;
     // runtime core methods
     module->Sleep   = &RT_Sleep;
     module->Hide    = &RT_Hide;
@@ -264,14 +279,14 @@ static uint initRuntimeEnvironment(Runtime* runtime)
         0, false, DUPLICATE_SAME_ACCESS
     ))
     {
-        return 0xF3;
+        return 0xF4;
     }
     runtime->hProcess = dupHandle;
     // create global mutex
     HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
     if (hMutex == NULL)
     {
-        return 0xF4;
+        return 0xF5;
     }
     runtime->Mutex = hMutex;
     // create context data for initialize other modules
@@ -320,7 +335,7 @@ static uint initThreadTracker(Runtime* runtime, Context* context)
     void* page = runtime->MemoryTracker->MemAlloc(THREADS_PAGE_SIZE);
     if (page == NULL)
     {
-        return 0xF4;
+        return 0x1F;
     }
     context->TTMemPage = (uintptr)page;
 
@@ -340,13 +355,17 @@ static bool updateRuntimePointers(Runtime* runtime)
     } method;
     method methods[] = 
     {
-        { &RT_GetProcAddressByName, METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME },
-        { &RT_GetProcAddressByHash, METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH },
+        { &RT_GetProcAddressOriginal, METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL },
+        { &RT_GetProcAddressByName,   METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME },
+        { &RT_GetProcAddressByHash,   METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH },
 
         { &RT_Sleep,   METHOD_ADDR_SLEEP },
         { &RT_Hide,    METHOD_ADDR_HIDE },
         { &RT_Recover, METHOD_ADDR_RECOVER },
         { &RT_Stop,    METHOD_ADDR_STOP },
+
+        { &RT_malloc, METHOD_ADDR_MALLOC },
+        { &RT_free,   METHOD_ADDR_FREE },
     };
     bool success = true;
     for (int i = 0; i < arrlen(methods); i++)
@@ -487,6 +506,14 @@ __declspec(noinline)
 uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 {
     return RT_GetProcAddressByName(hModule, lpProcName, true);
+}
+
+__declspec(noinline)
+uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
+{
+    Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL);
+
+    return runtime->GetProcAddress(hModule, lpProcName);
 }
 
 __declspec(noinline)
@@ -679,4 +706,52 @@ bool RT_Stop()
 
     runtime->ReleaseMutex(runtime->Mutex);
     return success;
+}
+
+__declspec(noinline)
+void* RT_malloc(uint size)
+{
+    Runtime* runtime = getRuntimePointer(METHOD_ADDR_MALLOC);
+
+    // ensure the size is a multiple of 4096(memory page size).
+    uint pageSize = ((size / 4096) + 1) * 4096;
+    uintptr addr = runtime->VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    if (addr == NULL)
+    {
+        return NULL;
+    }
+
+    // store the size at the head of the memory page
+    // ensure the memory address is 16 bytes aligned
+    byte* address = (byte*)addr;
+    RandBuf(address, 16);
+    mem_copy(address, &size, size);
+    return (void*)(addr+16);
+}
+
+__declspec(noinline)
+void* RT_realloc(void* address, uint size)
+{
+    if (address == NULL)
+    {
+        return RT_malloc(size);
+    }
+
+    void* newAddr = RT_malloc(size);
+    if (newAddr == NULL)
+    {
+        return NULL;
+    }
+
+    uint oldSize = *(uint*)((uintptr)(address)-16);
+    mem_copy(newAddr, address, oldSize);
+    return newAddr;
+}
+
+__declspec(noinline)
+bool RT_free(void* address)
+{
+    Runtime* runtime = getRuntimePointer(METHOD_ADDR_FREE);
+
+    return runtime->VirtualFree((uintptr)(address)-16, 0, MEM_RELEASE);
 }
