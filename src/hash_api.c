@@ -1,4 +1,4 @@
-#include "go_types.h"
+#include "c_types.h"
 #include "hash_api.h"
 
 #ifdef _WIN64

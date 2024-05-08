@@ -1,7 +1,7 @@
 #ifndef RANDOM_H
 #define RANDOM_H
 
-#include "go_types.h"
+#include "c_types.h"
 
 // RandBuf is used to fill random bytes to the memory.
 void RandBuf(byte* buf, int64 size);

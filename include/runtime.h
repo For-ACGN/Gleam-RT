@@ -1,7 +1,7 @@
 #ifndef RUNTIME_H
 #define RUNTIME_H
 
-#include "go_types.h"
+#include "c_types.h"
 #include "windows_t.h"
 
 typedef void* (*Alloc_t)(uint size);

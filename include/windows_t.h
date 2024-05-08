@@ -1,7 +1,7 @@
 #ifndef WINDOWS_T_H
 #define WINDOWS_T_H
 
-#include "go_types.h"
+#include "c_types.h"
 
 /* 
 * Documents:

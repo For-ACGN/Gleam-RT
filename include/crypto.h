@@ -1,7 +1,7 @@
 #ifndef CRYPTO_H
 #define CRYPTO_H
 
-#include "go_types.h"
+#include "c_types.h"
 
 #define CRYPTO_IV_SIZE  16
 #define CRYPTO_KEY_SIZE 32

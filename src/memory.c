@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "go_types.h"
+#include "c_types.h"
 #include "windows_t.h"
 #include "hash_api.h"
 #include "list_md.h"

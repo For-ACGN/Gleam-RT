@@ -1,4 +1,4 @@
-#include "go_types.h"
+#include "c_types.h"
 #include "crypto.h"
 
 static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);

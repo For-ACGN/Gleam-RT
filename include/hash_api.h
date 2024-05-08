@@ -1,7 +1,7 @@
 #ifndef HASH_API_H
 #define HASH_API_H
 
-#include "go_types.h"
+#include "c_types.h"
 
 typedef uintptr (*FindAPI_t)(uint hash, uint key);
 

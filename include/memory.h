@@ -1,7 +1,7 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#include "go_types.h"
+#include "c_types.h"
 #include "windows_t.h"
 #include "context.h"
 

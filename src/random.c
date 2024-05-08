@@ -1,4 +1,4 @@
-#include "go_types.h"
+#include "c_types.h"
 #include "random.h"
 
 static uint64  rand(uint64 seed, uint64 m);

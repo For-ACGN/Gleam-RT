@@ -1,5 +1,5 @@
-#ifndef GO_TYPES_H
-#define GO_TYPES_H
+#ifndef C_TYPES_H
+#define C_TYPES_H
 
 // reference basic types from Go
 typedef char      int8;
@@ -124,4 +124,4 @@ static void mem_clean(void* ptr, uint num)
     mem_set(ptr, 0, num);
 }
 
-#endif // GO_TYPES_H
+#endif // C_TYPES_H

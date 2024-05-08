@@ -1,7 +1,7 @@
 #ifndef THREAD_H
 #define THREAD_H
 
-#include "go_types.h"
+#include "c_types.h"
 #include "windows_t.h"
 #include "context.h"
 

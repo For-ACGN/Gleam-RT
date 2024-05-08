@@ -1,7 +1,7 @@
 #ifndef LIST_MD_H
 #define LIST_MD_H
 
-#include "go_types.h"
+#include "c_types.h"
 
 typedef struct {
     void* (*malloc) (uint size);
