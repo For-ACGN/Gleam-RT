@@ -18,8 +18,8 @@ typedef struct {
     uint  Unit;
 } List;
 
-// InitList is used to initialize a mesh dynamic list.
-void InitList(List* list, List_Ctx* ctx, uint unit);
+// List_Init is used to initialize a mesh dynamic list.
+void List_Init(List* list, List_Ctx* ctx, uint unit);
 
 // List_Insert is used to insert a element to list.
 bool List_Insert(List* list, void* data);
