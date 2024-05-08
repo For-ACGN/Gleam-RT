@@ -10,9 +10,19 @@ void RandBuf(byte* buf, int64 size)
     uint64 seed = RandUint64((uint64)(buf));
     for (int64 i = 0; i < size; i++)
     {
+        byte b = *(buf + i);
+        if (b == 0)
+        {
+            b = 170;
+        }
+        seed += ror(seed, b%4);
+        seed += b;
+    }
+    for (int64 i = 0; i < size; i++)
+    {
         seed = RandUint64(seed);
         *(buf + i) = (byte)seed;
-        seed++;
+        seed += seed % 256;
     }
 }
 
