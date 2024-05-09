@@ -1,8 +1,10 @@
 #include "c_types.h"
 #include "windows_t.h"
 #include "hash_api.h"
+#include "list_md.h"
 #include "context.h"
 #include "random.h"
+#include "crypto.h"
 #include "thread.h"
 
 // hard encoded address in methods for replace
@@ -26,8 +28,6 @@
     #define METHOD_ADDR_CLEAN            0x7FFFFF17
 #endif
 
-#define MAX_NUM_THREADS (THREADS_PAGE_SIZE / sizeof(thread))
-
 typedef struct {
     uint32 threadID;
     HANDLE hThread;
@@ -48,9 +48,11 @@ typedef struct {
     CloseHandle_t         CloseHandle;
 
     // store all threads info
-    uint32  NumThreads;
-    thread* Threads;
+    List Threads;
+    byte ThreadsKey[CRYPTO_KEY_SIZE];
+    byte ThreadsIV [CRYPTO_IV_SIZE];
 
+    // global mutex
     HANDLE Mutex;
 } ThreadTracker;
 
@@ -68,9 +70,9 @@ bool   TT_ResumeAll();
 bool   TT_Clean();
 
 static bool initTrackerAPI(ThreadTracker* tracker, Context* context);
-static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static bool updateTrackerPointers(ThreadTracker* tracker);
 static bool updateTrackerPointer(ThreadTracker* tracker, void* method, uintptr address);
+static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
 static void delThread(ThreadTracker* tracker, uint32 threadID);
 
@@ -90,12 +92,12 @@ ThreadTracker_M* InitThreadTracker(Context* context)
             errCode = 0x11;
             break;
         }
-        if (!initTrackerEnvironment(tracker, context))
+        if (!updateTrackerPointers(tracker))
         {
             errCode = 0x12;
             break;
         }
-        if (!updateTrackerPointers(tracker))
+        if (!initTrackerEnvironment(tracker, context))
         {
             errCode = 0x13;
             break;
@@ -174,32 +176,6 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
     return true;
 }
 
-static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
-{
-    thread* threads = (thread*)context->TTMemPage;
-    tracker->NumThreads = 0;
-    tracker->Threads    = threads;
-    // clean memory page
-    for (int i = 0; i < MAX_NUM_THREADS; i++)
-    {
-        threads->threadID = 0;
-        threads->hThread  = NULL;
-        threads++;
-    }
-    // add current thread for special exe like Golang
-    uint32 threadID = tracker->GetCurrentThreadID();
-    if (threadID == 0)
-    {
-        return false;
-    }
-    if (!addThread(tracker, threadID, CURRENT_THREAD))
-    {
-        return false;
-    }
-    tracker->Mutex = context->Mutex;
-    return true;
-}
-
 static bool updateTrackerPointers(ThreadTracker* tracker)
 {
     typedef struct {
@@ -247,6 +223,31 @@ static bool updateTrackerPointer(ThreadTracker* tracker, void* method, uintptr a
     return success;
 }
 
+static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
+{
+    // initialize thread list
+    List_Ctx ctx = {
+        .malloc  = context->malloc,
+        .realloc = context->realloc,
+        .free    = context->free,
+    };
+    List_Init(&tracker->Threads, &ctx, sizeof(thread));
+    RandBuf(&tracker->ThreadsKey[0], CRYPTO_KEY_SIZE);
+    RandBuf(&tracker->ThreadsIV[0], CRYPTO_IV_SIZE);
+    // add current thread for special executable file like Golang
+    uint32 threadID = tracker->GetCurrentThreadID();
+    if (threadID == 0)
+    {
+        return false;
+    }
+    if (!addThread(tracker, threadID, CURRENT_THREAD))
+    {
+        return false;
+    }
+    tracker->Mutex = context->Mutex;
+    return true;
+}
+
 // updateTrackerPointers will replace hard encode address to the actual address.
 // Must disable compiler optimize, otherwise updateTrackerPointer will fail.
 #pragma optimize("", off)
@@ -275,11 +276,6 @@ HANDLE TT_CreateThread(
     bool success = true;
     for (;;)
     {
-        if (tracker->NumThreads >= MAX_NUM_THREADS)
-        {
-            success = false;
-            break;
-        }
         hThread = tracker->CreateThread(
             lpThreadAttributes, dwStackSize, lpStartAddress,
             lpParameter, dwCreationFlags, &threadID
@@ -322,29 +318,16 @@ static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
         tracker->CloseHandle(hThread);
         return false;
     }
-    // search space for store structure
-    thread* threads = tracker->Threads;
-    thread* thread  = NULL; 
-    for (int i = 0; i <= MAX_NUM_THREADS; i++)
-    {
-        if (threads->threadID != 0 || threads->hThread != NULL)
-        {
-            threads++;
-            continue;
-        }
-        thread = threads;
-        break;
-    }
-    // unexpected case
-    if (thread == NULL)
+    thread thread = {
+        .threadID = threadID,
+        .hThread  = dupHandle,
+    };
+    if (!List_Insert(&tracker->Threads, &thread))
     {
         tracker->CloseHandle(hThread);
         tracker->CloseHandle(dupHandle);
         return false;
     }
-    thread->threadID = threadID;
-    thread->hThread = dupHandle;
-    tracker->NumThreads++;
     return true;
 }
 
@@ -371,28 +354,20 @@ void TT_ExitThread(uint32 dwExitCode)
 
 static void delThread(ThreadTracker* tracker, uint32 threadID)
 {
-    // search the target thread
-    thread* threads = tracker->Threads;
-    thread* thread  = NULL;
-    for (int i = 0; i <= MAX_NUM_THREADS; i++)
-    {
-        if (threads->threadID != threadID)
-        {
-            threads++;
-            continue;
-        }
-        thread = threads;
-        break;
-    }
-    if (thread == NULL)
+    List* threads = &tracker->Threads;
+    thread thread = {
+        .threadID = threadID,
+    };
+    uint index;
+    if (!List_Find(threads, &thread, sizeof(thread.threadID), &index))
     {
         return;
     }
-    // remove thread info in array.
-    tracker->CloseHandle(thread->hThread);
-    thread->threadID = 0;
-    thread->hThread  = NULL;
-    tracker->NumThreads--;
+    if (List_Delete(threads, index))
+    {
+        return;
+    }
+    tracker->CloseHandle(thread.hThread);
 }
 
 __declspec(noinline)
@@ -469,34 +444,33 @@ bool TT_SuspendAll()
         return false;
     }
 
-    thread* threads   = tracker->Threads;
-    uint32  numThread = 0;
-
     bool error = false;
-    for (int i = 0; i < MAX_NUM_THREADS; i++)
+
+    List* threads = &tracker->Threads;
+    uint  index   = 0;
+    for (uint num = 0; num < threads->Len; index++)
     {
-        if (threads->threadID == 0 || threads->hThread == NULL)
+        thread* thread = List_Get(threads, index);
+        if (thread->threadID == NULL)
         {
-            threads++;
             continue;
         }
-
-        if (threads->threadID != currentTID)
+        // skip self thread
+        if (thread->threadID == currentTID)
         {
-            uint32 count = tracker->SuspendThread(threads->hThread);
-            if (count == -1)
-            {
-                delThread(tracker, threads->threadID);
-            }
+            num++;
+            continue;
         }
-
-        numThread++;
-        if (numThread >= tracker->NumThreads)
+        uint32 count = tracker->SuspendThread(thread->hThread);
+        if (count == -1)
         {
-            break;
+            delThread(tracker, thread->threadID);
+            error = true;
         }
-        threads++;
+        num++;
     }
+
+    // TODO encrypt thread list
     return !error;
 }
 
@@ -505,39 +479,38 @@ bool TT_ResumeAll()
 {
     ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_RESUME_ALL);
 
+    // TODO decrypt thread list
+
     uint32 currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
     {
         return false;
     }
 
-    thread* threads   = tracker->Threads;
-    uint32  numThread = 0;
-
     bool error = false;
-    for (int i = 0; i < MAX_NUM_THREADS; i++)
+
+    List* threads = &tracker->Threads;
+    uint  index   = 0;
+    for (uint num = 0; num < threads->Len; index++)
     {
-        if (threads->threadID == 0 || threads->hThread == NULL)
+        thread* thread = List_Get(threads, index);
+        if (thread->threadID == NULL)
         {
-            threads++;
             continue;
         }
-
-        if (threads->threadID != currentTID)
+        // skip self thread
+        if (thread->threadID == currentTID)
         {
-            uint32 count = tracker->ResumeThread(threads->hThread);
-            if (count == -1)
-            {
-                delThread(tracker, threads->threadID);
-            }
+            num++;
+            continue;
         }
-
-        numThread++;
-        if (numThread >= tracker->NumThreads)
+        uint32 count = tracker->ResumeThread(thread->hThread);
+        if (count == -1)
         {
-            break;
+            delThread(tracker, thread->threadID);
+            error = true;
         }
-        threads++;
+        num++;
     }
     return !error;
 }
@@ -553,40 +526,35 @@ bool TT_Clean()
         return false;
     }
 
-    thread* threads   = tracker->Threads;
-    uint32  numThread = 0;
-
     bool error = false;
-    for (int i = 0; i < MAX_NUM_THREADS; i++)
+
+    List* threads = &tracker->Threads;
+    uint  index   = 0;
+    for (uint num = 0; num < threads->Len; index++)
     {
-        if (threads->threadID == 0 || threads->hThread == NULL)
+        thread* thread = List_Get(threads, index);
+        if (thread->threadID == NULL)
         {
-            threads++;
             continue;
         }
-
-        if (threads->threadID != currentTID)
+        // skip self thread
+        if (thread->threadID != currentTID)
         {
-            if (!tracker->TerminateThread(threads->hThread, 0))
+            uint32 count = tracker->TerminateThread(thread->hThread, 0);
+            if (count == -1)
             {
+                delThread(tracker, thread->threadID);
                 error = true;
             }
         }
-
-        if (!tracker->CloseHandle(threads->hThread))
+        if (!tracker->CloseHandle(thread->hThread))
         {
             error = true;
         }
-        threads->threadID = 0;
-        threads->hThread  = NULL;
-        tracker->NumThreads--;
-
-        numThread++;
-        if (numThread >= tracker->NumThreads)
-        {
-            break;
-        }
-        threads++;
+        num++;
     }
+
+    // clean thread list
+    RandBuf(threads->Data, List_Size(threads));
     return !error;
 }

@@ -412,14 +412,6 @@ static uint initMemoryTracker(Runtime* runtime, Context* context)
 
 static uint initThreadTracker(Runtime* runtime, Context* context)
 {
-    // allocate memory page for store thread id and handles
-    void* page = runtime->MemoryTracker->MemAlloc(THREADS_PAGE_SIZE);
-    if (page == NULL)
-    {
-        return 0x1F;
-    }
-    context->TTMemPage = (uintptr)page;
-
     ThreadTracker_M* tracker = InitThreadTracker(context);
     if (tracker < (ThreadTracker_M*)(0x20))
     {

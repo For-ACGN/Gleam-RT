@@ -33,7 +33,7 @@ typedef struct {
     uint32  protect;
 
     byte key[CRYPTO_KEY_SIZE];
-    byte iv[CRYPTO_IV_SIZE];
+    byte iv [CRYPTO_IV_SIZE];
 } memoryPage;
 
 typedef struct {
@@ -45,7 +45,9 @@ typedef struct {
     WaitForSingleObject_t WaitForSingleObject;
 
     // store memory pages
-    List Pages; 
+    List Pages;
+    byte PagesKey[CRYPTO_KEY_SIZE];
+    byte PagesIV [CRYPTO_IV_SIZE];
 
     // global mutex
     HANDLE Mutex;
@@ -183,12 +185,15 @@ static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr a
 
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 {
+    // initialize memory page list
     List_Ctx ctx = {
         .malloc  = context->malloc,
         .realloc = context->realloc,
         .free    = context->free,
     };
     List_Init(&tracker->Pages, &ctx, sizeof(memoryPage));
+    RandBuf(&tracker->PagesKey[0], CRYPTO_KEY_SIZE);
+    RandBuf(&tracker->PagesIV[0], CRYPTO_IV_SIZE);
     tracker->Mutex = context->Mutex;
     return true;
 }
@@ -314,7 +319,7 @@ static bool freePage(MemoryTracker* tracker, uintptr address)
         .address = address,
     };
     uint index;
-    if (!List_Find(pages, &page, sizeof(uintptr), &index))
+    if (!List_Find(pages, &page, sizeof(page.address), &index))
     {
         return true;
     }
@@ -479,8 +484,7 @@ bool MT_Encrypt()
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_ENCRYPT);
 
     List* pages = &tracker->Pages;
-
-    uint index = 0;
+    uint  index = 0;
     for (uint num = 0; num < pages->Len; index++)
     {
         memoryPage* page = List_Get(pages, index);
@@ -529,8 +533,7 @@ bool MT_Decrypt()
     // TODO decrypt page list
 
     List* pages = &tracker->Pages;
-
-    uint index = 0;
+    uint  index = 0;
     for (uint num = 0; num < pages->Len; index++)
     {
         memoryPage* page = List_Get(pages, index);
@@ -581,8 +584,7 @@ bool MT_Clean()
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
     List* pages = &tracker->Pages;
-
-    uint index = 0;
+    uint  index = 0;
     for (uint num = 0; num < pages->Len; index++)
     {
         memoryPage* page = List_Get(pages, index);
@@ -601,8 +603,8 @@ bool MT_Clean()
         num++;
     }
 
-    // TODO clean page list
-
+    // clean page list
+    RandBuf(pages->Data, List_Size(pages));
     return true;
 }
 
