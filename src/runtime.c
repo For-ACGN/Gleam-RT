@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "c_types.h"
 #include "windows_t.h"
 #include "hash_api.h"
@@ -100,7 +102,10 @@ static uint initThreadTracker(Runtime* runtime, Context* context);
 static bool initIATHooks(Runtime* runtime);
 static void cleanRuntime(Runtime* runtime);
 
+static uint32  getModuleFileNameW(HMODULE hModule, byte* name, uint32 size);
+static bool    isForwardedExport(HMODULE hModule, uintptr proc);
 static uintptr replaceToHook(Runtime* runtime, uintptr proc);
+
 static bool sleep(Runtime* runtime, uint32 milliseconds);
 static bool hide(Runtime* runtime);
 static bool recover(Runtime* runtime);
@@ -500,6 +505,9 @@ static Runtime* getRuntimePointer(uintptr pointer)
 __declspec(noinline)
 uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 {
+    // TODO is RT_GetProcAddressOriginal GetProcAddressByName and GetProcAddressByHash
+
+
     return RT_GetProcAddressByName(hModule, lpProcName, true);
 }
 
@@ -516,9 +524,48 @@ uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME);
 
-    // TODO is GetProcAddressByName and GetProcAddressByHash
+    byte name[255];
+    mem_clean(&name[0], sizeof(name));
+
+
+    uint32 nameLen = getModuleFileNameW(hModule, &name[0], sizeof(name));
+
+    printf("getModuleFileNameW: %ws\n", name);
+
+    printf("proc name: %s\n", lpProcName);
+    
+
+    uint key = 0x12345678;
+
+    uint hash = HashAPI_W(&name[0], lpProcName, key);
+
+    uintptr pp = FindAPI(hash, key);
+    printf("proc: 0x%llX\n", pp);
+
+    // if (pp == 0)
+    // {
+    //     printf("!!\n");
+    //     return 0;
+    // }
+    // 
+    // return pp;
+
 
     uintptr proc = runtime->GetProcAddress(hModule, lpProcName);
+
+
+    if (proc != pp)
+    {
+        printf("proc1: 0x%llX\n", proc);
+        printf("proc2: 0x%llX\n", pp);
+        return 0;
+    }
+
+
+
+
+
+
     if (proc == NULL)
     {
         return NULL;
@@ -535,8 +582,6 @@ uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH);
 
-    // TODO is GetProcAddressByName and GetProcAddressByHash
-
     uintptr proc = FindAPI(hash, key);
     if (proc == NULL)
     {
@@ -547,6 +592,57 @@ uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
         return proc;
     }
     return replaceToHook(runtime, proc);
+}
+
+static uint32 getModuleFileNameW(HMODULE hModule, byte* name, uint32 size)
+{
+#ifdef _WIN64
+    uintptr peb = __readgsqword(96);
+    uintptr ldr = *(uintptr*)(peb + 24);
+    uintptr mod = *(uintptr*)(ldr + 32);
+#elif _WIN32
+    uintptr peb = __readfsdword(48);
+    uintptr ldr = *(uintptr*)(peb + 12);
+    uintptr mod = *(uintptr*)(ldr + 20);
+#endif
+    for (;; mod = *(uintptr*)(mod))
+    {
+    #ifdef _WIN64
+        uintptr modName = *(uintptr*)(mod + 80);
+    #elif _WIN32
+        uintptr modName = *(uintptr*)(mod + 40);
+    #endif    
+        if (modName == 0x00)
+        {
+            break;
+        }
+    #ifdef _WIN64
+        uintptr modBase = *(uintptr*)(mod + 32);
+    #elif _WIN32
+        uintptr modBase = *(uintptr*)(mod + 16);
+    #endif
+        if (modBase != hModule)
+        {
+            continue;
+        }
+    #ifdef _WIN64
+        uint16 nameLen = *(uint16*)(mod + 74);
+    #elif _WIN32
+        uint16 nameLen = *(uint16*)(mod + 38);
+    #endif
+        if (nameLen > size)
+        {
+            nameLen = size;
+        }
+        mem_copy(name, (byte*)modName, nameLen);
+        return nameLen;
+    }
+    return 0;
+}
+
+static bool isForwardedExport(HMODULE hModule, uintptr proc)
+{
+
 }
 
 static uintptr replaceToHook(Runtime* runtime, uintptr proc)
