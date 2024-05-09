@@ -34,7 +34,7 @@ void* List_Get(List* list, uint index);
 // equal is used compare a part of data, if equal
 // is zero, it will compare whole data.
 // if index is NULL, it will not return the element index.
-bool List_Find(List* list, void* data, uint equal, bool* index);
+bool List_Find(List* list, void* data, uint equal, uint* index);
 
 // List_Resize is used to resize list buffer size.
 // It will change capacity, it can be smaller than old.

@@ -81,7 +81,7 @@ void* List_Get(List* list, uint index)
     return (void*)((uintptr)(list->Data) + index * list->Unit);
 }
 
-bool List_Find(List* list, void* data, uint equal, bool* index)
+bool List_Find(List* list, void* data, uint equal, uint* idx)
 {
     uint equLen = equal;
     if (equLen == 0)
@@ -111,9 +111,9 @@ bool List_Find(List* list, void* data, uint equal, bool* index)
     }
     byte* addr = (byte*)(list->Data) + (target*list->Unit);
     mem_copy(data, addr, list->Unit);
-    if (index != NULL)
+    if (idx != NULL)
     {
-        *index = target;
+        *idx = target;
     }
     return true;
 }
