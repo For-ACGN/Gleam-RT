@@ -1,4 +1,4 @@
-// #include <stdio.h>
+#include <stdio.h>
 
 #include "c_types.h"
 #include "windows_t.h"
@@ -65,7 +65,7 @@ static bool   initTrackerAPI(MemoryTracker* tracker, Context* context);
 static bool   updateTrackerPointers(MemoryTracker* tracker);
 static bool   updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
 static bool   initTrackerEnvironment(MemoryTracker* tracker, Context* context);
-static bool   allocPage(MemoryTracker* tracker, uintptr address, uint size, uint type, uint32 protect);
+static bool   allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
 static bool   freePage(MemoryTracker* tracker, uintptr address);
 static bool   protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
@@ -207,7 +207,7 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_ALLOC);
 
-    // printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
+    printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -243,7 +243,7 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
     return page;
 }
 
-static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint type, uint32 protect)
+static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect)
 {
     if (!isPageTypeTrackable(type))
     {
@@ -280,8 +280,7 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_FREE);
 
-    // printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
-    // return true;
+    printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -479,55 +478,47 @@ bool MT_Encrypt()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_ENCRYPT);
 
-    memoryPage* page = tracker->PageHead;
-    if (page == NULL)
+    List* pages = &tracker->Pages;
+
+    uint index = 0;
+    for (uint num = 0; num < pages->Len; index++)
     {
-        return true;
-    }
-    for (;;)
-    {
-        // must copy next page pointer before encrypt
-        memoryPage* next = page->next;
+        memoryPage* page = List_Get(pages, index);
+        if (page->address == NULL)
+        {
+            continue;
+        }
         if (!encryptPage(tracker, page))
         {
             return false;
         }
-        if (next == NULL)
-        {
-            break;
-        }
-        page = next;
+        num++;
     }
+
+    // TODO encrypt page list
+
     return true;
 }
 
 static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
 {
+    if (!isPageTypeWriteable(page->type))
+    {
+        return true;
+    }
     if (!adjustPageProtect(tracker, page))
     {
         return false;
     }
-
     // generate new key and IV
     RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
-    RandBuf(&page->iv0[0], CRYPTO_IV_SIZE);
-    RandBuf(&page->iv1[0], CRYPTO_IV_SIZE);
+    RandBuf(&page->iv[0], CRYPTO_IV_SIZE);
     byte key[CRYPTO_KEY_SIZE];
     deriveKey(tracker, page, &key[0]);
 
-    uint pageSize = page->size;
+    EncryptBuf((byte*)(page->address), page->size, &key[0], &page->iv[0]);
 
-    // encrypt size
-    byte* buf  = (byte*)(&page->size);
-    uint  size = sizeof(uint);
-    EncryptBuf(buf, size, &key[0], &page->iv0[0]);
-
-    // encrypt other fields and page
-    buf  = (byte*)(&page->protect);
-    size = pageSize - offsetof(memoryPage, protect);
-    EncryptBuf(buf, size, &key[0], &page->iv1[0]);
-
-    return true;
+    return recoverPageProtect(tracker, page);
 }
 
 __declspec(noinline)
@@ -535,47 +526,43 @@ bool MT_Decrypt()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_DECRYPT);
 
-    memoryPage* page = tracker->PageHead;
-    if (page == NULL)
+    // TODO decrypt page list
+
+    List* pages = &tracker->Pages;
+
+    uint index = 0;
+    for (uint num = 0; num < pages->Len; index++)
     {
-        return true;
-    }
-    for (;;)
-    {
+        memoryPage* page = List_Get(pages, index);
+        if (page->address == NULL)
+        {
+            continue;
+        }
         if (!decryptPage(tracker, page))
         {
             return false;
         }
-        memoryPage* next = page->next;
-        if (next == NULL)
-        {
-            break;
-        }
-        page = next;
+        num++;
     }
     return true;
 }
 
 static bool decryptPage(MemoryTracker* tracker, memoryPage* page)
 {
-    byte key[CRYPTO_KEY_SIZE];
-    deriveKey(tracker, page, &key[0]);
-
-    // decrypt size
-    byte* buf  = (byte*)(&page->size);
-    uint  size = sizeof(uint);
-    DecryptBuf(buf, size, &key[0], &page->iv0[0]);
-
-    // decrypt other fields and page
-    buf  = (byte*)(&page->protect);
-    size = page->size - offsetof(memoryPage, protect);
-    DecryptBuf(buf, size, &key[0], &page->iv1[0]);
-
-    if (!recoverPageProtect(tracker, page))
+    if (!isPageTypeWriteable(page->type))
+    {
+        return true;
+    }
+    if (!adjustPageProtect(tracker, page))
     {
         return false;
     }
-    return true;
+    byte key[CRYPTO_KEY_SIZE];
+    deriveKey(tracker, page, &key[0]);
+
+    DecryptBuf((byte*)(page->address), page->size, &key[0], &page->iv[0]);
+
+    return recoverPageProtect(tracker, page);
 }
 
 static void deriveKey(MemoryTracker* tracker, memoryPage* page, byte* key)
@@ -593,47 +580,42 @@ bool MT_Clean()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
-    memoryPage* page = tracker->PageHead;
-    if (page == NULL)
+    List* pages = &tracker->Pages;
+
+    uint index = 0;
+    for (uint num = 0; num < pages->Len; index++)
     {
-        return true;
-    }
-    for (;;)
-    {
-        // must copy next page pointer before clean
-        memoryPage* next = page->next;
+        memoryPage* page = List_Get(pages, index);
+        if (page->address == NULL)
+        {
+            continue;
+        }
         if (!cleanPage(tracker, page))
         {
             return false;
         }
-        if (next == NULL)
+        if (!tracker->VirtualFree(page->address, 0, MEM_RELEASE))
         {
-            break;
+            return false;
         }
-        page = next;
+        num++;
     }
+
+    // TODO clean page list
+
     return true;
 }
 
 static bool cleanPage(MemoryTracker* tracker, memoryPage* page)
 {
+    if (!isPageTypeWriteable(page->type))
+    {
+        return true;
+    }
     if (!adjustPageProtect(tracker, page))
     {
         return false;
     }
-    // store fields before clean memory page
-    uint   size    = page->size;
-    uint32 protect = page->protect;
-    // fill random data before free
-    RandBuf((byte*)page, size);
-    // recovery memory protect
-    if (!isPageProtectWriteable(protect))
-    {
-        uint32 old;
-        if (!tracker->VirtualProtect((uintptr)page, size, protect, &old))
-        {
-            return false;
-        }
-    }
-    return tracker->VirtualFree((uintptr)page, 0, MEM_RELEASE);
+    RandBuf((byte*)(page->address), page->size);
+    return recoverPageProtect(tracker, page);
 }
