@@ -90,13 +90,13 @@ bool  RT_free(void* address);
 
 static uintptr allocateRuntimeMemory();
 static bool initRuntimeAPI(Runtime* runtime);
+static bool adjustPageProtect(Runtime* runtime, uint32* old);
+static bool recoverPageProtect(Runtime* runtime, uint32* old);
+static bool updateRuntimePointers(Runtime* runtime);
+static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
 static uint initRuntimeEnvironment(Runtime* runtime);
 static uint initMemoryTracker(Runtime* runtime, Context* context);
 static uint initThreadTracker(Runtime* runtime, Context* context);
-static bool updateRuntimePointers(Runtime* runtime);
-static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
-static bool adjustPageProtect(Runtime* runtime, uint32* old);
-static bool recoverPageProtect(Runtime* runtime, uint32* old);
 static bool initIATHooks(Runtime* runtime);
 static void cleanRuntime(Runtime* runtime);
 
@@ -265,87 +265,32 @@ static bool initRuntimeAPI(Runtime* runtime)
     return true;
 }
 
-static uint initRuntimeEnvironment(Runtime* runtime)
+// change memory protect for dynamic update pointer that hard encode.
+static bool adjustPageProtect(Runtime* runtime, uint32* old)
 {
-    // initialize structure fields
-    runtime->hProcess = NULL;
-    runtime->Mutex    = NULL;
-    runtime->MemoryTracker = NULL;
-    runtime->ThreadTracker = NULL;
-    // duplicate current process handle
-    HANDLE dupHandle;
-    if (!runtime->DuplicateHandle(
-        CURRENT_PROCESS, CURRENT_PROCESS, CURRENT_PROCESS, &dupHandle,
-        0, false, DUPLICATE_SAME_ACCESS
-    ))
+    if (runtime->Options->NotAdjustProtect)
     {
-        return 0xF4;
+        return true;
     }
-    runtime->hProcess = dupHandle;
-    // create global mutex
-    HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
-    if (hMutex == NULL)
-    {
-        return 0xF5;
-    }
-    runtime->Mutex = hMutex;
-    // create context data for initialize other modules
-    Context context = 
-    {
-        .MainMemPage = runtime->MainMemPage,
-
-        .VirtualAlloc          = runtime->VirtualAlloc,
-        .VirtualFree           = runtime->VirtualFree,
-        .VirtualProtect        = runtime->VirtualProtect,
-        .ReleaseMutex          = runtime->ReleaseMutex,
-        .WaitForSingleObject   = runtime->WaitForSingleObject,
-        .DuplicateHandle       = runtime->DuplicateHandle,
-        .CloseHandle           = runtime->CloseHandle,
-
-        .Mutex = runtime->Mutex,
-    };
-    uint errCode;
-    errCode = initMemoryTracker(runtime, &context);
-    if (errCode != 0x00)
-    {
-        return errCode;
-    }
-    errCode = initThreadTracker(runtime, &context);
-    if (errCode != 0x00)
-    {
-        return errCode;
-    }
-    return 0x00;
+    uintptr begin = (uintptr)(&InitRuntime);
+    uintptr end   = (uintptr)(&Epilogue);
+    uint    size  = end - begin;
+    return runtime->VirtualProtect(begin, size, PAGE_EXECUTE_READWRITE, old);
 }
 
-static uint initMemoryTracker(Runtime* runtime, Context* context)
+static bool recoverPageProtect(Runtime* runtime, uint32* old)
 {
-    MemoryTracker_M* tracker = InitMemoryTracker(context);
-    if (tracker < (MemoryTracker_M*)(0x10))
+    uintptr begin = (uintptr)(&InitRuntime);
+    uintptr end   = (uintptr)(&Epilogue);
+    uint    size  = end - begin;
+    if (!runtime->Options->NotAdjustProtect)
     {
-        return (uint)tracker;
+        if (!runtime->VirtualProtect(begin, size, *old, old))
+        {
+            return false;
+        }
     }
-    runtime->MemoryTracker = tracker;
-    return 0x00;
-}
-
-static uint initThreadTracker(Runtime* runtime, Context* context)
-{
-    // allocate memory page for store thread id and handles
-    void* page = runtime->MemoryTracker->MemAlloc(THREADS_PAGE_SIZE);
-    if (page == NULL)
-    {
-        return 0x1F;
-    }
-    context->TTMemPage = (uintptr)page;
-
-    ThreadTracker_M* tracker = InitThreadTracker(context);
-    if (tracker < (ThreadTracker_M*)(0x20))
-    {
-        return (uint)tracker;
-    }
-    runtime->ThreadTracker = tracker;
-    return 0x00;
+    return runtime->FlushInstructionCache(CURRENT_PROCESS, begin, size);
 }
 
 static bool updateRuntimePointers(Runtime* runtime)
@@ -398,32 +343,90 @@ static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address
     return success;
 }
 
-// change memory protect for dynamic update pointer that hard encode.
-static bool adjustPageProtect(Runtime* runtime, uint32* old)
+static uint initRuntimeEnvironment(Runtime* runtime)
 {
-    if (runtime->Options->NotAdjustProtect)
+    // initialize structure fields
+    runtime->hProcess = NULL;
+    runtime->Mutex    = NULL;
+    runtime->MemoryTracker = NULL;
+    runtime->ThreadTracker = NULL;
+    // duplicate current process handle
+    HANDLE dupHandle;
+    if (!runtime->DuplicateHandle(
+        CURRENT_PROCESS, CURRENT_PROCESS, CURRENT_PROCESS, &dupHandle,
+        0, false, DUPLICATE_SAME_ACCESS
+    ))
     {
-        return true;
+        return 0xF4;
     }
-    uintptr begin = (uintptr)(&InitRuntime);
-    uintptr end   = (uintptr)(&Epilogue);
-    uint    size  = end - begin;
-    return runtime->VirtualProtect(begin, size, PAGE_EXECUTE_READWRITE, old);
+    runtime->hProcess = dupHandle;
+    // create global mutex
+    HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
+    if (hMutex == NULL)
+    {
+        return 0xF5;
+    }
+    runtime->Mutex = hMutex;
+    // create context data for initialize other modules
+    Context context = {
+        .MainMemPage = runtime->MainMemPage,
+
+        .VirtualAlloc          = runtime->VirtualAlloc,
+        .VirtualFree           = runtime->VirtualFree,
+        .VirtualProtect        = runtime->VirtualProtect,
+        .ReleaseMutex          = runtime->ReleaseMutex,
+        .WaitForSingleObject   = runtime->WaitForSingleObject,
+        .DuplicateHandle       = runtime->DuplicateHandle,
+        .CloseHandle           = runtime->CloseHandle,
+
+        .malloc  = &RT_malloc,
+        .realloc = &RT_realloc,
+        .free    = &RT_free,
+
+        .Mutex = runtime->Mutex,
+    };
+    uint errCode;
+    errCode = initMemoryTracker(runtime, &context);
+    if (errCode != 0x00)
+    {
+        return errCode;
+    }
+    errCode = initThreadTracker(runtime, &context);
+    if (errCode != 0x00)
+    {
+        return errCode;
+    }
+    return 0x00;
 }
 
-static bool recoverPageProtect(Runtime* runtime, uint32* old)
+static uint initMemoryTracker(Runtime* runtime, Context* context)
 {
-    uintptr begin = (uintptr)(&InitRuntime);
-    uintptr end   = (uintptr)(&Epilogue);
-    uint    size  = end - begin;
-    if (!runtime->Options->NotAdjustProtect)
+    MemoryTracker_M* tracker = InitMemoryTracker(context);
+    if (tracker < (MemoryTracker_M*)(0x10))
     {
-        if (!runtime->VirtualProtect(begin, size, *old, old))
-        {
-            return false;
-        }
+        return (uint)tracker;
     }
-    return runtime->FlushInstructionCache(CURRENT_PROCESS, begin, size);
+    runtime->MemoryTracker = tracker;
+    return 0x00;
+}
+
+static uint initThreadTracker(Runtime* runtime, Context* context)
+{
+    // allocate memory page for store thread id and handles
+    void* page = runtime->MemoryTracker->MemAlloc(THREADS_PAGE_SIZE);
+    if (page == NULL)
+    {
+        return 0x1F;
+    }
+    context->TTMemPage = (uintptr)page;
+
+    ThreadTracker_M* tracker = InitThreadTracker(context);
+    if (tracker < (ThreadTracker_M*)(0x20))
+    {
+        return (uint)tracker;
+    }
+    runtime->ThreadTracker = tracker;
+    return 0x00;
 }
 
 static bool initIATHooks(Runtime* runtime)
@@ -714,18 +717,17 @@ void* RT_malloc(uint size)
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_MALLOC);
 
     // ensure the size is a multiple of 4096(memory page size).
-    uint pageSize = ((size / 4096) + 1) * 4096;
-    uintptr addr = runtime->VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    size = ((size / 4096) + 1) * 4096;
+    uintptr addr = runtime->VirtualAlloc(0, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
     }
-
     // store the size at the head of the memory page
     // ensure the memory address is 16 bytes aligned
     byte* address = (byte*)addr;
     RandBuf(address, 16);
-    mem_copy(address, &size, size);
+    mem_copy(address, &size, sizeof(uint));
     return (void*)(addr+16);
 }
 
@@ -743,7 +745,7 @@ void* RT_realloc(void* address, uint size)
         return NULL;
     }
     // copy data to new memory
-    uint oldSize = *(uint*)((uintptr)(address)-16);
+    uint oldSize = *(uint*)((uintptr)(address)-16) - 16;
     mem_copy(newAddr, address, oldSize);
     // free old memory
     if (!RT_free(address))
