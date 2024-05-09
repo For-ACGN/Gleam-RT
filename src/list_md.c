@@ -10,15 +10,6 @@ void List_Init(List* list, List_Ctx* ctx, uint unit)
     list->Unit = unit;
 }
 
-void* List_Get(List* list, uint index)
-{
-    if (index + 1 > list->Cap)
-    {
-        return NULL;
-    }
-    return (void*)((uintptr)(list->Data) + index * list->Unit);
-}
-
 bool List_Insert(List* list, void* data)
 {
     bool resized = false;
@@ -69,7 +60,28 @@ bool List_Insert(List* list, void* data)
     return true;
 }
 
-bool List_Delete(List* list, void* data, uint equal)
+bool List_Delete(List* list, uint index)
+{
+    if (index + 1 > list->Cap)
+    {
+        return false;
+    }
+    byte* addr = (byte*)(list->Data) + index * list->Unit;
+    mem_clean(addr, list->Unit);
+    list->Len--;
+    return true;
+}
+
+void* List_Get(List* list, uint index)
+{
+    if (index + 1 > list->Cap)
+    {
+        return NULL;
+    }
+    return (void*)((uintptr)(list->Data) + index * list->Unit);
+}
+
+bool List_Find(List* list, void* data, uint equal, bool* index)
 {
     uint equLen = equal;
     if (equLen == 0)
@@ -77,7 +89,7 @@ bool List_Delete(List* list, void* data, uint equal)
         equLen = list->Unit;
     }
     uint target = 0;
-    uint index  = 0;
+    uint index = 0;
     for (uint num = 0; num < list->Len; index++)
     {
         void* item = List_Get(list, index);
@@ -97,10 +109,12 @@ bool List_Delete(List* list, void* data, uint equal)
     {
         return false;
     }
-    byte* addr = (byte*)(list->Data) + target * list->Unit;
+    byte* addr = (byte*)(list->Data) + (target*list->Unit);
     mem_copy(data, addr, list->Unit);
-    mem_clean(addr, list->Unit);
-    list->Len--;
+    if (index != NULL)
+    {
+        *index = target;
+    }
     return true;
 }
 
