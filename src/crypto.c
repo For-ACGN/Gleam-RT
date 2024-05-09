@@ -1,6 +1,11 @@
 #include "c_types.h"
 #include "crypto.h"
 
+// The main purpose of this symmetric encryption algorithm is to encrypt 
+// the data in the memory so that it looks like there is no obvious pattern. 
+// It is NOT cryptographically secure. Its main design goal is to be as small 
+// as possible and not to use a simple XOR encryption.
+
 static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
 static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
 static void initSBox(byte* sBox, byte* key);
