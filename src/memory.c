@@ -68,10 +68,12 @@ static bool   initTrackerEnvironment(MemoryTracker* tracker, Context* context);
 static bool   allocPage(MemoryTracker* tracker, uintptr address, uint size, uint type, uint32 protect);
 static bool   freePage(MemoryTracker* tracker, uintptr address);
 static bool   protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
+static bool   isPageTypeTrackable(uint32 type);
+static uint32 replacePageProtect(uint32 protect);
+static bool   isPageTypeWriteable(uint32 type);
+static bool   isPageProtectWriteable(uint32 protect);
 static bool   adjustPageProtect(MemoryTracker* tracker, memoryPage* page);
 static bool   recoverPageProtect(MemoryTracker* tracker, memoryPage* page);
-static uint32 replacePageProtect(uint32 protect);
-static bool   isPageWriteable(uint32 protect);
 static bool   encryptPage(MemoryTracker* tracker, memoryPage* page);
 static bool   decryptPage(MemoryTracker* tracker, memoryPage* page);
 static void   deriveKey(MemoryTracker* tracker, memoryPage* page, byte* key);
@@ -243,6 +245,10 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 
 static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint type, uint32 protect)
 {
+    if (!isPageTypeTrackable(type))
+    {
+        return true;
+    }
     memoryPage page = {
         .address = address,
         .size    = size,
@@ -267,52 +273,6 @@ static uint32 replacePageProtect(uint32 protect)
     default:
         return protect;
     }
-}
-
-// adjustPageProtect is used to make sure this page is writeable.
-static bool adjustPageProtect(MemoryTracker* tracker, memoryPage* page)
-{
-    if (isPageWriteable(page->protect))
-    {
-        return true;
-    }
-    uint32 old;
-    return tracker->VirtualProtect((uintptr)page, page->size, PAGE_READWRITE, &old);
-}
-
-// recoverPageProtect is used to recover to prevent protect.
-static bool recoverPageProtect(MemoryTracker* tracker, memoryPage* page)
-{
-    if (isPageWriteable(page->protect))
-    {
-        return true;
-    }
-    uint32 old;
-    return tracker->VirtualProtect((uintptr)page, page->size, page->protect, &old);
-}
-
-static bool isPageWriteable(uint32 type, uint32 protect)
-{
-    // check page type
-    if (type & MEM_COMMIT)
-    {
-
-    }
-
-    switch (protect)
-    {
-    case PAGE_READWRITE:
-        break;
-    case PAGE_WRITECOPY:
-        break;
-    case PAGE_EXECUTE_READWRITE:
-        break;
-    case PAGE_EXECUTE_WRITECOPY:
-        break;
-    default:
-        return false;
-    }
-    return true;
 }
 
 __declspec(noinline)
@@ -354,21 +314,26 @@ static bool freePage(MemoryTracker* tracker, uintptr address)
     memoryPage page = {
         .address = address,
     };
-    if (List_Delete(pages, &page, sizeof(uintptr)))
+    uint index;
+    if (!List_Find(pages, &page, sizeof(uintptr), &index))
+    {
+        return true;
+    }
+    if (List_Delete(pages, index))
     {
         return false;
     }
-
-
-    // fill random data before call VirtualFree
-    if (isPageWriteable(page.protect))
+    // try to fill random data before call VirtualFree
+    if (!isPageTypeWriteable(page.type))
     {
-        RandBuf((byte*)page, size);
         return true;
-    } 
- 
-    RandBuf((byte*)page, size);
-    return tracker->VirtualProtect(page, size, old, &old);
+    }
+    if (!adjustPageProtect(tracker, &page))
+    {
+        return false;
+    }
+    RandBuf((byte*)address, page.size);
+    return recoverPageProtect(tracker, &page);
 }
 
 __declspec(noinline)
@@ -405,27 +370,88 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 
 static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect)
 {
-    memoryPage* memPage = (memoryPage*)(address - MEMORY_PAGE_HEADER_SIZE);
-
-    // check this page is allocated by MemoryTracker
-    for (memoryPage* page = tracker->PageHead; page != NULL; page = page->next)
+    List* pages = &tracker->Pages;
+    memoryPage page = {
+        .address = address,
+    };
+    uint index;
+    if (!List_Find(pages, &page, sizeof(uintptr), &index))
     {
-        if (page != memPage)
-        {
-            continue;
-        }
-        if (!adjustPageProtect(tracker, page))
-        {
-            return false;
-        }
-        page->protect = protect;
-        if (!recoverPageProtect(tracker, page))
-        {
-            return false;
-        }
+        return true;
+    }
+    // update protect in page list
+    memoryPage* p = List_Get(pages, index);
+    if (p == NULL)
+    {
+        return false;
+    }
+    p->protect = protect;
+    return true;
+}
+
+static bool isPageTypeTrackable(uint32 type)
+{
+    switch (type)
+    {
+    case MEM_COMMIT:
         break;
+    case MEM_RESERVE:
+        break;
+    case MEM_COMMIT|MEM_RESERVE:
+        break;
+    default:
+        return false;
     }
     return true;
+}
+
+static bool isPageTypeWriteable(uint32 type)
+{
+    if (type&MEM_COMMIT)
+    {
+        return true;
+    }
+    return false;
+}
+
+static bool isPageProtectWriteable(uint32 protect)
+{
+    switch (protect&0xFF)
+    {
+    case PAGE_READWRITE:
+        break;
+    case PAGE_WRITECOPY:
+        break;
+    case PAGE_EXECUTE_READWRITE:
+        break;
+    case PAGE_EXECUTE_WRITECOPY:
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
+// adjustPageProtect is used to make sure this page is writeable.
+static bool adjustPageProtect(MemoryTracker* tracker, memoryPage* page)
+{
+    if (isPageProtectWriteable(page->protect))
+    {
+        return true;
+    }
+    uint32 old;
+    return tracker->VirtualProtect(page->address, page->size, PAGE_READWRITE, &old);
+}
+
+// recoverPageProtect is used to recover to prevent protect.
+static bool recoverPageProtect(MemoryTracker* tracker, memoryPage* page)
+{
+    if (isPageProtectWriteable(page->protect))
+    {
+        return true;
+    }
+    uint32 old;
+    return tracker->VirtualProtect(page->address, page->size, page->protect, &old);
 }
 
 __declspec(noinline)
@@ -601,7 +627,7 @@ static bool cleanPage(MemoryTracker* tracker, memoryPage* page)
     // fill random data before free
     RandBuf((byte*)page, size);
     // recovery memory protect
-    if (!isPageWriteable(protect))
+    if (!isPageProtectWriteable(protect))
     {
         uint32 old;
         if (!tracker->VirtualProtect((uintptr)page, size, protect, &old))
