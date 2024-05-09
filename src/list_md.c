@@ -89,7 +89,7 @@ bool List_Find(List* list, void* data, uint equal, bool* index)
         equLen = list->Unit;
     }
     uint target = 0;
-    uint index = 0;
+    uint index  = 0;
     for (uint num = 0; num < list->Len; index++)
     {
         void* item = List_Get(list, index);
