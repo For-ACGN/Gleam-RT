@@ -94,6 +94,42 @@ static uint strlen_w(byte* s)
     return l;
 }
 
+typedef void* (*malloc_t )(uint size);
+typedef void* (*realloc_t)(void* address, uint size);
+typedef bool  (*free_t   )(void* address);
+
+// mem_equal is used to compare the memory is equal.
+static bool mem_equal(void* dst, void* src, uint size)
+{
+    byte* d = (byte*)dst;
+    byte* s = (byte*)src;
+    for (uint i = 0; i < size; i++)
+    {
+        if (*d != *s)
+        {
+            return false;
+        }
+        d++;
+        s++;
+    }
+    return true;
+}
+
+// mem_zero is used to check the destination memory are all zero.
+static bool mem_zero(void* dst, uint size)
+{
+    byte* d = (byte*)dst;
+    for (uint i = 0; i < size; i++)
+    {
+        if (*d != NULL)
+        {
+            return false;
+        }
+        d++;
+    }
+    return true;
+}
+
 // mem_copy is used to copy source memory data to the destination.
 static void mem_copy(void* dst, void* src, uint size)
 {
