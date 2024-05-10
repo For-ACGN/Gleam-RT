@@ -13,10 +13,9 @@
 
 // hard encoded address in methods for replace
 #ifdef _WIN64
-    #define METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL 0x7FFFFFFFFFFFFFF0
-    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME  0x7FFFFFFFFFFFFFF1
-    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH  0x7FFFFFFFFFFFFFF2
-
+    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH  0x7FFFFFFFFFFFFFF0
+    #define METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL 0x7FFFFFFFFFFFFFF1
+    
     #define METHOD_ADDR_SLEEP   0x7FFFFFFFFFFFFFF3
     #define METHOD_ADDR_HIDE    0x7FFFFFFFFFFFFFF4
     #define METHOD_ADDR_RECOVER 0x7FFFFFFFFFFFFFF5
@@ -25,9 +24,8 @@
     #define METHOD_ADDR_MALLOC 0x7FFFFFFFFFFFFFF7
     #define METHOD_ADDR_FREE   0x7FFFFFFFFFFFFFF8
 #elif _WIN32
-    #define METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL 0x7FFFFFF0
-    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME  0x7FFFFFF1
-    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH  0x7FFFFFF2
+    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH  0x7FFFFFF0
+    #define METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL 0x7FFFFFF1
 
     #define METHOD_ADDR_SLEEP   0x7FFFFFF3
     #define METHOD_ADDR_HIDE    0x7FFFFFF4
@@ -76,9 +74,9 @@ typedef struct {
 
 // export methods about Runtime
 uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
-uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook);
+uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 
 bool RT_Sleep(uint32 milliseconds);
 bool RT_Hide();
@@ -103,7 +101,6 @@ static bool initIATHooks(Runtime* runtime);
 static void cleanRuntime(Runtime* runtime);
 
 static uint32  getModuleFileNameW(HMODULE hModule, byte* name, uint32 size);
-static bool    isForwardedExport(HMODULE hModule, uintptr proc);
 static uintptr replaceToHook(Runtime* runtime, uintptr proc);
 
 static bool sleep(Runtime* runtime, uint32 milliseconds);
@@ -305,9 +302,8 @@ static bool updateRuntimePointers(Runtime* runtime)
     } method;
     method methods[] = 
     {
-        { &RT_GetProcAddressOriginal, METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL },
-        { &RT_GetProcAddressByName,   METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME },
         { &RT_GetProcAddressByHash,   METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH },
+        { &RT_GetProcAddressOriginal, METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL },
 
         { &RT_Sleep,   METHOD_ADDR_SLEEP },
         { &RT_Hide,    METHOD_ADDR_HIDE },
@@ -505,82 +501,34 @@ static Runtime* getRuntimePointer(uintptr pointer)
 __declspec(noinline)
 uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 {
-    // TODO is RT_GetProcAddressOriginal GetProcAddressByName and GetProcAddressByHash
-
-
     return RT_GetProcAddressByName(hModule, lpProcName, true);
-}
-
-__declspec(noinline)
-uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
-{
-    Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL);
-
-    return runtime->GetProcAddress(hModule, lpProcName);
 }
 
 __declspec(noinline)
 uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
 {
-    Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_BY_NAME);
-
-    byte name[255];
-    mem_clean(&name[0], sizeof(name));
-
-
-    uint32 nameLen = getModuleFileNameW(hModule, &name[0], sizeof(name));
-
-    printf("getModuleFileNameW: %ws\n", name);
-
-    printf("proc name: %s\n", lpProcName);
-    
-
-    uint key = 0x12345678;
-
-    uint hash = HashAPI_W(&name[0], lpProcName, key);
-
-    uintptr pp = FindAPI(hash, key);
-    printf("proc: 0x%llX\n", pp);
-
-    // if (pp == 0)
-    // {
-    //     printf("!!\n");
-    //     return 0;
-    // }
-    // 
-    // return pp;
-
-
-    uintptr proc = runtime->GetProcAddress(hModule, lpProcName);
-
-
-    if (proc != pp)
-    {
-        printf("proc1: 0x%llX\n", proc);
-        printf("proc2: 0x%llX\n", pp);
-        return 0;
-    }
-
-
-
-
-
-
-    if (proc == NULL)
+    // get module file name
+    byte module[MAX_PATH];
+    mem_clean(&module[0], sizeof(module));
+    if (getModuleFileNameW(hModule, &module[0], sizeof(module)) == 0)
     {
         return NULL;
     }
-    if (!hook)
-    {
-        return proc;
-    }
-    return replaceToHook(runtime, proc);
+    // generate API hash
+    uint key  = 0xFFFFFFFF;
+    uint hash = HashAPI_W(&module[0], lpProcName, key);
+    return RT_GetProcAddressByHash(hash, key, hook);
 }
 
 __declspec(noinline)
 uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH);
+
+    // TODO is kernel32.dll 
+    // GetProcAddressByName
+    // GetProcAddressByHash
+    // GetProcAddressOriginal
 
     uintptr proc = FindAPI(hash, key);
     if (proc == NULL)
@@ -640,11 +588,6 @@ static uint32 getModuleFileNameW(HMODULE hModule, byte* name, uint32 size)
     return 0;
 }
 
-static bool isForwardedExport(HMODULE hModule, uintptr proc)
-{
-
-}
-
 static uintptr replaceToHook(Runtime* runtime, uintptr proc)
 {
     for (int i = 0; i < arrlen(runtime->Hooks); i++)
@@ -656,6 +599,14 @@ static uintptr replaceToHook(Runtime* runtime, uintptr proc)
         return runtime->Hooks[i].Hook;
     }
     return proc;
+}
+
+__declspec(noinline)
+uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
+{
+    Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL);
+
+    return runtime->GetProcAddress(hModule, lpProcName);
 }
 
 __declspec(noinline)
