@@ -1,4 +1,5 @@
 #include "c_types.h"
+#include "windows_t.h"
 #include "hash_api.h"
 
 #ifdef _WIN64
@@ -83,13 +84,13 @@ uintptr FindAPI(uint hash, uint key)
             modHash += b;
         }
         // calculate function name hash
-        uint32  numFunc   = *(uint32*)(eat + 24);
+        uint32  numNames  = *(uint32*)(eat + 24);
         uintptr funcNames = modBase + (uintptr)(*(uint32*)(eat + 32));
-        for (uint32 i = 0; i < numFunc; i++)
+        for (uint32 i = 0; i < numNames; i++)
         {
             // calculate function name address
-            uint32 nameOff  = *(uint32*)(funcNames + (uintptr)(i * 4));
-            byte*  funcName = (byte*)(modBase + nameOff);
+            uint32 nameRVA  = *(uint32*)(funcNames + (uintptr)(i * 4));
+            byte*  funcName = (byte*)(modBase + nameRVA);
             uint   funcHash = seedHash;
             for (;;)
             {
@@ -108,15 +109,50 @@ uintptr FindAPI(uint hash, uint key)
             {
                 continue;
             }
-            // calculate the ordinal table
+            // calculate the AddressOfFunctions
             uintptr funcTable = modBase + (uintptr)(*(uint32*)(eat + 28));
-            // calculate the desired functions ordinal
+            // calculate the AddressOfNameOrdinals
             uintptr ordinalTable = modBase + (uintptr)(*(uint32*)(eat + 36));
             // calculate offset of ordinal
             uint16 ordinal = *(uint16*)(ordinalTable + (uintptr)(i * 2));
-            // calculate the function address
-            uint32 funcOff = *(uint32*)(funcTable + (uintptr)(ordinal * 4));
-            return modBase + funcOff;
+            // calculate the function RVA
+            uint32 funcRVA = *(uint32*)(funcTable + (uintptr)(ordinal * 4));
+            // check is forwarded export
+            uint32 eatSize = *(uint32*)(peHeader + 140);
+            if (funcRVA < eatRVA || funcRVA >= eatRVA + eatSize)
+            {
+                return modBase + funcRVA;
+            }
+            // search the at last "."
+            byte* exportName = (byte*)(modBase + funcRVA);
+            byte* src = exportName;
+            uint  dot = 0;
+            for (uint i = 0;; i++)
+            {
+                byte b = *src;
+                if (b == '.')
+                {
+                    dot = i;
+                }
+                if (b == 0x00)
+                {
+                    break;
+                }
+                src++;
+            }
+            // build DLL name
+            byte dllName[MAX_PATH];
+            mem_copy(&dllName[0], exportName, dot + 1);
+            dllName[dot+1] = 'd';
+            dllName[dot+2] = 'l';
+            dllName[dot+3] = 'l';
+            dllName[dot+4] = 0x00;
+            // build hash and key
+            byte* module   = &dllName[0];
+            byte* function = (byte*)((uint)exportName + dot + 1);
+            uint key  = 0xFFFFFFFF;
+            uint hash = HashAPI_A(module, function, key);
+            return FindAPI(hash, key);
         }
     }
     return NULL;
