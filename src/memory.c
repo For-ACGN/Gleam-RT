@@ -1,7 +1,8 @@
-#include <stdio.h>
+// #include <stdio.h>
 
 #include "c_types.h"
 #include "windows_t.h"
+#include "lib_mem.h"
 #include "hash_api.h"
 #include "list_md.h"
 #include "context.h"
@@ -211,8 +212,6 @@ __declspec(noinline)
 uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_ALLOC);
-
-    printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -462,6 +461,7 @@ __declspec(noinline)
 void* MT_MemAlloc(uint size)
 {
     // ensure the size is a multiple of 4096(memory page size).
+    // it also for prevent track the special page size.
     size = ((size / 4096) + 1) * 4096;
     uintptr addr = MT_VirtualAlloc(0, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
@@ -514,6 +514,9 @@ static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
     {
         return false;
     }
+
+    printf("enc Size: 0x%llX\n", page->size);
+
     // generate new key and IV
     RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
     RandBuf(&page->iv[0], CRYPTO_IV_SIZE);
@@ -560,6 +563,9 @@ static bool decryptPage(MemoryTracker* tracker, memoryPage* page)
     {
         return false;
     }
+
+    printf("dec Size: 0x%llX\n", page->size);
+
     byte key[CRYPTO_KEY_SIZE];
     deriveKey(tracker, page, &key[0]);
 

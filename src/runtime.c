@@ -1,5 +1,6 @@
 #include "c_types.h"
 #include "windows_t.h"
+#include "lib_mem.h"
 #include "hash_api.h"
 #include "context.h"
 #include "random.h"
@@ -14,24 +15,24 @@
     #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH  0x7FFFFFFFFFFFFFF0
     #define METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL 0x7FFFFFFFFFFFFFF1
     
-    #define METHOD_ADDR_SLEEP   0x7FFFFFFFFFFFFFF3
-    #define METHOD_ADDR_HIDE    0x7FFFFFFFFFFFFFF4
-    #define METHOD_ADDR_RECOVER 0x7FFFFFFFFFFFFFF5
-    #define METHOD_ADDR_STOP    0x7FFFFFFFFFFFFFF6
+    #define METHOD_ADDR_SLEEP   0x7FFFFFFFFFFFFFE0
+    #define METHOD_ADDR_HIDE    0x7FFFFFFFFFFFFFE1
+    #define METHOD_ADDR_RECOVER 0x7FFFFFFFFFFFFFE2
+    #define METHOD_ADDR_STOP    0x7FFFFFFFFFFFFFE3
 
-    #define METHOD_ADDR_MALLOC 0x7FFFFFFFFFFFFFF7
-    #define METHOD_ADDR_FREE   0x7FFFFFFFFFFFFFF8
+    #define METHOD_ADDR_MALLOC 0x7FFFFFFFFFFFFFD0
+    #define METHOD_ADDR_FREE   0x7FFFFFFFFFFFFFD1
 #elif _WIN32
     #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH  0x7FFFFFF0
     #define METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL 0x7FFFFFF1
 
-    #define METHOD_ADDR_SLEEP   0x7FFFFFF3
-    #define METHOD_ADDR_HIDE    0x7FFFFFF4
-    #define METHOD_ADDR_RECOVER 0x7FFFFFF5
-    #define METHOD_ADDR_STOP    0x7FFFFFF6
+    #define METHOD_ADDR_SLEEP   0x7FFFFFE0
+    #define METHOD_ADDR_HIDE    0x7FFFFFE1
+    #define METHOD_ADDR_RECOVER 0x7FFFFFE2
+    #define METHOD_ADDR_STOP    0x7FFFFFE3
 
-    #define METHOD_ADDR_MALLOC 0x7FFFFFF7
-    #define METHOD_ADDR_FREE   0x7FFFFFF8
+    #define METHOD_ADDR_MALLOC 0x7FFFFFD0
+    #define METHOD_ADDR_FREE   0x7FFFFFD1
 #endif
 
 // for IAT hooks
@@ -792,6 +793,7 @@ void* RT_malloc(uint size)
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_MALLOC);
 
     // ensure the size is a multiple of 4096(memory page size).
+    // it also for prevent track the special page size.
     size = ((size / 4096) + 1) * 4096;
     uintptr addr = runtime->VirtualAlloc(0, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
