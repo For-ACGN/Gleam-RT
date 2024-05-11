@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include "c_types.h"
 #include "windows_t.h"
 #include "hash_api.h"
@@ -101,6 +99,7 @@ static bool initIATHooks(Runtime* runtime);
 static void cleanRuntime(Runtime* runtime);
 
 static uint32  getModuleFileNameW(HMODULE hModule, byte* name, uint32 size);
+static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName);
 static uintptr replaceToHook(Runtime* runtime, uintptr proc);
 
 static bool sleep(Runtime* runtime, uint32 milliseconds);
@@ -175,9 +174,9 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->Free  = runtime->MemoryTracker->MemFree;
     // for IAT hooks
     module->GetProcAddress         = &RT_GetProcAddress;
-    module->GetProcAddressOriginal = &RT_GetProcAddressOriginal;
     module->GetProcAddressByName   = &RT_GetProcAddressByName;
     module->GetProcAddressByHash   = &RT_GetProcAddressByHash;
+    module->GetProcAddressOriginal = &RT_GetProcAddressOriginal;
     // runtime core methods
     module->Sleep   = &RT_Sleep;
     module->Hide    = &RT_Hide;
@@ -514,8 +513,14 @@ uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
     {
         return NULL;
     }
-    // generate API hash
-    uint key  = 0xFFFFFFFF;
+    // check is internal methods
+    uintptr method = getRuntimeMethods(&module[0], lpProcName);
+    if (method != NULL)
+    {
+        return method;
+    }
+    // generate key for calculate Windows API hash
+    uint key  = RandUint((uint64)(hModule + lpProcName));
     uint hash = HashAPI_W(&module[0], lpProcName, key);
     return RT_GetProcAddressByHash(hash, key, hook);
 }
@@ -524,11 +529,6 @@ __declspec(noinline)
 uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH);
-
-    // TODO is kernel32.dll 
-    // GetProcAddressByName
-    // GetProcAddressByHash
-    // GetProcAddressOriginal
 
     uintptr proc = FindAPI(hash, key);
     if (proc == NULL)
@@ -588,6 +588,37 @@ static uint32 getModuleFileNameW(HMODULE hModule, byte* name, uint32 size)
     return 0;
 }
 
+static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName)
+{
+    typedef struct {
+        uint hash; uint key; void* method;
+    } method;
+    method methods[] =
+#ifdef _WIN64
+    {
+        { 0xA23FAC0E6398838A, 0xE4990D7D4933EE6A, &RT_GetProcAddressByName },
+        { 0xABD1E8F0D28E9F46, 0xAF34F5979D300C70, &RT_GetProcAddressByHash },
+        { 0xC9C5D350BB118FAE, 0x061A602F681F2636, &RT_GetProcAddressOriginal },
+    };
+#elif _WIN32
+    {
+        { 0xCF983018, 0x3ECBF2DF, &RT_GetProcAddressByName },
+        { 0x40D5BD08, 0x302D5D2B, &RT_GetProcAddressByHash },
+        { 0x45556AA5, 0xB3BEF31D, &RT_GetProcAddressOriginal },
+    };
+#endif
+    for (int i = 0; i < arrlen(methods); i++)
+    {
+        uint hash = HashAPI_W(module, lpProcName, methods[i].key);
+        if (hash != methods[i].hash)
+        {
+            continue;
+        }
+        return (uintptr)(methods[i].method);
+    }
+    return NULL;
+}
+
 static uintptr replaceToHook(Runtime* runtime, uintptr proc)
 {
     for (int i = 0; i < arrlen(runtime->Hooks); i++)
@@ -606,7 +637,12 @@ uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL);
 
-    return runtime->GetProcAddress(hModule, lpProcName);
+    uintptr proc = runtime->GetProcAddress(hModule, lpProcName);
+    if (proc == NULL)
+    {
+        return NULL;
+    }
+    return proc;
 }
 
 __declspec(noinline)
