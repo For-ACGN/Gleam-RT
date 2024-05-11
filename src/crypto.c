@@ -1,16 +1,21 @@
 #include "c_types.h"
+#include "lib_mem.h"
 #include "crypto.h"
 
-// The main purpose of this symmetric encryption algorithm is to encrypt 
-// the data in the memory so that it looks like there is no obvious pattern. 
-// It is NOT cryptographically secure. Its main design goal is to be as small 
-// as possible and not to use a simple XOR encryption.
+// It is NOT cryptographically secure.
+// 
+// The main purpose of this symmetric encryption algorithm
+// is to encrypt the data in the memory so that it looks 
+// like there is no obvious pattern. 
+// 
+// It's main design goal is to be as small as possible and 
+// not to use a simple XOR encryption.
 
 static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
 static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
 static void initSBox(byte* sBox, byte* key);
 static void rotateSBox(byte* sBox, byte key);
-static byte permutation(byte* sBox, byte data);
+static void permuteSBox(byte* sBox);
 static byte negBit(byte b, uint8 n);
 static byte swapBit(byte b, uint8 p1, uint8 p2);
 static byte ror(byte value, uint8 bits);
@@ -35,7 +40,8 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
 {
     // initialize status
     uint kIdx = 0;
-    byte ctr  = 0;
+    byte dCtr = 0;
+    uint bCtr = 0;
     byte last = *pLast;
     byte cKey;
     byte data;
@@ -48,10 +54,10 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         // read byte from buffer
         data = *(buf + i);
 
-        data ^= ctr;
-        data = negBit(data, ctr % 8);
-        data = swapBit(data, ctr % 8, cKey % 8);
-        data = ror(data, ctr % 8);
+        data ^= dCtr;
+        data = negBit(data, dCtr % 8);
+        data = swapBit(data, dCtr % 8, cKey % 8);
+        data = ror(data, dCtr % 8);
         data = sBox[data]; // permutation
 
         data ^= last;
@@ -73,10 +79,15 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         last = data;
 
         // update s-Box
-        rotateSBox(sBox, cKey);
+        if (bCtr >= 4096)
+        {
+            rotateSBox(sBox, cKey);
+            bCtr = 0;
+        }
 
         // update counter
-        ctr++;
+        dCtr++;
+        bCtr++;
 
         // update key index and last
         kIdx++;
@@ -98,6 +109,7 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
     // initialize S-Box
     byte sBox[256];
     initSBox(&sBox[0], key);
+    permuteSBox(&sBox[0]);
     // decrypt iv and data
     byte last = 170;
     decryptBuf(iv, CRYPTO_IV_SIZE, key, &sBox[0], &last);
@@ -108,7 +120,8 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
 {
     // initialize status
     uint kIdx = 0;
-    byte ctr  = 0;
+    byte dCtr = 0;
+    uint bCtr = 0;
     byte last = *pLast;
     byte cKey;
     byte data;
@@ -121,23 +134,23 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         // read byte from buffer
         data = *(buf + i);
 
-        data = permutation(sBox, data);
+        data = sBox[data];
         data = rol(data, cKey % 8);
         data = swapBit(data, last % 8, cKey % 8);
         data = negBit(data, cKey % 8);
         data ^= cKey;
 
-        data = permutation(sBox, data);
+        data = sBox[data];
         data = rol(data, last % 8);
         data = swapBit(data, last % 8, cKey % 8);
         data = negBit(data, last % 8);
         data ^= last;
 
-        data = permutation(sBox, data);
-        data = rol(data, ctr % 8);
-        data = swapBit(data, ctr % 8, cKey % 8);
-        data = negBit(data, ctr % 8);
-        data ^= ctr;
+        data = sBox[data];
+        data = rol(data, dCtr % 8);
+        data = swapBit(data, dCtr % 8, cKey % 8);
+        data = negBit(data, dCtr % 8);
+        data ^= dCtr;
 
         // update last byte
         last = *(buf + i);
@@ -146,10 +159,17 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         *(buf + i) = data;
 
         // update s-Box
-        rotateSBox(sBox, cKey);
+        if (bCtr >= 4096)
+        {
+            permuteSBox(&sBox[0]);
+            rotateSBox(sBox, cKey);
+            permuteSBox(&sBox[0]);
+            bCtr = 0;
+        }
 
         // update counter
-        ctr++;
+        dCtr++;
+        bCtr++;
 
         // update key index
         kIdx++;
@@ -207,16 +227,15 @@ static void rotateSBox(byte* sBox, byte offset)
     sBox[255] = first;
 }
 
-static byte permutation(byte* sBox, byte data)
+static void permuteSBox(byte* sBox)
 {
+    byte sBox_cp[256];
+    mem_copy(&sBox_cp[0], sBox, sizeof(sBox_cp));
     for (int i = 0; i < 256; i++)
     {
-        if (sBox[i] == data)
-        {
-            return i;
-        }
+        sBox[sBox_cp[i]] = i;
     }
-    return 0;
+    mem_clean(&sBox_cp[0], sizeof(sBox_cp));
 }
 
 static byte negBit(byte b, uint8 n)
