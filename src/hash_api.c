@@ -104,8 +104,8 @@ uintptr FindAPI(uint hash, uint key)
                 funcName++;
             }
             // calculate the finally hash and compare it
-            uint h = seedHash + keyHash + modHash + funcHash;
-            if (h != hash) 
+            uint finHash = seedHash + keyHash + modHash + funcHash;
+            if (finHash != hash) 
             {
                 continue;
             }
@@ -117,8 +117,12 @@ uintptr FindAPI(uint hash, uint key)
             uint16 ordinal = *(uint16*)(ordinalTable + (uintptr)(i * 2));
             // calculate the function RVA
             uint32 funcRVA = *(uint32*)(funcTable + (uintptr)(ordinal * 4));
-            // check is forwarded export
+            // check is forwarded export function
+        #ifdef _WIN64
             uint32 eatSize = *(uint32*)(peHeader + 140);
+        #elif _WIN32
+            uint32 eatSize = *(uint32*)(peHeader + 124);
+        #endif
             if (funcRVA < eatRVA || funcRVA >= eatRVA + eatSize)
             {
                 return modBase + funcRVA;
@@ -150,7 +154,7 @@ uintptr FindAPI(uint hash, uint key)
             // build hash and key
             byte* module   = &dllName[0];
             byte* function = (byte*)((uint)exportName + dot + 1);
-            uint key  = 0xFFFFFFFF;
+            uint key  = finHash + (uint)function;
             uint hash = HashAPI_A(module, function, key);
             return FindAPI(hash, key);
         }
