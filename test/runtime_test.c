@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "go_types.h"
+#include "c_types.h"
 #include "runtime.h"
 #include "test.h"
 

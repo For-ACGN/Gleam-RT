@@ -11,9 +11,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\lib_mem.c" />
+    <ClCompile Include="..\src\lib_string.c" />
     <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\hash_api.c" />
-	<ClCompile Include="..\src\list_md.c" />
+    <ClCompile Include="..\src\list_md.c" />
     <ClCompile Include="..\src\random.c" />
     <ClCompile Include="..\src\crypto.c" />
     <ClCompile Include="..\src\memory.c" />
@@ -32,10 +34,9 @@
     <ClCompile Include="thread_test.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\go_types.h" />
     <ClInclude Include="..\include\windows_t.h" />
     <ClInclude Include="..\include\hash_api.h" />
-	<ClInclude Include="..\include\list_md.h" />
+    <ClInclude Include="..\include\list_md.h" />
     <ClInclude Include="..\include\random.h" />
     <ClInclude Include="..\include\crypto.h" />
     <ClInclude Include="..\include\context.h" />
@@ -81,11 +82,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <GenerateManifest>false</GenerateManifest>
-    <TargetName>shelter_test</TargetName>
+    <TargetName>test_main</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <GenerateManifest>false</GenerateManifest>
-    <TargetName>shelter_test</TargetName>
+    <TargetName>test_main</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>

@@ -1,5 +1,6 @@
 #include <stdio.h>
-#include "go_types.h"
+#include "c_types.h"
+#include "lib_mem.h"
 #include "random.h"
 #include "crypto.h"
 #include "test.h"
@@ -45,7 +46,7 @@ static bool TestEncryptBuf()
     {
         data1[i + 64] = 0;
     }
-    copy(&data2[0], &data1[0], sizeof(data1));
+    mem_copy(&data2[0], &data1[0], sizeof(data1));
     data2[0]++;
 
     // write repetitive and orderly iv
@@ -57,7 +58,7 @@ static bool TestEncryptBuf()
     // {
     //     iv1[i] = i;
     // }
-    // copy(&iv2[0], &iv1[0], sizeof(iv1));
+    // mem_copy(&iv2[0], &iv1[0], sizeof(iv1));
 
     printf("plain data:\n");
     printHexBytes(&data1[0], sizeof(data1));
@@ -84,7 +85,7 @@ static bool TestDecryptBuf()
     byte data1[64];
     byte data2[64];
     RandBuf(&data1[0], sizeof(data1));
-    copy(&data2[0], &data1[0], sizeof(data1));
+    mem_copy(&data2[0], &data1[0], sizeof(data1));
 
     byte iv[CRYPTO_IV_SIZE];
     RandBuf(&iv[0], sizeof(iv));
