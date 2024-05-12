@@ -53,6 +53,8 @@ typedef byte*   LPCSTR;
 
 #define DUPLICATE_SAME_ACCESS 0x00000002
 
+#define MAX_PATH 260
+
 #endif // _WINDOWS_
 
 typedef uintptr (*GetProcAddress_t)
