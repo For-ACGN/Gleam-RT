@@ -2,12 +2,12 @@
 #define CONTEXT_H
 
 #include "c_types.h"
+#include "lib_mem.h"
 #include "windows_t.h"
 
 typedef struct {
     // arguments for initialize runtime
-    uintptr   MainMemPage;
-    uintptr   TTMemPage;
+    uintptr MainMemPage;
 
     // context data about initialize runtime
     VirtualAlloc_t        VirtualAlloc;
@@ -17,6 +17,11 @@ typedef struct {
     WaitForSingleObject_t WaitForSingleObject;
     DuplicateHandle_t     DuplicateHandle;
     CloseHandle_t         CloseHandle;
+
+    // runtime internal methods
+    malloc_t  malloc;
+    realloc_t realloc;
+    free_t    free;
 
     // runtime context data
     HANDLE Mutex;
