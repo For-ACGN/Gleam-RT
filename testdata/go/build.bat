@@ -1,0 +1,1 @@
+go build -v -trimpath -ldflags "-s -w" -o test_go.exe main.go
