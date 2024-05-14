@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "c_types.h"
-#include "lib_mem.h"
+#include "lib_memory.h"
 #include "random.h"
 #include "crypto.h"
 #include "test.h"

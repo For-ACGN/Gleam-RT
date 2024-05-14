@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\lib_mem.c" />
+    <ClCompile Include="..\src\lib_memory.c" />
     <ClCompile Include="..\src\lib_string.c" />
     <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\hash_api.c" />
@@ -25,15 +25,12 @@
     <ClCompile Include="memory_test.c" />
     <ClCompile Include="random_test.c" />
     <ClCompile Include="runtime_test.c" />
-    <ClCompile Include="test.c">
-      <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Default</InlineFunctionExpansion>
-      <InlineFunctionExpansion Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</InlineFunctionExpansion>
-      <FavorSizeOrSpeed Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Size</FavorSizeOrSpeed>
-      <FavorSizeOrSpeed Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Size</FavorSizeOrSpeed>
-    </ClCompile>
+    <ClCompile Include="test_main.c" />
     <ClCompile Include="thread_test.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\lib_memory.h" />
+    <ClInclude Include="..\include\lib_string.h" />
     <ClInclude Include="..\include\windows_t.h" />
     <ClInclude Include="..\include\hash_api.h" />
     <ClInclude Include="..\include\list_md.h" />
