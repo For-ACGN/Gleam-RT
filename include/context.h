@@ -2,7 +2,7 @@
 #define CONTEXT_H
 
 #include "c_types.h"
-#include "lib_mem.h"
+#include "lib_memory.h"
 #include "windows_t.h"
 
 typedef struct {

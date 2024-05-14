@@ -2,6 +2,7 @@
 #define LIST_MD_H
 
 #include "c_types.h"
+#include "lib_memory.h"
 
 typedef struct {
     malloc_t  malloc;

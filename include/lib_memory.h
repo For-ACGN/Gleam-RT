@@ -1,5 +1,5 @@
-#ifndef LIB_MEM_H
-#define LIB_MEM_H
+#ifndef LIB_MEMORY_H
+#define LIB_MEMORY_H
 
 #include "c_types.h"
 
@@ -22,4 +22,4 @@ void mem_set(void* ptr, byte val, uint num);
 // mem_clean is used to fill the memory with zero.
 void mem_clean(void* ptr, uint num);
 
-#endif // LIB_MEM_H
+#endif // LIB_MEMORY_H
