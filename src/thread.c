@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "c_types.h"
 #include "windows_t.h"
 #include "hash_api.h"
@@ -299,6 +301,9 @@ HANDLE TT_CreateThread(
     {
         return NULL;
     }
+
+    printf("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
+
     if (lpThreadId != NULL)
     {
         *lpThreadId = threadID;
@@ -346,6 +351,8 @@ void TT_ExitThread(uint32 dwExitCode)
     {
         delThread(tracker, threadID);
     }
+
+    printf("ExitThread: %lu\n", threadID);
 
     tracker->ReleaseMutex(tracker->Mutex);
 

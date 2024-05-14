@@ -1,8 +1,8 @@
-// #include <stdio.h>
+#include <stdio.h>
 
 #include "c_types.h"
 #include "windows_t.h"
-#include "lib_mem.h"
+#include "lib_memory.h"
 #include "hash_api.h"
 #include "list_md.h"
 #include "context.h"
@@ -253,6 +253,9 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     {
         return true;
     }
+
+    printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
+
     memoryPage page = {
         .address = address,
         .size    = size,
@@ -515,7 +518,7 @@ static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
         return false;
     }
 
-    printf("enc Size: 0x%llX\n", page->size);
+    // printf("enc Size: 0x%llX\n", page->size);
 
     // generate new key and IV
     RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
@@ -564,7 +567,7 @@ static bool decryptPage(MemoryTracker* tracker, memoryPage* page)
         return false;
     }
 
-    printf("dec Size: 0x%llX\n", page->size);
+    // printf("dec Size: 0x%llX\n", page->size);
 
     byte key[CRYPTO_KEY_SIZE];
     deriveKey(tracker, page, &key[0]);

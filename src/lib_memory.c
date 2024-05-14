@@ -1,5 +1,5 @@
 #include "c_types.h"
-#include "lib_mem.h"
+#include "lib_memory.h"
 
 // Optimization of this library must be disabled,
 // otherwise when using builder to build shellcode,

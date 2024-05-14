@@ -1,6 +1,6 @@
 #include "c_types.h"
 #include "windows_t.h"
-#include "lib_mem.h"
+#include "lib_memory.h"
 #include "hash_api.h"
 #include "context.h"
 #include "random.h"
@@ -633,18 +633,16 @@ static uintptr replaceToHook(Runtime* runtime, uintptr proc)
     return proc;
 }
 
+// disable optimize for use call NOT jmp to runtime->GetProcAddress.
+#pragma optimize("", off)
 __declspec(noinline)
 uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL);
 
-    uintptr proc = runtime->GetProcAddress(hModule, lpProcName);
-    if (proc == NULL)
-    {
-        return NULL;
-    }
-    return proc;
+    return runtime->GetProcAddress(hModule, lpProcName);
 }
+#pragma optimize("", on)
 
 __declspec(noinline)
 bool RT_Sleep(uint32 milliseconds)

@@ -1,5 +1,5 @@
 #include "c_types.h"
-#include "lib_mem.h"
+#include "lib_memory.h"
 #include "crypto.h"
 
 // It is NOT cryptographically secure.
