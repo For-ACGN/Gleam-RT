@@ -2,7 +2,7 @@
 #include "lib_memory.h"
 #include "crypto.h"
 
-// It is NOT cryptographically secure.
+// !!!!!!!!  It is NOT cryptographically secure  !!!!!!!!!
 // 
 // The main purpose of this symmetric encryption algorithm
 // is to encrypt the data in the memory so that it looks 
@@ -85,16 +85,16 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
             bCtr = 0;
         }
 
-        // update counter
-        dCtr++;
-        bCtr++;
-
         // update key index and last
         kIdx++;
         if (kIdx >= CRYPTO_KEY_SIZE)
         {
             kIdx = 0;
         }
+
+        // update counter
+        dCtr += (kIdx + cKey + last) % 64;
+        bCtr += (kIdx + cKey + last) % 16;
     }
     // save status
     *pLast = last;
@@ -167,16 +167,16 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
             bCtr = 0;
         }
 
-        // update counter
-        dCtr++;
-        bCtr++;
-
         // update key index
         kIdx++;
         if (kIdx >= CRYPTO_KEY_SIZE)
         {
             kIdx = 0;
         }
+
+        // update counter
+        dCtr += (kIdx + cKey + last) % 64;
+        bCtr += (kIdx + cKey + last) % 16;
     }
     // save status
     *pLast = last;
