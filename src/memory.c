@@ -254,6 +254,7 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
         return true;
     }
     printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
+    List* pages = &tracker->Pages;
     // process allocate new memory page
     if (type != MEM_COMMIT)
     {
@@ -265,10 +266,9 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
         };
         RandBuf(&page.key[0], CRYPTO_KEY_SIZE);
         RandBuf(&page.iv[0], CRYPTO_IV_SIZE);
-        return List_Insert(&tracker->Pages, &page);
+        return List_Insert(pages, &page);
     }
     // process allocate memory page on reserved memory page
-    List* pages = &tracker->Pages;
     bool  find  = false;
     uint  index = 0;
     memoryPage* page;
@@ -288,8 +288,19 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     }
     if (!find)
     {
-        return false;
+        memoryPage page = {
+            .address = address,
+            .size = size,
+            .type = type,
+            .protect = protect,
+        };
+        RandBuf(&page.key[0], CRYPTO_KEY_SIZE);
+        RandBuf(&page.iv[0], CRYPTO_IV_SIZE);
+        return List_Insert(pages, &page);
     }
+
+    printf("commit: 0x%llX, %llu\n", address, size);
+
     // process split memory page
     memoryPage pageFront = *page;
     pageFront.size = address - page->address;
@@ -297,7 +308,7 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     {
         RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
         RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
-        if (!List_Insert(&tracker->Pages, &pageFront))
+        if (!List_Insert(pages, &pageFront))
         {
             return false;
         }
@@ -309,10 +320,23 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     {
         RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
         RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
-        if (!List_Insert(&tracker->Pages, &pageBack))
+        if (!List_Insert(pages, &pageBack))
         {
             return false;
         }
+    }
+    // insert new memory page
+    memoryPage newPage = {
+        .address = address,
+        .size    = size,
+        .type    = type,
+        .protect = protect,
+    };
+    RandBuf(&newPage.key[0], CRYPTO_KEY_SIZE);
+    RandBuf(&newPage.iv[0], CRYPTO_IV_SIZE);
+    if (!List_Insert(pages, &newPage))
+    {
+        return false;
     }
 
     printf("alloc break: 0x%llX, %llu\n", pageFront.address, pageFront.size);
@@ -406,7 +430,7 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 
         {
             RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
             RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
-            if (!List_Insert(&tracker->Pages, &pageFront))
+            if (!List_Insert(pages, &pageFront))
             {
                 return false;
             }
@@ -418,14 +442,14 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 
         {
             RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
             RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
-            if (!List_Insert(&tracker->Pages, &pageBack))
+            if (!List_Insert(pages, &pageBack))
             {
                 return false;
             }
         }
 
-        printf("break: 0x%llX, %llu\n", pageFront.address, pageFront.size);
-        printf("break: 0x%llX, %llu\n", pageBack.address, pageBack.size);
+        printf("free break: 0x%llX, %llu\n", pageFront.address, pageFront.size);
+        printf("free break: 0x%llX, %llu\n", pageBack.address, pageBack.size);
     }
     // delete old memory page
     if (!List_Delete(pages, index))
