@@ -253,18 +253,77 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     {
         return true;
     }
-
     printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
+    // process allocate new memory page
+    if (type != MEM_COMMIT)
+    {
+        memoryPage page = {
+            .address = address,
+            .size    = size,
+            .type    = type,
+            .protect = protect,
+        };
+        RandBuf(&page.key[0], CRYPTO_KEY_SIZE);
+        RandBuf(&page.iv[0], CRYPTO_IV_SIZE);
+        return List_Insert(&tracker->Pages, &page);
+    }
+    // process allocate memory page on reserved memory page
+    List* pages = &tracker->Pages;
+    bool  find  = false;
+    uint  index = 0;
+    memoryPage* page;
+    for (uint num = 0; num < pages->Len; index++)
+    {
+        page = List_Get(pages, index);
+        if (page->address == NULL)
+        {
+            continue;
+        }
+        if (address >= page->address && address < page->address+page->size)
+        {
+            find = true;
+            break;
+        }
+        num++;
+    }
+    if (!find)
+    {
+        return false;
+    }
+    // process split memory page
+    memoryPage pageFront = *page;
+    pageFront.size = address - page->address;
+    if (pageFront.size != 0)
+    {
+        RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
+        RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
+        if (!List_Insert(&tracker->Pages, &pageFront))
+        {
+            return false;
+        }
+    }
+    memoryPage pageBack = *page;
+    pageBack.address = address + size;
+    pageBack.size -= (pageFront.size + size);
+    if (pageBack.size != 0)
+    {
+        RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
+        RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
+        if (!List_Insert(&tracker->Pages, &pageBack))
+        {
+            return false;
+        }
+    }
 
-    memoryPage page = {
-        .address = address,
-        .size    = size,
-        .type    = type,
-        .protect = protect,
-    };
-    RandBuf(&page.key[0], CRYPTO_KEY_SIZE);
-    RandBuf(&page.iv[0], CRYPTO_IV_SIZE);
-    return List_Insert(&tracker->Pages, &page);
+    printf("alloc break: 0x%llX, %llu\n", pageFront.address, pageFront.size);
+    printf("alloc break: 0x%llX, %llu\n", pageBack.address, pageBack.size);
+
+    // delete old memory page
+    if (!List_Delete(pages, index))
+    {
+        return false;
+    }
+    return true;
 }
 
 // replacePageProtect is used to make sure all the page are readable.
@@ -336,7 +395,7 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 
     }
     if (!find)
     {
-        return false;
+        return false; // TODO replace to true
     }
     // process split memory page
     if (page->address != address || size != 0)
@@ -347,9 +406,11 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 
         {
             RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
             RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
-            List_Insert(&tracker->Pages, &pageFront);
+            if (!List_Insert(&tracker->Pages, &pageFront))
+            {
+                return false;
+            }
         }
-
         memoryPage pageBack = *page;
         pageBack.address = address + size;
         pageBack.size -= (pageFront.size + size);
@@ -357,14 +418,20 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 
         {
             RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
             RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
-            List_Insert(&tracker->Pages, &pageBack);
+            if (!List_Insert(&tracker->Pages, &pageBack))
+            {
+                return false;
+            }
         }
 
         printf("break: 0x%llX, %llu\n", pageFront.address, pageFront.size);
         printf("break: 0x%llX, %llu\n", pageBack.address, pageBack.size);
     }
     // delete old memory page
-    List_Delete(pages, index);
+    if (!List_Delete(pages, index))
+    {
+        return false;
+    }
     // try to fill random data before call VirtualFree
     if (!isPageTypeWriteable(page->type))
     {
