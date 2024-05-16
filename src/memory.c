@@ -232,11 +232,11 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
             success = false;
             break;
         }
-        if (!allocPage(tracker, page, size, type, protect))
-        {
-            success = false;
-            break;
-        }
+        // if (!allocPage(tracker, page, size, type, protect))
+        // {
+        //     success = false;
+        //     break;
+        // }
         break;
     }
 
@@ -257,8 +257,8 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
     memoryPage page = {
         .address = address,
-        .size = size,
-        .type = type,
+        .size    = size,
+        .type    = type,
         .protect = protect,
     };
     RandBuf(&page.key[0], CRYPTO_KEY_SIZE);
@@ -286,7 +286,7 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_FREE);
 
-    printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
+    // printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -296,19 +296,21 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
     bool success = true;
     for (;;)
     {
-        bool freeOK = true;
-        switch (type&0xF000)
-        {
-        case MEM_DECOMMIT:
-            freeOK = decommitPage(tracker, address, size);
-        case MEM_RELEASE:
-            freeOK = releasePage(tracker, address, size);
-        }
-        if (!freeOK)
-        {
-            success = false;
-            break;
-        }
+        // bool freeOK = true;
+        // switch (type&0xF000)
+        // {
+        // case MEM_DECOMMIT:
+        //     freeOK = decommitPage(tracker, address, size);
+        //     break;
+        // case MEM_RELEASE:
+        //     freeOK = releasePage(tracker, address, size);
+        //     break;
+        // }
+        // if (!freeOK)
+        // {
+        //     success = false;
+        //     break;
+        // }
         if (!tracker->VirtualFree(address, size, type))
         {
             success = false;
@@ -323,12 +325,10 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 
 static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
 {
-    return true;
-
-
     List* pages = &tracker->Pages;
-    bool  find  = false;
     uint  index = 0;
+    bool  find  = false;
+    bool  base  = false;
     memoryPage* page;
     for (uint num = 0; num < pages->Len; index++)
     {
@@ -337,9 +337,16 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
         {
             continue;
         }
-        if (address >= page->address && address < page->address+page->size)
+        if (address == page->address)
         {
             find = true;
+            base = true;
+            break;
+        }
+        if (address > page->address && address < page->address+page->size)
+        {
+            find = true;
+            base = false;
             break;
         }
         num++;
@@ -348,6 +355,18 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     {
         return false; // TODO replace to true
     }
+    if (base)
+    {
+        if (size == 0)
+        {
+            
+        }
+
+    } else {
+        
+    }
+
+
     // process split memory page
     if (page->address != address || size != 0)
     {
