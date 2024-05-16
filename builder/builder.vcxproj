@@ -66,6 +66,7 @@
       <CallingConvention>StdCall</CallingConvention>
       <Optimization>MinSpace</Optimization>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -89,6 +90,7 @@
       <CallingConvention>StdCall</CallingConvention>
       <Optimization>MinSpace</Optimization>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -100,7 +102,10 @@
   <ItemGroup>
     <ClCompile Include="builder.c" />
     <ClCompile Include="..\src\runtime.c" />
+    <ClCompile Include="..\src\lib_memory.c" />
+    <ClCompile Include="..\src\lib_string.c" />
     <ClCompile Include="..\src\hash_api.c" />
+    <ClCompile Include="..\src\list_md.c" />
     <ClCompile Include="..\src\random.c" />
     <ClCompile Include="..\src\crypto.c" />
     <ClCompile Include="..\src\memory.c" />
@@ -108,16 +113,19 @@
     <ClCompile Include="..\src\epilogue.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\go_types.h" />
-	<ClInclude Include="..\include\windows_t.h" />
+    <ClInclude Include="..\include\c_types.h" />
+    <ClInclude Include="..\include\lib_memory.h" />
+    <ClInclude Include="..\include\lib_string.h" />
+    <ClInclude Include="..\include\windows_t.h" />
     <ClInclude Include="..\include\hash_api.h" />
+    <ClInclude Include="..\include\list_md.h" />
     <ClInclude Include="..\include\random.h" />
-	<ClInclude Include="..\include\crypto.h" />
-	<ClInclude Include="..\include\context.h" />
-	<ClInclude Include="..\include\memory.h" />
+    <ClInclude Include="..\include\crypto.h" />
+    <ClInclude Include="..\include\context.h" />
+    <ClInclude Include="..\include\memory.h" />
     <ClInclude Include="..\include\thread.h" />
-	<ClInclude Include="..\include\runtime.h" />
-	<ClInclude Include="..\include\epilogue.h" />
+    <ClInclude Include="..\include\runtime.h" />
+    <ClInclude Include="..\include\epilogue.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

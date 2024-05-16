@@ -39,12 +39,21 @@
     <ClCompile Include="..\src\epilogue.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\list_md.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\lib_memory.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\lib_string.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\crypto.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\go_types.h">
+    <ClInclude Include="..\include\c_types.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\include\hash_api.h">
@@ -69,6 +78,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\include\epilogue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\list_md.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\lib_memory.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\lib_string.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
