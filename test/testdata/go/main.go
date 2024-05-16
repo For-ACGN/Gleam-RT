@@ -1,62 +1,48 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"reflect"
 	"syscall"
 	"time"
 	"unsafe"
-	
-	"golang.org/x/sys/windows"
 )
 
-var globalVar = 12345678
+var (
+	modKernel32            = syscall.NewLazyDLL("kernel32.dll")
+	procGetCurrentThreadID = modKernel32.NewProc("GetCurrentThreadId")
+	procSleep              = modKernel32.NewProc("Sleep")
+)
 
 func main() {
 	testWindowsAPI()
-	
-	localVar := 12121212
-	
-	do := func() {
-		fmt.Println("Thread ID:", windows.GetCurrentThreadId())
-		
-		fmt.Printf("global variable pointer: 0x%X\n", &globalVar)
-		fmt.Println("global variable value:  ", globalVar)
-		
-		fmt.Printf("local  variable pointer: 0x%X\n", &localVar)
-		fmt.Println("local  variable value:  ", localVar)
-		
-		funcAddr := reflect.ValueOf(testWindowsAPI).Pointer()
-		fmt.Printf("function instruction:      0x%X\n", funcAddr)
-		
-		inst := unsafe.Slice((*byte)(unsafe.Pointer(funcAddr)), 8)
-		fmt.Printf("function instruction data: %v\n", inst)
-		
-		time.Sleep(3 * time.Second)
-		fmt.Println("finish!")
-		fmt.Println()
-	}
-	
+	testMemoryData()
+	testGoRoutine()
+	testLargeBuffer()
+
 	for {
-		do()
-		sleep()
+		// wait go routine run test
+		time.Sleep(3 * time.Second)
+		// trigger Gleam-RT Sleep
+		kernel32Sleep()
 	}
 }
 
 func testWindowsAPI() {
-	dll := windows.NewLazySystemDLL("kernel32.dll")
-	hModule := windows.Handle(dll.Handle())
+	dll := syscall.NewLazyDLL("kernel32.dll")
+	hModule := syscall.Handle(dll.Handle())
 	GetProcAddress := dll.NewProc("GetProcAddress").Addr()
 	fmt.Printf("GetProcAddress: 0x%X\n", GetProcAddress)
-	
+
 	for _, proc := range []string{
 		"RT_GetProcAddressByName",
 		"RT_GetProcAddressByHash",
 		"RT_GetProcAddressOriginal",
 	} {
 		dllProcAddr := dll.NewProc(proc).Addr()
-		getProcAddr, err := windows.GetProcAddress(hModule, proc)
+		getProcAddr, err := syscall.GetProcAddress(hModule, proc)
 		checkError(err)
 		if dllProcAddr != getProcAddr {
 			log.Fatalln("unexpected proc address")
@@ -64,10 +50,10 @@ func testWindowsAPI() {
 		fmt.Printf("%s: 0x%X\n", proc, dllProcAddr)
 	}
 	fmt.Println()
-	
-	GetProcAddressOriginal, err := windows.GetProcAddress(hModule, "RT_GetProcAddressOriginal")
+
+	GetProcAddressOriginal, err := syscall.GetProcAddress(hModule, "RT_GetProcAddressOriginal")
 	checkError(err)
-	
+
 	// get GetProcAddress
 	proc, err := syscall.BytePtrFromString("GetProcAddress")
 	checkError(err)
@@ -80,7 +66,7 @@ func testWindowsAPI() {
 	}
 	fmt.Printf("Hooked   GetProcAddress: 0x%X\n", GetProcAddress)
 	fmt.Printf("Original GetProcAddress: 0x%X\n", ret)
-	
+
 	// get VirtualAlloc
 	proc, err = syscall.BytePtrFromString("VirtualAlloc")
 	checkError(err)
@@ -91,22 +77,89 @@ func testWindowsAPI() {
 	if ret == 0 {
 		log.Fatalln("failed to get GetProcAddress address")
 	}
-	VirtualAlloc, err := windows.GetProcAddress(hModule, "VirtualAlloc")
+
+	VirtualAlloc, err := syscall.GetProcAddress(hModule, "VirtualAlloc")
 	checkError(err)
-	
+
 	fmt.Printf("Hooked   VirtualAlloc: 0x%X\n", VirtualAlloc)
 	fmt.Printf("Original VirtualAlloc: 0x%X\n", ret)
 }
 
-var (
-	modKernel32 = windows.NewLazySystemDLL("kernel32.dll")
-	procSleep   = modKernel32.NewProc("Sleep").Addr()
-)
+var globalVar = 12345678
 
-func sleep() {
+func testMemoryData() {
+	go func() {
+		localVar := 12121212
+		localStr := "hello GleamRT"
+
+		for {
+			tid, _, _ := procGetCurrentThreadID.Call()
+			fmt.Println("Thread ID:", tid)
+
+			fmt.Printf("global variable pointer: 0x%X\n", &globalVar)
+			fmt.Println("global variable value:  ", globalVar)
+
+			fmt.Printf("local  variable pointer: 0x%X\n", &localVar)
+			fmt.Println("local  variable value:  ", localVar)
+
+			funcAddr := reflect.ValueOf(testWindowsAPI).Pointer()
+			fmt.Printf("function instruction:      0x%X\n", funcAddr)
+
+			inst := unsafe.Slice((*byte)(unsafe.Pointer(funcAddr)), 8)
+			fmt.Printf("function instruction data: %v\n", inst)
+
+			time.Sleep(time.Second)
+			fmt.Println(localStr, "finish!")
+			fmt.Println()
+		}
+	}()
+}
+
+func testGoRoutine() {
+	ch := make(chan int, 1024)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		var i int
+		for {
+			select {
+			case ch <- i:
+			case <-ctx.Done():
+				return
+			}
+			i++
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+	go func() {
+		for {
+			select {
+			case i := <-ch:
+				fmt.Println("i:", i)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+func testLargeBuffer() {
+	go func() {
+		for {
+			buf := make([]byte, 8*1024*1024)
+			for i := 0; i < len(buf); i++ {
+				buf[i] = byte(i)
+			}
+			fmt.Println("alloc buffer", len(buf))
+			time.Sleep(250 * time.Millisecond)
+		}
+	}()
+}
+
+func kernel32Sleep() {
 	fmt.Println("call kernel32.Sleep [hooked]")
 	now := time.Now()
-	syscall.SyscallN(procSleep, uintptr(3000))
+	procSleep.Call(3000)
 	fmt.Println("Sleep:", time.Since(now))
 	fmt.Println()
 }
