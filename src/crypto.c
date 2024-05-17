@@ -79,7 +79,7 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         last = data;
 
         // update s-Box
-        if (bCtr >= 4096)
+        if (bCtr >= 65536)
         {
             rotateSBox(sBox, cKey);
             bCtr = 0;
@@ -93,8 +93,8 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         }
 
         // update counter
-        dCtr += (kIdx + cKey + last) % 64;
-        bCtr += (kIdx + cKey + last) % 16;
+        dCtr += (kIdx + cKey + last) % 16;
+        bCtr += (kIdx + cKey + last) % 32;
     }
     // save status
     *pLast = last;
@@ -159,7 +159,7 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         *(buf + i) = data;
 
         // update s-Box
-        if (bCtr >= 4096)
+        if (bCtr >= 65536)
         {
             permuteSBox(&sBox[0]);
             rotateSBox(sBox, cKey);
@@ -175,8 +175,8 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         }
 
         // update counter
-        dCtr += (kIdx + cKey + last) % 64;
-        bCtr += (kIdx + cKey + last) % 16;
+        dCtr += (kIdx + cKey + last) % 16;
+        bCtr += (kIdx + cKey + last) % 32;
     }
     // save status
     *pLast = last;
