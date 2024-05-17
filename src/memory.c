@@ -358,20 +358,26 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     }
     if (!find)
     {
-        return true; // TODO replace to true
+        return true;
     }
+    // debug
+    // uint* a = 0x01;
+    // *a = 1;
     if (base)
     {
         if (size == 0)
         {
             page->type = MEM_DECOMMIT;
+            if (!List_Delete(pages, index))
+            {
+                return false;
+            }
         } else {
-            page->type = MEM_DECOMMIT;
+            
         }
     } else {
-        page->type = MEM_DECOMMIT;
+       //  page->type = MEM_DECOMMIT;
     }
-
 
     // process split memory page
     // if (page->address != address || size != 0)
@@ -521,7 +527,7 @@ static bool isPageTypeTrackable(uint32 type)
 
 static bool isPageTypeWriteable(uint32 type)
 {
-    if (type&0xF000 == MEM_COMMIT)
+    if ((type&0xF000) == MEM_COMMIT)
     {
         return true;
     }
@@ -626,7 +632,11 @@ static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
         return false;
     }
 
-    // printf("enc Size: 0x%llX\n", page->size);
+    printf
+    (
+        "enc Addr: 0x%llX, Size: 0x%llX, Protect: 0x%X, Type: 0x%X\n",
+        page->address, page->size, page->protect, page->type
+    );
 
     // generate new key and IV
     RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
