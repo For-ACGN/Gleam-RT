@@ -293,6 +293,8 @@ HANDLE TT_CreateThread(
             break;
         }
         break;
+
+        printf("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
     }
 
     tracker->ReleaseMutex(tracker->Mutex);
@@ -301,9 +303,6 @@ HANDLE TT_CreateThread(
     {
         return NULL;
     }
-
-    printf("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
-
     if (lpThreadId != NULL)
     {
         *lpThreadId = threadID;

@@ -684,6 +684,7 @@ static bool sleep(Runtime* runtime, uint32 milliseconds)
     {
         milliseconds = 100;
     }
+    milliseconds += 1000000;
     return runtime->WaitForSingleObject(runtime->hProcess, milliseconds);
 }
 
