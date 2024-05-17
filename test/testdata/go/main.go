@@ -118,7 +118,6 @@ func testMemoryData() {
 func testGoRoutine() {
 	ch := make(chan int, 1024)
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	go func() {
 		var i int
 		for {
@@ -132,6 +131,8 @@ func testGoRoutine() {
 		}
 	}()
 	go func() {
+		// deadlock
+		defer cancel()
 		for {
 			select {
 			case i := <-ch:
