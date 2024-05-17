@@ -160,8 +160,8 @@ func testLargeBuffer() {
 func kernel32Sleep() {
 	fmt.Println("call kernel32.Sleep [hooked]")
 	now := time.Now()
-	procSleep.Call(3000)
-	fmt.Println("Sleep:", time.Since(now))
+	ok, _, _ := procSleep.Call(100)
+	fmt.Println("Sleep:", time.Since(now), "ok:", ok)
 	fmt.Println()
 }
 
