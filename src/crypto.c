@@ -78,14 +78,14 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         // update last
         last = data;
 
-        // update s-Box
+        // rotate S-Box
         if (bCtr >= 65536)
         {
             rotateSBox(sBox, cKey);
             bCtr = 0;
         }
 
-        // update key index and last
+        // update key index
         kIdx++;
         if (kIdx >= CRYPTO_KEY_SIZE)
         {
@@ -158,7 +158,7 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         // write byte to the buffer
         *(buf + i) = data;
 
-        // update s-Box
+        // rotate S-Box
         if (bCtr >= 65536)
         {
             permuteSBox(&sBox[0]);
