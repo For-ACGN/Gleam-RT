@@ -232,11 +232,11 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
             success = false;
             break;
         }
-        // if (!allocPage(tracker, page, size, type, protect))
-        // {
-        //     success = false;
-        //     break;
-        // }
+        if (!allocPage(tracker, page, size, type, protect))
+        {
+            success = false;
+            break;
+        }
         break;
     }
 
@@ -286,31 +286,31 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_FREE);
 
-    // printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
-
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
         return false;
     }
 
+    printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
+
     bool success = true;
     for (;;)
     {
-        // bool freeOK = true;
-        // switch (type&0xF000)
-        // {
-        // case MEM_DECOMMIT:
-        //     freeOK = decommitPage(tracker, address, size);
-        //     break;
-        // case MEM_RELEASE:
-        //     freeOK = releasePage(tracker, address, size);
-        //     break;
-        // }
-        // if (!freeOK)
-        // {
-        //     success = false;
-        //     break;
-        // }
+        bool freeOK = true;
+        switch (type&0xF000)
+        {
+        case MEM_DECOMMIT:
+            freeOK = decommitPage(tracker, address, size);
+            break;
+        case MEM_RELEASE:
+            freeOK = releasePage(tracker, address, size);
+            break;
+        }
+        if (!freeOK)
+        {
+            success = false;
+            break;
+        }
         if (!tracker->VirtualFree(address, size, type))
         {
             success = false;
@@ -337,6 +337,11 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
         {
             continue;
         }
+        if (!isPageTypeWriteable(page->type))
+        {
+            num++;
+            continue;
+        }
         if (address == page->address)
         {
             find = true;
@@ -353,65 +358,63 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     }
     if (!find)
     {
-        return false; // TODO replace to true
+        return true; // TODO replace to true
     }
     if (base)
     {
         if (size == 0)
         {
-            
+            page->type = MEM_DECOMMIT;
+        } else {
+            page->type = MEM_DECOMMIT;
         }
-
     } else {
-        
+        page->type = MEM_DECOMMIT;
     }
 
 
     // process split memory page
-    if (page->address != address || size != 0)
-    {
-        memoryPage pageFront = *page;
-        pageFront.size = address - page->address;
-        if (pageFront.size != 0)
-        {
-            RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
-            RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
-            if (!List_Insert(pages, &pageFront))
-            {
-                return false;
-            }
-        }
-        memoryPage pageBack = *page;
-        pageBack.address = address + size;
-        pageBack.size -= (pageFront.size + size);
-        if (pageBack.size != 0)
-        {
-            RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
-            RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
-            if (!List_Insert(pages, &pageBack))
-            {
-                return false;
-            }
-        }
+    // if (page->address != address || size != 0)
+    // {
+    //     memoryPage pageFront = *page;
+    //     pageFront.size = address - page->address;
+    //     if (pageFront.size != 0)
+    //     {
+    //         RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
+    //         RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
+    //         if (!List_Insert(pages, &pageFront))
+    //         {
+    //             return false;
+    //         }
+    //     }
+    //     memoryPage pageBack = *page;
+    //     pageBack.address = address + size;
+    //     pageBack.size -= (pageFront.size + size);
+    //     if (pageBack.size != 0)
+    //     {
+    //         RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
+    //         RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
+    //         if (!List_Insert(pages, &pageBack))
+    //         {
+    //             return false;
+    //         }
+    //     }
+    // 
+    //     printf("free break: 0x%llX, %llu\n", pageFront.address, pageFront.size);
+    //     printf("free break: 0x%llX, %llu\n", pageBack.address, pageBack.size);
+    // }
 
-        printf("free break: 0x%llX, %llu\n", pageFront.address, pageFront.size);
-        printf("free break: 0x%llX, %llu\n", pageBack.address, pageBack.size);
-    }
-    // delete old memory page
-    if (!List_Delete(pages, index))
-    {
-        return false;
-    }
     // try to fill random data before call VirtualFree
-    if (!isPageTypeWriteable(page->type))
-    {
-        return true;
-    }
     if (!adjustPageProtect(tracker, page))
     {
         return false;
     }
-    RandBuf((byte*)address, page->size);
+    uint randSize = size;
+    if (randSize == 0)
+    {
+        randSize = page->size;
+    }
+    RandBuf((byte*)address, randSize);
     return recoverPageProtect(tracker, page);
 }
 
@@ -452,12 +455,12 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_PROTECT);
 
-    // printf("VirtualProtect: 0x%llX, %llu, 0x%X\n", address, size, new);
-
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
         return false;
     }
+
+    // printf("VirtualProtect: 0x%llX, %llu, 0x%X\n", address, size, new);
 
     bool success = true;
     for (;;)
@@ -518,7 +521,7 @@ static bool isPageTypeTrackable(uint32 type)
 
 static bool isPageTypeWriteable(uint32 type)
 {
-    if (type&MEM_COMMIT)
+    if (type&0xF000 == MEM_COMMIT)
     {
         return true;
     }
