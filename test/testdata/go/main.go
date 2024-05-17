@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"reflect"
 	"syscall"
 	"time"
@@ -54,7 +55,7 @@ func testWindowsAPI() {
 	GetProcAddressOriginal, err := syscall.GetProcAddress(hModule, "RT_GetProcAddressOriginal")
 	checkError(err)
 
-	// get GetProcAddress
+	// get original GetProcAddress
 	proc, err := syscall.BytePtrFromString("GetProcAddress")
 	checkError(err)
 	ret, _, _ := syscall.SyscallN(
@@ -64,10 +65,10 @@ func testWindowsAPI() {
 	if ret == 0 {
 		log.Fatalln("failed to get GetProcAddress address")
 	}
-	fmt.Printf("Hooked   GetProcAddress: 0x%X\n", GetProcAddress)
 	fmt.Printf("Original GetProcAddress: 0x%X\n", ret)
+	fmt.Printf("Hooked   GetProcAddress: 0x%X\n", GetProcAddress)
 
-	// get VirtualAlloc
+	// get original VirtualAlloc
 	proc, err = syscall.BytePtrFromString("VirtualAlloc")
 	checkError(err)
 	ret, _, _ = syscall.SyscallN(
@@ -81,8 +82,8 @@ func testWindowsAPI() {
 	VirtualAlloc, err := syscall.GetProcAddress(hModule, "VirtualAlloc")
 	checkError(err)
 
-	fmt.Printf("Hooked   VirtualAlloc: 0x%X\n", VirtualAlloc)
 	fmt.Printf("Original VirtualAlloc: 0x%X\n", ret)
+	fmt.Printf("Hooked   VirtualAlloc: 0x%X\n", VirtualAlloc)
 }
 
 var globalVar = 12345678
@@ -136,7 +137,7 @@ func testGoRoutine() {
 		for {
 			select {
 			case i := <-ch:
-				fmt.Println("i:", i)
+				fmt.Println("index:", i)
 			case <-ctx.Done():
 				return
 			}
@@ -147,7 +148,7 @@ func testGoRoutine() {
 func testLargeBuffer() {
 	go func() {
 		for {
-			buf := make([]byte, 8*1024*1024)
+			buf := make([]byte, 1+rand.Intn(8*1024*1024))
 			for i := 0; i < len(buf); i++ {
 				buf[i] = byte(i)
 			}
