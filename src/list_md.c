@@ -60,10 +60,11 @@ bool List_Insert(List* list, void* data)
             list->Last = i;
         }
         mem_copy(addr, data, list->Unit);
-        break;
+        list->Len++;
+        return true;
     }
-    list->Len++;
-    return true;
+    panic(PANIC_UNREACHABLE_CODE);
+    return false;
 }
 
 bool List_Delete(List* list, uint index)
@@ -84,7 +85,8 @@ void* List_Get(List* list, uint index)
     {
         return NULL;
     }
-    return (void*)((uintptr)(list->Data) + index * list->Unit);
+    uintptr addr = (uintptr)(list->Data);
+    return (void*)(addr + index * list->Unit);
 }
 
 bool List_Find(List* list, void* data, uint equal, uint* idx)
