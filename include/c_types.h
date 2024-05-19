@@ -60,4 +60,11 @@ typedef _Bool bool;
 #define offsetof(struct, field) ((uintptr) & (((struct*)0)->field))
 #endif
 
+// reference panic from Go
+#define PANIC_UNREACHABLE_CODE 0x00000001
+
+#ifndef panic
+#define panic(val) (*(int*)(0x00000000) = val)
+#endif
+
 #endif // C_TYPES_H
