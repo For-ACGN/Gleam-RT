@@ -326,6 +326,7 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
 {
     List* pages = &tracker->Pages;
+
     uint  index = 0;
     bool  find  = false;
     bool  base  = false;
@@ -358,6 +359,8 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     }
     if (!find)
     {
+        uint* a = 0x01;
+        *a = 1;
         return true;
     }
     // debug
@@ -367,17 +370,19 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     {
         if (size == 0)
         {
-            page->type = MEM_DECOMMIT;
             if (!List_Delete(pages, index))
             {
                 return false;
             }
         } else {
-            
+
+            page->type = MEM_DECOMMIT;
         }
     } else {
-       //  page->type = MEM_DECOMMIT;
+       page->type = MEM_DECOMMIT;
+
     }
+
 
     // process split memory page
     // if (page->address != address || size != 0)
@@ -656,9 +661,12 @@ bool MT_Decrypt()
 
     // TODO decrypt page list
 
+    // reverse order traversal is used to deal with the problem
+    // that some memory pages may be encrypted twice, like use
+    // VirtualAlloc to allocate multiple times to the same address
     List* pages = &tracker->Pages;
-    uint  index = 0;
-    for (uint num = 0; num < pages->Len; index++)
+    uint  index = pages->Last;
+    for (uint num = 0; num < pages->Len; index--)
     {
         memoryPage* page = List_Get(pages, index);
         if (page->address == NULL)
