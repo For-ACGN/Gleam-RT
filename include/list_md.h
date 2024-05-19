@@ -16,6 +16,7 @@ typedef struct {
     void* Data;
     uint  Len;
     uint  Cap;
+    uint  Last;
     uint  Unit;
 } List;
 
