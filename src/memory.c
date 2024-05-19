@@ -70,6 +70,7 @@ static bool   updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr
 static bool   initTrackerEnvironment(MemoryTracker* tracker, Context* context);
 static bool   allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
 static bool   decommitPage(MemoryTracker* tracker, uintptr address, uint size);
+static bool   decommitPageZeroSize(MemoryTracker* tracker, uintptr address);
 static bool   releasePage(MemoryTracker* tracker, uintptr address, uint size);
 static bool   protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
@@ -325,11 +326,14 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 
 static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
 {
+    if (size == 0)
+    {
+        return decommitPageZeroSize(tracker, address);
+    }
+    // scan memory pages that in this address range
     List* pages = &tracker->Pages;
-
     uint  index = 0;
     bool  find  = false;
-    bool  base  = false;
     memoryPage* page;
     for (uint num = 0; num < pages->Len; index++)
     {
@@ -346,13 +350,11 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
         if (address == page->address)
         {
             find = true;
-            base = true;
             break;
         }
         if (address > page->address && address < page->address+page->size)
         {
             find = true;
-            base = false;
             break;
         }
         num++;
@@ -366,22 +368,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     // debug
     // uint* a = 0x01;
     // *a = 1;
-    if (base)
-    {
-        if (size == 0)
-        {
-            if (!List_Delete(pages, index))
-            {
-                return false;
-            }
-        } else {
-
-            page->type = MEM_DECOMMIT;
-        }
-    } else {
-       page->type = MEM_DECOMMIT;
-
-    }
+    page->type = MEM_DECOMMIT;
 
 
     // process split memory page
@@ -426,6 +413,50 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
         randSize = page->size;
     }
     RandBuf((byte*)address, randSize);
+    return recoverPageProtect(tracker, page);
+}
+
+static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
+{
+    List* pages = &tracker->Pages;
+    uint  index = 0;
+    bool  find  = false;
+    memoryPage* page;
+    for (uint num = 0; num < pages->Len; index++)
+    {
+        page = List_Get(pages, index);
+        if (page->address == NULL)
+        {
+            continue;
+        }
+        if (!isPageTypeWriteable(page->type))
+        {
+            num++;
+            continue;
+        }
+        if (address != page->address)
+        {
+            num++;
+            continue;
+        }
+        find = true;
+        break;
+    }
+    if (!find)
+    {
+        return false;
+    }
+    // remove page in page list
+    if (!List_Delete(pages, index))
+    {
+        return false;
+    }
+    // try to fill random data before call VirtualFree
+    if (!adjustPageProtect(tracker, page))
+    {
+        return false;
+    }
+    RandBuf((byte*)address, page->size);
     return recoverPageProtect(tracker, page);
 }
 
