@@ -8,6 +8,7 @@ void List_Init(List* list, List_Ctx* ctx, uint unit)
     list->Data = NULL;
     list->Len  = 0;
     list->Cap  = 0;
+    list->Last = 0;
     list->Unit = unit;
 }
 
@@ -53,6 +54,10 @@ bool List_Insert(List* list, void* data)
         if (!empty)
         {
             continue;
+        }
+        if (i >= list->Len)
+        {
+            list->Last = i;
         }
         mem_copy(addr, data, list->Unit);
         break;
