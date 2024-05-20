@@ -391,15 +391,6 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
                 return false;
             }
 
-
-            if (page->address != address)
-            {
-                
-            
-                // printf("free break: 0x%llX, %llu\n", pageFront.address, pageFront.size);
-                // printf("free break: 0x%llX, %llu\n", pageBack.address, pageBack.size);
-            }
-
             continue;
         }
    
@@ -419,17 +410,23 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
                     return false;
                 }
             }
+       
+            memoryPage pageBak = *page;
+
             if (!List_Delete(pages, index))
             {
                 panic(PANIC_TEST_REACHABLE);
                 return false;
             }
 
-            if (!decommitPage(tracker, address, page->address - address))
-            {
-                panic(PANIC_TEST_REACHABLE);
-                return false;
-            }
+            
+
+            // if (!decommitPage(tracker, address, pageBak.address - address))
+            // {
+            //     panic(PANIC_TEST_REACHABLE);
+            //     return false;
+            // }
+
 
 
             continue;
@@ -439,30 +436,39 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
 
         if (address >= page->address && address <= page->address + page->size && address + size >= page->address + page->size)
         {
-
-            
-
+            memoryPage pageFront = *page;
+            pageFront.size = address - page->address;
+            if (pageFront.size != 0)
+            {
+                RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
+                RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
+                if (!List_Insert(pages, &pageFront))
+                {
+                    panic(PANIC_TEST_REACHABLE);
+                    return false;
+                }
+            }
+         
+            memoryPage pageBak = *page;
             if (!List_Delete(pages, index))
             {
                 panic(PANIC_TEST_REACHABLE);
                 return false;
             }
+
+
+            // if (!decommitPage(tracker, pageBak.address + pageBak.size, size - (pageBak.address + pageBak.size - address)))
+            // {
+            //     panic(PANIC_TEST_REACHABLE);
+            //     return false;
+            // }
+
+            
             continue;
         }
-
-         
-
-
-
-
-
     }
 
-
     return true;
-
-
-
     // try to fill random data before call VirtualFree
     // if (!adjustPageProtect(tracker, page))
     // {
