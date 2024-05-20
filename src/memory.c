@@ -71,6 +71,7 @@ static bool   initTrackerEnvironment(MemoryTracker* tracker, Context* context);
 static bool   allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
 static bool   decommitPage(MemoryTracker* tracker, uintptr address, uint size);
 static bool   decommitPageZeroSize(MemoryTracker* tracker, uintptr address);
+static bool   deletePage(MemoryTracker* tracker, memoryPage* page, uint index);
 static bool   releasePage(MemoryTracker* tracker, uintptr address, uint size);
 static bool   protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
@@ -333,7 +334,6 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     // scan memory pages that in this address range
     List* pages = &tracker->Pages;
     uint  index = 0;
-    bool  find  = false;
     memoryPage* page;
     for (uint num = 0; num < pages->Len; index++)
     {
@@ -347,29 +347,17 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
             num++;
             continue;
         }
-        if (address == page->address)
+        if (page->address >= address && page->address + page->size <= address + size)
         {
-            find = true;
-            break;
-        }
-        if (address > page->address && address < page->address+page->size)
-        {
-            find = true;
-            break;
+            if (!deletePage(tracker, page, index))
+            {
+                return false;
+            }
         }
         num++;
     }
-    if (!find)
-    {
-        uint* a = 0x01;
-        *a = 1;
-        return true;
-    }
-    // debug
-    // uint* a = 0x01;
-    // *a = 1;
-    page->type = MEM_DECOMMIT;
 
+    return true;
 
     // process split memory page
     // if (page->address != address || size != 0)
@@ -446,6 +434,12 @@ static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
     {
         return false;
     }
+    return deletePage(tracker, page, index);
+}
+
+static bool deletePage(MemoryTracker* tracker, memoryPage* page, uint index)
+{
+    List* pages = &tracker->Pages;
     // remove page in page list
     if (!List_Delete(pages, index))
     {
@@ -456,7 +450,7 @@ static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
     {
         return false;
     }
-    RandBuf((byte*)address, page->size);
+    RandBuf((byte*)(page->address), page->size);
     return recoverPageProtect(tracker, page);
 }
 
