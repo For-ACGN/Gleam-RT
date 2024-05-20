@@ -333,9 +333,9 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     }
     // scan memory pages that in this address range
     List* pages = &tracker->Pages;
-    uint  index = 0;
+    uint  last  = pages->Last;
     memoryPage* page;
-    for (uint num = 0; num < pages->Len; index++)
+    for (uint index = 0; index < last; index++)
     {
         page = List_Get(pages, index);
         if (page->address == NULL)
@@ -344,64 +344,90 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
         }
         if (!isPageTypeWriteable(page->type))
         {
-            num++;
             continue;
         }
         if (page->address >= address && page->address + page->size <= address + size)
         {
             if (!deletePage(tracker, page, index))
             {
+                panic(PANIC_TEST_REACHABLE);
                 return false;
             }
+            continue;
         }
-        num++;
+        if (address >= page->address && address + size <= page->address + page->size)
+        {
+             
+
+            // process split memory page
+            memoryPage pageFront = *page;
+            pageFront.size = address - page->address;
+            if (pageFront.size != 0)
+            {
+                RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
+                RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
+                if (!List_Insert(pages, &pageFront))
+                {
+                    panic(PANIC_TEST_REACHABLE);
+                    return false;
+                }
+            }
+            memoryPage pageBack = *page;
+            pageBack.address = address + size;
+            pageBack.size -= (pageFront.size + size);
+            if (pageBack.size != 0)
+            {
+                RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
+                RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
+                if (!List_Insert(pages, &pageBack))
+                {
+                    panic(PANIC_TEST_REACHABLE);
+                    return false;
+                }
+            }
+
+            if (!List_Delete(pages, index))
+            {
+                panic(PANIC_TEST_REACHABLE);
+                return false;
+            }
+
+
+            if (page->address != address)
+            {
+                
+            
+                // printf("free break: 0x%llX, %llu\n", pageFront.address, pageFront.size);
+                // printf("free break: 0x%llX, %llu\n", pageBack.address, pageBack.size);
+            }
+
+          
+
+
+            continue;
+        }
+   
+         panic(PANIC_TEST_REACHABLE);
+
     }
+
 
     return true;
 
-    // process split memory page
-    // if (page->address != address || size != 0)
-    // {
-    //     memoryPage pageFront = *page;
-    //     pageFront.size = address - page->address;
-    //     if (pageFront.size != 0)
-    //     {
-    //         RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
-    //         RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
-    //         if (!List_Insert(pages, &pageFront))
-    //         {
-    //             return false;
-    //         }
-    //     }
-    //     memoryPage pageBack = *page;
-    //     pageBack.address = address + size;
-    //     pageBack.size -= (pageFront.size + size);
-    //     if (pageBack.size != 0)
-    //     {
-    //         RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
-    //         RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
-    //         if (!List_Insert(pages, &pageBack))
-    //         {
-    //             return false;
-    //         }
-    //     }
-    // 
-    //     printf("free break: 0x%llX, %llu\n", pageFront.address, pageFront.size);
-    //     printf("free break: 0x%llX, %llu\n", pageBack.address, pageBack.size);
-    // }
+
 
     // try to fill random data before call VirtualFree
-    if (!adjustPageProtect(tracker, page))
-    {
-        return false;
-    }
-    uint randSize = size;
-    if (randSize == 0)
-    {
-        randSize = page->size;
-    }
-    RandBuf((byte*)address, randSize);
-    return recoverPageProtect(tracker, page);
+    // if (!adjustPageProtect(tracker, page))
+    // {
+    //     return false;
+    // }
+    // uint randSize = size;
+    // if (randSize == 0)
+    // {
+    //     randSize = page->size;
+    // }
+    // RandBuf((byte*)address, randSize);
+    // return recoverPageProtect(tracker, page);
 }
 
 static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
@@ -440,18 +466,20 @@ static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
 static bool deletePage(MemoryTracker* tracker, memoryPage* page, uint index)
 {
     List* pages = &tracker->Pages;
-    // remove page in page list
-    if (!List_Delete(pages, index))
-    {
-        return false;
-    }
     // try to fill random data before call VirtualFree
     if (!adjustPageProtect(tracker, page))
     {
+        panic(PANIC_TEST_REACHABLE);
         return false;
     }
     RandBuf((byte*)(page->address), page->size);
-    return recoverPageProtect(tracker, page);
+    if (!recoverPageProtect(tracker, page))
+    {
+        panic(PANIC_TEST_REACHABLE);
+        return false;
+    }
+    // remove page in page list
+    return List_Delete(pages, index);
 }
 
 static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
