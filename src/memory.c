@@ -357,7 +357,6 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
         }
         if (address >= page->address && address + size <= page->address + page->size)
         {
-             
 
             // process split memory page
             memoryPage pageFront = *page;
@@ -401,13 +400,61 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
                 // printf("free break: 0x%llX, %llu\n", pageBack.address, pageBack.size);
             }
 
-          
-
-
             continue;
         }
    
-         panic(PANIC_TEST_REACHABLE);
+
+        if (address <= page->address && address + size >= page->address  && address + size <= page->address + page->size)
+        {
+            memoryPage pageBack = *page;
+            pageBack.address = address + size;
+            pageBack.size -= (address + size - page->address);
+            if (pageBack.size != 0)
+            {
+                RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
+                RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
+                if (!List_Insert(pages, &pageBack))
+                {
+                    panic(PANIC_TEST_REACHABLE);
+                    return false;
+                }
+            }
+            if (!List_Delete(pages, index))
+            {
+                panic(PANIC_TEST_REACHABLE);
+                return false;
+            }
+
+            if (!decommitPage(tracker, address, page->address - address))
+            {
+                panic(PANIC_TEST_REACHABLE);
+                return false;
+            }
+
+
+            continue;
+
+            // panic(PANIC_TEST_REACHABLE);
+        }
+
+        if (address >= page->address && address <= page->address + page->size && address + size >= page->address + page->size)
+        {
+
+            
+
+            if (!List_Delete(pages, index))
+            {
+                panic(PANIC_TEST_REACHABLE);
+                return false;
+            }
+            continue;
+        }
+
+         
+
+
+
+
 
     }
 
