@@ -96,8 +96,8 @@ bool List_Find(List* list, void* data, uint equal, uint* idx)
     {
         equLen = list->Unit;
     }
-    uint target = 0;
-    uint index  = 0;
+    uint index = 0;
+    bool find  = false;
     for (uint num = 0; num < list->Len; index++)
     {
         void* item = List_Get(list, index);
@@ -110,18 +110,18 @@ bool List_Find(List* list, void* data, uint equal, uint* idx)
             num++;
             continue;
         }
-        target = index;
+        find = true;
         break;
     }
-    if (target == 0)
+    if (!find)
     {
         return false;
     }
-    byte* addr = (byte*)(list->Data) + (target*list->Unit);
+    byte* addr = (byte*)(list->Data) + (index*list->Unit);
     mem_copy(data, addr, list->Unit);
     if (idx != NULL)
     {
-        *idx = target;
+        *idx = index;
     }
     return true;
 }
