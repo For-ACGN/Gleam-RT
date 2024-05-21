@@ -61,10 +61,11 @@ typedef _Bool bool;
 #endif
 
 // reference panic from Go
-#define PANIC_UNREACHABLE_CODE 0x00000001
+#define PANIC_UNREACHABLE_CODE 0x00000000
+#define PANIC_REACHABLE_TEST   0x00001000
 
 #ifndef panic
-#define panic(val) (*(int*)(0x00000000) = val)
+#define panic(val) (*(int*)(val) = 0)
 #endif
 
 #endif // C_TYPES_H
