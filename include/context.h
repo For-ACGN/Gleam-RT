@@ -24,6 +24,7 @@ typedef struct {
     free_t    free;
 
     // runtime context data
+    uint32 PageSize;
     HANDLE Mutex;
 } Context;
 
