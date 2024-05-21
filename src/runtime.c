@@ -48,6 +48,7 @@ typedef struct {
     uintptr MainMemPage;
 
     // API addresses
+    GetSystemInfo_t         GetSystemInfo;
     VirtualAlloc_t          VirtualAlloc;
     VirtualFree_t           VirtualFree;
     VirtualProtect_t        VirtualProtect;
@@ -63,6 +64,7 @@ typedef struct {
     Hook Hooks[10];
 
     // runtime data
+    uint32 PageSize; // memory management
     HANDLE hProcess; // for simulate Sleep
     HANDLE Mutex;    // global mutex
 
@@ -164,10 +166,6 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         cleanRuntime(runtime);
         return (Runtime_M*)errCode;
     }
-    // clean context data in structure
-    uintptr ctxBegin = (uintptr)(&runtime->VirtualProtect);
-    uintptr ctxSize  = (uintptr)(&runtime->ReleaseMutex) - ctxBegin;
-    RandBuf((byte*)ctxBegin, (int64)ctxSize);
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
@@ -218,6 +216,7 @@ static bool initRuntimeAPI(Runtime* runtime)
     winapi list[] =
 #ifdef _WIN64
     {
+        { 0x2A9C7D79595F39B2, 0x11FB7144E3CF94BD }, // GetSystemInfo
         { 0x6AC498DF641A4FCB, 0xFF3BB21B9BA46CEA }, // VirtualAlloc
         { 0xAC150252A6CA3960, 0x12EFAEA421D60C3E }, // VirtualFree
         { 0xEA5B0C76C7946815, 0x8846C203C35DE586 }, // VirtualProtect
@@ -231,6 +230,7 @@ static bool initRuntimeAPI(Runtime* runtime)
     };
 #elif _WIN32
     {
+        { 0xD7792A53, 0x6DDE32BA }, // GetSystemInfo
         { 0xB47741D5, 0x8034C451 }, // VirtualAlloc
         { 0xF76A2ADE, 0x4D8938BD }, // VirtualFree
         { 0xB2AC456D, 0x2A690F63 }, // VirtualProtect
@@ -253,17 +253,17 @@ static bool initRuntimeAPI(Runtime* runtime)
         }
         list[i].address = address;
     }
-    
-    runtime->VirtualAlloc          = (VirtualAlloc_t         )(list[0].address);
-    runtime->VirtualFree           = (VirtualFree_t          )(list[1].address);
-    runtime->VirtualProtect        = (VirtualProtect_t       )(list[2].address);
-    runtime->FlushInstructionCache = (FlushInstructionCache_t)(list[3].address);
-    runtime->CreateMutexA          = (CreateMutexA_t         )(list[4].address);
-    runtime->ReleaseMutex          = (ReleaseMutex_t         )(list[5].address);
-    runtime->WaitForSingleObject   = (WaitForSingleObject_t  )(list[6].address);
-    runtime->DuplicateHandle       = (DuplicateHandle_t      )(list[7].address);
-    runtime->CloseHandle           = (CloseHandle_t          )(list[8].address);
-    runtime->GetProcAddress        = (GetProcAddress_t       )(list[9].address);
+    runtime->GetSystemInfo         = (GetSystemInfo_t        )(list[0x00].address);
+    runtime->VirtualAlloc          = (VirtualAlloc_t         )(list[0x01].address);
+    runtime->VirtualFree           = (VirtualFree_t          )(list[0x02].address);
+    runtime->VirtualProtect        = (VirtualProtect_t       )(list[0x03].address);
+    runtime->FlushInstructionCache = (FlushInstructionCache_t)(list[0x04].address);
+    runtime->CreateMutexA          = (CreateMutexA_t         )(list[0x05].address);
+    runtime->ReleaseMutex          = (ReleaseMutex_t         )(list[0x06].address);
+    runtime->WaitForSingleObject   = (WaitForSingleObject_t  )(list[0x07].address);
+    runtime->DuplicateHandle       = (DuplicateHandle_t      )(list[0x08].address);
+    runtime->CloseHandle           = (CloseHandle_t          )(list[0x09].address);
+    runtime->GetProcAddress        = (GetProcAddress_t       )(list[0x0A].address);
     return true;
 }
 
@@ -351,6 +351,11 @@ static uint initRuntimeEnvironment(Runtime* runtime)
     runtime->Mutex    = NULL;
     runtime->MemoryTracker = NULL;
     runtime->ThreadTracker = NULL;
+
+
+
+
+
     // duplicate current process handle
     HANDLE dupHandle;
     if (!runtime->DuplicateHandle(
@@ -372,13 +377,13 @@ static uint initRuntimeEnvironment(Runtime* runtime)
     Context context = {
         .MainMemPage = runtime->MainMemPage,
 
-        .VirtualAlloc          = runtime->VirtualAlloc,
-        .VirtualFree           = runtime->VirtualFree,
-        .VirtualProtect        = runtime->VirtualProtect,
-        .ReleaseMutex          = runtime->ReleaseMutex,
-        .WaitForSingleObject   = runtime->WaitForSingleObject,
-        .DuplicateHandle       = runtime->DuplicateHandle,
-        .CloseHandle           = runtime->CloseHandle,
+        .VirtualAlloc        = runtime->VirtualAlloc,
+        .VirtualFree         = runtime->VirtualFree,
+        .VirtualProtect      = runtime->VirtualProtect,
+        .ReleaseMutex        = runtime->ReleaseMutex,
+        .WaitForSingleObject = runtime->WaitForSingleObject,
+        .DuplicateHandle     = runtime->DuplicateHandle,
+        .CloseHandle         = runtime->CloseHandle,
 
         .malloc  = &RT_malloc,
         .realloc = &RT_realloc,
