@@ -5,7 +5,8 @@
 
 /* 
 * Documents:
-* https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getprocaddress
+* https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
+* https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsysteminfo
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualfree
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualprotect
@@ -17,6 +18,7 @@
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthreadid
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminatethread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-flushinstructioncache
+* https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getprocaddress
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createmutexa
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-releasemutex
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
@@ -31,6 +33,19 @@ typedef uint    HMODULE;
 typedef uint    HANDLE;
 typedef HANDLE* LPHANDLE;
 typedef byte*   LPCSTR;
+
+typedef struct {
+    uint32  dwOEMID;
+    uint32  dwPageSize;
+    uintptr lpMinimumApplicationAddress;
+    uintptr lpMaximumApplicationAddress;
+    uintptr dwActiveProcessorMask;
+    uint32  dwNumberOfProcessors;
+    uint32  dwProcessorType;
+    uint32  dwAllocationGranularity;
+    uint16  wProcessorLevel;
+    uint16  wProcessorRevision;
+} SYSTEM_INFO;
 
 #define CURRENT_PROCESS (HANDLE)(-1)
 #define CURRENT_THREAD  (HANDLE)(-2)
@@ -58,9 +73,9 @@ typedef byte*   LPCSTR;
 
 #endif // _WINDOWS_
 
-typedef uintptr (*GetProcAddress_t)
+typedef void (*GetSystemInfo_t)
 (
-    HMODULE hModule, LPCSTR lpProcName
+    SYSTEM_INFO* lpSystemInfo
 );
 
 typedef uintptr (*VirtualAlloc_t)
@@ -114,6 +129,11 @@ typedef bool (*TerminateThread_t)
 typedef bool (*FlushInstructionCache_t)
 (
     HANDLE hProcess, uintptr lpBaseAddress, uint dwSize
+);
+
+typedef uintptr (*GetProcAddress_t)
+(
+    HMODULE hModule, LPCSTR lpProcName
 );
 
 typedef HANDLE (*CreateMutexA_t)
