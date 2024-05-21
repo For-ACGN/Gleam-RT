@@ -6,6 +6,7 @@
 #include "context.h"
 
 typedef void* (*MemAlloc_t)(uint size);
+typedef void* (*MemRealloc_t)(void* address, uint size);
 typedef bool  (*MemFree_t)(void* address);
 typedef bool  (*MemEncrypt_t)();
 typedef bool  (*MemDecrypt_t)();
@@ -17,6 +18,7 @@ typedef struct {
     VirtualProtect_t VirtualProtect;
 
     MemAlloc_t   MemAlloc;
+    MemRealloc_t MemRealloc;
     MemFree_t    MemFree;
     MemEncrypt_t MemEncrypt;
     MemDecrypt_t MemDecrypt;
