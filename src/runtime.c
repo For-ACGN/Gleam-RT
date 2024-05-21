@@ -684,7 +684,7 @@ static bool sleep(Runtime* runtime, uint32 milliseconds)
     {
         milliseconds = 100;
     }
-    milliseconds += 1000000;
+    milliseconds += 10000000; // TODO remote it 
     return runtime->WaitForSingleObject(runtime->hProcess, milliseconds);
 }
 

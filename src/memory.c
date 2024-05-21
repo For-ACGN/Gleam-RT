@@ -350,7 +350,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
         {
             if (!deletePage(tracker, page, index))
             {
-                panic(PANIC_TEST_REACHABLE);
+                panic(PANIC_REACHABLE_TEST);
                 return false;
             }
             continue;
@@ -367,7 +367,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
                 RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
                 if (!List_Insert(pages, &pageFront))
                 {
-                    panic(PANIC_TEST_REACHABLE);
+                    panic(PANIC_REACHABLE_TEST);
                     return false;
                 }
             }
@@ -380,14 +380,14 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
                 RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
                 if (!List_Insert(pages, &pageBack))
                 {
-                    panic(PANIC_TEST_REACHABLE);
+                    panic(PANIC_REACHABLE_TEST);
                     return false;
                 }
             }
 
             if (!List_Delete(pages, index))
             {
-                panic(PANIC_TEST_REACHABLE);
+                panic(PANIC_REACHABLE_TEST);
                 return false;
             }
 
@@ -406,7 +406,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
                 RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
                 if (!List_Insert(pages, &pageBack))
                 {
-                    panic(PANIC_TEST_REACHABLE);
+                    panic(PANIC_REACHABLE_TEST);
                     return false;
                 }
             }
@@ -415,7 +415,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
 
             if (!List_Delete(pages, index))
             {
-                panic(PANIC_TEST_REACHABLE);
+                panic(PANIC_REACHABLE_TEST);
                 return false;
             }
 
@@ -423,7 +423,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
 
             // if (!decommitPage(tracker, address, pageBak.address - address))
             // {
-            //     panic(PANIC_TEST_REACHABLE);
+            //     panic(PANIC_REACHABLE_TEST);
             //     return false;
             // }
 
@@ -431,7 +431,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
 
             continue;
 
-            // panic(PANIC_TEST_REACHABLE);
+            // panic(PANIC_REACHABLE_TEST);
         }
 
         if (address >= page->address && address <= page->address + page->size && address + size >= page->address + page->size)
@@ -444,7 +444,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
                 RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
                 if (!List_Insert(pages, &pageFront))
                 {
-                    panic(PANIC_TEST_REACHABLE);
+                    panic(PANIC_REACHABLE_TEST);
                     return false;
                 }
             }
@@ -452,14 +452,14 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
             memoryPage pageBak = *page;
             if (!List_Delete(pages, index))
             {
-                panic(PANIC_TEST_REACHABLE);
+                panic(PANIC_REACHABLE_TEST);
                 return false;
             }
 
 
             // if (!decommitPage(tracker, pageBak.address + pageBak.size, size - (pageBak.address + pageBak.size - address)))
             // {
-            //     panic(PANIC_TEST_REACHABLE);
+            //     panic(PANIC_REACHABLE_TEST);
             //     return false;
             // }
 
@@ -522,13 +522,13 @@ static bool deletePage(MemoryTracker* tracker, memoryPage* page, uint index)
     // try to fill random data before call VirtualFree
     if (!adjustPageProtect(tracker, page))
     {
-        panic(PANIC_TEST_REACHABLE);
+        panic(PANIC_REACHABLE_TEST);
         return false;
     }
     RandBuf((byte*)(page->address), page->size);
     if (!recoverPageProtect(tracker, page))
     {
-        panic(PANIC_TEST_REACHABLE);
+        panic(PANIC_REACHABLE_TEST);
         return false;
     }
     // remove page in page list
