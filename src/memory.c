@@ -15,16 +15,20 @@
     #define METHOD_ADDR_VIRTUAL_ALLOC   0x7FFFFFFFFFFFFF00
     #define METHOD_ADDR_VIRTUAL_FREE    0x7FFFFFFFFFFFFF01
     #define METHOD_ADDR_VIRTUAL_PROTECT 0x7FFFFFFFFFFFFF02
-    #define METHOD_ADDR_ENCRYPT         0x7FFFFFFFFFFFFF03
-    #define METHOD_ADDR_DECRYPT         0x7FFFFFFFFFFFFF04
-    #define METHOD_ADDR_CLEAN           0x7FFFFFFFFFFFFF05
+    #define METHOD_ADDR_MEM_ALLOC       0x7FFFFFFFFFFFFF03
+    #define METHOD_ADDR_MEM_FREE        0x7FFFFFFFFFFFFF04
+    #define METHOD_ADDR_ENCRYPT         0x7FFFFFFFFFFFFF05
+    #define METHOD_ADDR_DECRYPT         0x7FFFFFFFFFFFFF06
+    #define METHOD_ADDR_CLEAN           0x7FFFFFFFFFFFFF07
 #elif _WIN32
     #define METHOD_ADDR_VIRTUAL_ALLOC   0x7FFFFF00
     #define METHOD_ADDR_VIRTUAL_FREE    0x7FFFFF01
     #define METHOD_ADDR_VIRTUAL_PROTECT 0x7FFFFF02
-    #define METHOD_ADDR_ENCRYPT         0x7FFFFF03
-    #define METHOD_ADDR_DECRYPT         0x7FFFFF04
-    #define METHOD_ADDR_CLEAN           0x7FFFFF05
+    #define METHOD_ADDR_MEM_ALLOC       0x7FFFFF03
+    #define METHOD_ADDR_MEM_FREE        0x7FFFFF04
+    #define METHOD_ADDR_ENCRYPT         0x7FFFFF05
+    #define METHOD_ADDR_DECRYPT         0x7FFFFF06
+    #define METHOD_ADDR_CLEAN           0x7FFFFF07
 #endif
 
 typedef struct {
@@ -60,6 +64,7 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 bool    MT_VirtualFree(uintptr address, uint size, uint32 type);
 bool    MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old);
 void*   MT_MemAlloc(uint size);
+void*   MT_MemRealloc(void* address, uint size);
 bool    MT_MemFree(void* address);
 bool    MT_Encrypt();
 bool    MT_Decrypt();
@@ -126,6 +131,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->VirtualProtect = (VirtualProtect_t)(&MT_VirtualProtect);
     // methods for runtime
     module->MemAlloc   = &MT_MemAlloc;
+    module->MemRealloc = &MT_MemRealloc;
     module->MemFree    = &MT_MemFree;
     module->MemEncrypt = &MT_Encrypt;
     module->MemDecrypt = &MT_Decrypt;
@@ -153,6 +159,8 @@ static bool updateTrackerPointers(MemoryTracker* tracker)
         { &MT_VirtualAlloc,   METHOD_ADDR_VIRTUAL_ALLOC },
         { &MT_VirtualFree,    METHOD_ADDR_VIRTUAL_FREE },
         { &MT_VirtualProtect, METHOD_ADDR_VIRTUAL_PROTECT },
+        { &MT_MemAlloc,       METHOD_ADDR_MEM_ALLOC },
+        { &MT_MemFree,        METHOD_ADDR_MEM_FREE },
         { &MT_Encrypt,        METHOD_ADDR_ENCRYPT },
         { &MT_Decrypt,        METHOD_ADDR_DECRYPT },
         { &MT_Clean,          METHOD_ADDR_CLEAN },
@@ -691,22 +699,58 @@ static bool recoverPageProtect(MemoryTracker* tracker, memoryPage* page)
 __declspec(noinline)
 void* MT_MemAlloc(uint size)
 {
-    // ensure the size is a multiple of 4096(memory page size).
+    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_MEM_ALLOC);
+
+    // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
-    size = ((size / 4096) + 1) * 4096;
-    uintptr addr = MT_VirtualAlloc(0, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    uint pageSize = ((size / tracker->PageSize) + 1) * tracker->PageSize;
+    uintptr addr = MT_VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
     }
-    RandBuf((byte*)addr, (int64)size);
-    return (void*)addr;
+    // store the size at the head of the memory page
+    // ensure the memory address is 16 bytes aligned
+    byte* address = (byte*)addr;
+    RandBuf(address, 16);
+    mem_copy(address, &size, sizeof(uint));
+    return (void*)(addr + 16);
+}
+
+__declspec(noinline)
+void* MT_MemRealloc(void* address, uint size)
+{
+    if (address == NULL)
+    {
+        return MT_MemAlloc(size);
+    }
+    // allocate new memory
+    void* newAddr = MT_MemAlloc(size);
+    if (newAddr == NULL)
+    {
+        return NULL;
+    }
+    // copy data to new memory
+    uint oldSize = *(uint*)((uintptr)(address)-16);
+    mem_copy(newAddr, address, oldSize);
+    // free old memory
+    if (!MT_MemFree(address))
+    {
+        return NULL;
+    }
+    return newAddr;
 }
 
 __declspec(noinline)
 bool MT_MemFree(void* address)
 {
-    return MT_VirtualFree((uintptr)address, 0, MEM_RELEASE);
+    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_MEM_FREE);
+
+    // clean the buffer data before call VirtualFree.
+    uintptr addr = (uintptr)(address)-16;
+    uint    size = *(uint*)addr;
+    mem_clean((byte*)addr, size);
+    return tracker->VirtualFree(addr, 0, MEM_RELEASE);
 }
 
 __declspec(noinline)
