@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "c_types.h"
 #include "windows_t.h"
 #include "lib_memory.h"
@@ -68,7 +70,7 @@ typedef struct {
     HANDLE hProcess; // for simulate Sleep
     HANDLE Mutex;    // global mutex
 
-    // sub modules
+    // submodules
     MemoryTracker_M* MemoryTracker;
     ThreadTracker_M* ThreadTracker;
 } Runtime;
@@ -292,7 +294,14 @@ static bool recoverPageProtect(Runtime* runtime, uint32* old)
             return false;
         }
     }
-    return runtime->FlushInstructionCache(CURRENT_PROCESS, begin, size);
+    if (!runtime->FlushInstructionCache(CURRENT_PROCESS, begin, size))
+    {
+        return false;
+    }
+    // clean useless API functions in runtime structure
+    RandBuf(&runtime->VirtualProtect,        sizeof(uintptr));
+    RandBuf(&runtime->FlushInstructionCache, sizeof(uintptr));
+    return true;
 }
 
 static bool updateRuntimePointers(Runtime* runtime)
@@ -351,11 +360,10 @@ static uint initRuntimeEnvironment(Runtime* runtime)
     runtime->Mutex    = NULL;
     runtime->MemoryTracker = NULL;
     runtime->ThreadTracker = NULL;
-
-
-
-
-
+    // get memory page size
+    SYSTEM_INFO sys_info;
+    runtime->GetSystemInfo(&sys_info);
+    runtime->PageSize = sys_info.dwPageSize;
     // duplicate current process handle
     HANDLE dupHandle;
     if (!runtime->DuplicateHandle(
@@ -402,6 +410,9 @@ static uint initRuntimeEnvironment(Runtime* runtime)
     {
         return errCode;
     }
+    // clean useless API functions in runtime structure
+    RandBuf(&runtime->GetSystemInfo, sizeof(uintptr));
+    RandBuf(&runtime->CreateMutexA,  sizeof(uintptr));
     return 0x00;
 }
 
@@ -804,6 +815,9 @@ void* RT_malloc(uint size)
     {
         return NULL;
     }
+
+    printf("rt_malloc: 0x%llX, %llu\n", addr, size);
+
     // store the size at the head of the memory page
     // ensure the memory address is 16 bytes aligned
     byte* address = (byte*)addr;
@@ -840,6 +854,8 @@ __declspec(noinline)
 bool RT_free(void* address)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_FREE);
+
+    printf("rt_free: 0x%llX\n", (uintptr)address);
 
     // clean the buffer data before call VirtualFree.
     uintptr addr = (uintptr)(address)-16;
