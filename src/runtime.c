@@ -37,6 +37,8 @@
     #define METHOD_ADDR_FREE   0x7FFFFFD1
 #endif
 
+#define MAIN_MEM_PAGE_SIZE 4096
+
 // for IAT hooks
 typedef struct {
     uintptr Original;
@@ -201,13 +203,13 @@ static uintptr allocateRuntimeMemory()
     {
         return NULL;
     }
-    uintptr address = virtualAlloc(0, 4096, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
-    if (address == NULL)
+    uintptr addr = virtualAlloc(0, MAIN_MEM_PAGE_SIZE, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    if (addr == NULL)
     {
         return NULL;
     }
-    RandBuf((byte*)address, 4096);
-    return address;
+    RandBuf((byte*)addr, MAIN_MEM_PAGE_SIZE);
+    return addr;
 }
 
 static bool initRuntimeAPI(Runtime* runtime)
@@ -397,7 +399,8 @@ static uint initRuntimeEnvironment(Runtime* runtime)
         .realloc = &RT_realloc,
         .free    = &RT_free,
 
-        .Mutex = runtime->Mutex,
+        .PageSize = runtime->PageSize,
+        .Mutex    = runtime->Mutex,
     };
     uint errCode;
     errCode = initMemoryTracker(runtime, &context);
@@ -498,7 +501,7 @@ static void cleanRuntime(Runtime* runtime)
 
     // must copy api address before call RandBuf
     VirtualFree_t virtualFree = runtime->VirtualFree;
-    RandBuf((byte*)runtime->MainMemPage, 4096);
+    RandBuf((byte*)runtime->MainMemPage, MAIN_MEM_PAGE_SIZE);
     if (virtualFree != NULL)
     {
         virtualFree(runtime->MainMemPage, 0, MEM_RELEASE);
@@ -807,9 +810,9 @@ void* RT_malloc(uint size)
 {
     Runtime* runtime = getRuntimePointer(METHOD_ADDR_MALLOC);
 
-    // ensure the size is a multiple of 4096(memory page size).
+    // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
-    size = ((size / 4096) + 1) * 4096;
+    size = ((size / runtime->PageSize) + 1) * runtime->PageSize;
     uintptr addr = runtime->VirtualAlloc(0, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {

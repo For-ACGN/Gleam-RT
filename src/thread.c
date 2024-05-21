@@ -49,13 +49,13 @@ typedef struct {
     DuplicateHandle_t     DuplicateHandle;
     CloseHandle_t         CloseHandle;
 
+    // runtime data
+    HANDLE Mutex; // global mutex
+
     // store all threads info
     List Threads;
     byte ThreadsKey[CRYPTO_KEY_SIZE];
     byte ThreadsIV [CRYPTO_IV_SIZE];
-
-    // global mutex
-    HANDLE Mutex;
 } ThreadTracker;
 
 // methods about thread tracker
@@ -227,6 +227,8 @@ static bool updateTrackerPointer(ThreadTracker* tracker, void* method, uintptr a
 
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
 {
+    // copy runtime context data
+    tracker->Mutex = context->Mutex;
     // initialize thread list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -242,12 +244,7 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
     {
         return false;
     }
-    if (!addThread(tracker, threadID, CURRENT_THREAD))
-    {
-        return false;
-    }
-    tracker->Mutex = context->Mutex;
-    return true;
+    return addThread(tracker, threadID, CURRENT_THREAD);
 }
 
 // updateTrackerPointers will replace hard encode address to the actual address.

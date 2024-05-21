@@ -45,13 +45,14 @@ typedef struct {
     ReleaseMutex_t        ReleaseMutex;
     WaitForSingleObject_t WaitForSingleObject;
 
+    // runtime data
+    uint32 PageSize; // memory page size
+    HANDLE Mutex;    // global mutex
+
     // store memory pages
     List Pages;
     byte PagesKey[CRYPTO_KEY_SIZE];
     byte PagesIV [CRYPTO_IV_SIZE];
-
-    // global mutex
-    HANDLE Mutex;
 } MemoryTracker;
 
 // methods about memory tracker
@@ -189,6 +190,9 @@ static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr a
 
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 {
+    // copy runtime context data
+    tracker->PageSize = context->PageSize;
+    tracker->Mutex    = context->Mutex;
     // initialize memory page list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -198,7 +202,6 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     List_Init(&tracker->Pages, &ctx, sizeof(memoryPage));
     RandBuf(&tracker->PagesKey[0], CRYPTO_KEY_SIZE);
     RandBuf(&tracker->PagesIV[0], CRYPTO_IV_SIZE);
-    tracker->Mutex = context->Mutex;
     return true;
 }
 
