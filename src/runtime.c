@@ -173,8 +173,9 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
-    module->Alloc = runtime->MemoryTracker->MemAlloc;
-    module->Free  = runtime->MemoryTracker->MemFree;
+    module->MemAlloc   = runtime->MemoryTracker->MemAlloc;
+    module->MemRealloc = runtime->MemoryTracker->MemRealloc;
+    module->MemFree    = runtime->MemoryTracker->MemFree;
     // for IAT hooks
     module->GetProcAddress         = &RT_GetProcAddress;
     module->GetProcAddressByName   = &RT_GetProcAddressByName;
@@ -812,8 +813,8 @@ void* RT_malloc(uint size)
 
     // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
-    size = ((size / runtime->PageSize) + 1) * runtime->PageSize;
-    uintptr addr = runtime->VirtualAlloc(0, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    uint pageSize = ((size / runtime->PageSize) + 1) * runtime->PageSize;
+    uintptr addr = runtime->VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
@@ -843,7 +844,7 @@ void* RT_realloc(void* address, uint size)
         return NULL;
     }
     // copy data to new memory
-    uint oldSize = *(uint*)((uintptr)(address)-16) - 16;
+    uint oldSize = *(uint*)((uintptr)(address)-16);
     mem_copy(newAddr, address, oldSize);
     // free old memory
     if (!RT_free(address))
