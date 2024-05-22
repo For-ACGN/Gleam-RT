@@ -34,12 +34,16 @@
 typedef struct {
     uintptr address;
     uint    size;
+} memRegion;
+
+typedef struct {
+    uintptr address;
     uint32  type;
     uint32  protect;
 
     byte key[CRYPTO_KEY_SIZE];
     byte iv [CRYPTO_IV_SIZE];
-} memoryPage;
+} memPage;
 
 typedef struct {
     // API addresses
@@ -52,6 +56,11 @@ typedef struct {
     // runtime data
     uint32 PageSize; // memory page size
     HANDLE Mutex;    // global mutex
+
+    // store memory regions
+    List Regions;
+    byte RegionsKey[CRYPTO_KEY_SIZE];
+    byte RegionsIV [CRYPTO_IV_SIZE];
 
     // store memory pages
     List Pages;
@@ -75,21 +84,23 @@ static bool   updateTrackerPointers(MemoryTracker* tracker);
 static bool   updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
 static bool   initTrackerEnvironment(MemoryTracker* tracker, Context* context);
 static bool   allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
+static bool   reserveRegion(MemoryTracker* tracker, uintptr address, uint size);
+static bool   commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
 static bool   decommitPage(MemoryTracker* tracker, uintptr address, uint size);
 static bool   decommitPageZeroSize(MemoryTracker* tracker, uintptr address);
-static bool   deletePage(MemoryTracker* tracker, memoryPage* page, uint index);
+static bool   deletePage(MemoryTracker* tracker, memPage* page, uint index);
 static bool   releasePage(MemoryTracker* tracker, uintptr address, uint size);
 static bool   protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageTypeWriteable(uint32 type);
 static bool   isPageProtectWriteable(uint32 protect);
-static bool   adjustPageProtect(MemoryTracker* tracker, memoryPage* page);
-static bool   recoverPageProtect(MemoryTracker* tracker, memoryPage* page);
-static bool   encryptPage(MemoryTracker* tracker, memoryPage* page);
-static bool   decryptPage(MemoryTracker* tracker, memoryPage* page);
-static void   deriveKey(MemoryTracker* tracker, memoryPage* page, byte* key);
-static bool   cleanPage(MemoryTracker* tracker, memoryPage* page);
+static bool   adjustPageProtect(MemoryTracker* tracker, memPage* page);
+static bool   recoverPageProtect(MemoryTracker* tracker, memPage* page);
+static bool   encryptPage(MemoryTracker* tracker, memPage* page);
+static bool   decryptPage(MemoryTracker* tracker, memPage* page);
+static void   deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
+static bool   cleanPage(MemoryTracker* tracker, memPage* page);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -201,15 +212,14 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     // copy runtime context data
     tracker->PageSize = context->PageSize;
     tracker->Mutex    = context->Mutex;
-    // initialize memory page list
+    // initialize memory region and page list
     List_Ctx ctx = {
         .malloc  = context->malloc,
         .realloc = context->realloc,
         .free    = context->free,
     };
-    List_Init(&tracker->Pages, &ctx, sizeof(memoryPage));
-    RandBuf(&tracker->PagesKey[0], CRYPTO_KEY_SIZE);
-    RandBuf(&tracker->PagesIV[0], CRYPTO_IV_SIZE);
+    List_Init(&tracker->Regions, &ctx, sizeof(memRegion));
+    List_Init(&tracker->Pages,   &ctx, sizeof(memPage));
     return true;
 }
 
@@ -268,10 +278,37 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
         return true;
     }
     printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
-    memoryPage page = {
+    switch (type&0xF000)
+    {
+    case MEM_COMMIT:
+        return commitPage(tracker, address, size, type, protect);
+    case MEM_RESERVE:
+        return reserveRegion(tracker, address, size);
+    case MEM_COMMIT|MEM_RESERVE:
+        if (!reserveRegion(tracker, address, size))
+        {
+            return false;
+        }
+        return commitPage(tracker, address, size, type, protect);
+    default:
+        return false;
+    }
+}
+
+static bool reserveRegion(MemoryTracker* tracker, uintptr address, uint size)
+{
+    memRegion region = {
         .address = address,
         .size    = size,
-        .type    = type,
+    };
+    return List_Insert(&tracker->Regions, &region);
+}
+
+static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect)
+{
+    memPage page = {
+        .address = address,
+        .type = type,
         .protect = protect,
     };
     RandBuf(&page.key[0], CRYPTO_KEY_SIZE);
@@ -345,7 +382,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     // scan memory pages that in this address range
     List* pages = &tracker->Pages;
     uint  last  = pages->Last;
-    memoryPage* page;
+    memPage* page;
     for (uint index = 0; index < last; index++)
     {
         page = List_Get(pages, index);
@@ -370,7 +407,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
         {
 
             // process split memory page
-            memoryPage pageFront = *page;
+            memPage pageFront = *page;
             pageFront.size = address - page->address;
             if (pageFront.size != 0)
             {
@@ -382,7 +419,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
                     return false;
                 }
             }
-            memoryPage pageBack = *page;
+            memPage pageBack = *page;
             pageBack.address = address + size;
             pageBack.size -= (pageFront.size + size);
             if (pageBack.size != 0)
@@ -408,7 +445,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
 
         if (address <= page->address && address + size >= page->address  && address + size <= page->address + page->size)
         {
-            memoryPage pageBack = *page;
+            memPage pageBack = *page;
             pageBack.address = address + size;
             pageBack.size -= (address + size - page->address);
             if (pageBack.size != 0)
@@ -422,7 +459,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
                 }
             }
        
-            memoryPage pageBak = *page;
+            memPage pageBak = *page;
 
             if (!List_Delete(pages, index))
             {
@@ -447,7 +484,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
 
         if (address >= page->address && address <= page->address + page->size && address + size >= page->address + page->size)
         {
-            memoryPage pageFront = *page;
+            memPage pageFront = *page;
             pageFront.size = address - page->address;
             if (pageFront.size != 0)
             {
@@ -460,7 +497,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
                 }
             }
          
-            memoryPage pageBak = *page;
+            memPage pageBak = *page;
             if (!List_Delete(pages, index))
             {
                 panic(PANIC_REACHABLE_TEST);
@@ -499,7 +536,7 @@ static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
     List* pages = &tracker->Pages;
     uint  index = 0;
     bool  find  = false;
-    memoryPage* page;
+    memPage* page;
     for (uint num = 0; num < pages->Len; index++)
     {
         page = List_Get(pages, index);
@@ -527,7 +564,7 @@ static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
     return deletePage(tracker, page, index);
 }
 
-static bool deletePage(MemoryTracker* tracker, memoryPage* page, uint index)
+static bool deletePage(MemoryTracker* tracker, memPage* page, uint index)
 {
     List* pages = &tracker->Pages;
     // try to fill random data before call VirtualFree
@@ -553,7 +590,7 @@ static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
         return false;
     }
     List* pages = &tracker->Pages;
-    memoryPage page = {
+    memPage page = {
         .address = address,
     };
     uint index = 0;
@@ -613,7 +650,7 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect)
 {
     List* pages = &tracker->Pages;
-    memoryPage page = {
+    memPage page = {
         .address = address,
     };
     uint index;
@@ -622,7 +659,7 @@ static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect)
         return true;
     }
     // update protect in page list
-    memoryPage* p = List_Get(pages, index);
+    memPage* p = List_Get(pages, index);
     if (p == NULL)
     {
         return false;
@@ -675,7 +712,7 @@ static bool isPageProtectWriteable(uint32 protect)
 }
 
 // adjustPageProtect is used to make sure this page is writeable.
-static bool adjustPageProtect(MemoryTracker* tracker, memoryPage* page)
+static bool adjustPageProtect(MemoryTracker* tracker, memPage* page)
 {
     if (isPageProtectWriteable(page->protect))
     {
@@ -686,7 +723,7 @@ static bool adjustPageProtect(MemoryTracker* tracker, memoryPage* page)
 }
 
 // recoverPageProtect is used to recover to prevent protect.
-static bool recoverPageProtect(MemoryTracker* tracker, memoryPage* page)
+static bool recoverPageProtect(MemoryTracker* tracker, memPage* page)
 {
     if (isPageProtectWriteable(page->protect))
     {
@@ -762,7 +799,7 @@ bool MT_Encrypt()
     uint  index = 0;
     for (uint num = 0; num < pages->Len; index++)
     {
-        memoryPage* page = List_Get(pages, index);
+        memPage* page = List_Get(pages, index);
         if (page->address == NULL)
         {
             continue;
@@ -776,10 +813,13 @@ bool MT_Encrypt()
 
     // TODO encrypt page list
 
+    // RandBuf(&tracker->PagesKey[0], CRYPTO_KEY_SIZE);
+    // RandBuf(&tracker->PagesIV[0], CRYPTO_IV_SIZE);
+
     return true;
 }
 
-static bool encryptPage(MemoryTracker* tracker, memoryPage* page)
+static bool encryptPage(MemoryTracker* tracker, memPage* page)
 {
     if (!isPageTypeWriteable(page->type))
     {
@@ -821,7 +861,7 @@ bool MT_Decrypt()
     uint  index = pages->Last;
     for (uint num = 0; num < pages->Len; index--)
     {
-        memoryPage* page = List_Get(pages, index);
+        memPage* page = List_Get(pages, index);
         if (page->address == NULL)
         {
             continue;
@@ -835,7 +875,7 @@ bool MT_Decrypt()
     return true;
 }
 
-static bool decryptPage(MemoryTracker* tracker, memoryPage* page)
+static bool decryptPage(MemoryTracker* tracker, memPage* page)
 {
     if (!isPageTypeWriteable(page->type))
     {
@@ -852,7 +892,7 @@ static bool decryptPage(MemoryTracker* tracker, memoryPage* page)
     return recoverPageProtect(tracker, page);
 }
 
-static void deriveKey(MemoryTracker* tracker, memoryPage* page, byte* key)
+static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key)
 {
     uintptr addr = (uintptr)page;
     addr += ((uintptr)tracker) << (sizeof(uintptr)/2);
@@ -871,7 +911,7 @@ bool MT_Clean()
     uint  index = 0;
     for (uint num = 0; num < pages->Len; index++)
     {
-        memoryPage* page = List_Get(pages, index);
+        memPage* page = List_Get(pages, index);
         if (page->address == NULL)
         {
             continue;
@@ -892,7 +932,7 @@ bool MT_Clean()
     return true;
 }
 
-static bool cleanPage(MemoryTracker* tracker, memoryPage* page)
+static bool cleanPage(MemoryTracker* tracker, memPage* page)
 {
     if (!isPageTypeWriteable(page->type))
     {
