@@ -20,6 +20,10 @@ typedef struct {
     uint  Unit;
 } List;
 
+// If an Insert or Delete operation is performed  
+// while traversing the List, the historical status 
+// must be recorded before traversing.
+
 // List_Init is used to initialize a mesh dynamic list.
 void List_Init(List* list, List_Ctx* ctx, uint unit);
 
@@ -42,7 +46,7 @@ bool List_Find(List* list, void* data, uint equal, uint* index);
 // It will change capacity, it can be smaller than old.
 bool List_Resize(List* list, uint cap);
 
-// List_Size is used to the list buffer size.
+// List_Size is used to calculate the buffer usage.
 uint List_Size(List* list);
 
 // List_Free is used to free list buffer.
