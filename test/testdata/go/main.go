@@ -18,30 +18,35 @@ var (
 )
 
 func main() {
-	testWindowsAPI()
+	testRuntimeAPI()
 	testMemoryData()
 	testGoRoutine()
 	testLargeBuffer()
-
+	
 	for {
 		// wait go routine run test
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 		// trigger Gleam-RT Sleep
 		kernel32Sleep()
 	}
 }
 
-func testWindowsAPI() {
+func testRuntimeAPI() {
 	dll := syscall.NewLazyDLL("kernel32.dll")
 	hModule := syscall.Handle(dll.Handle())
 	GetProcAddress := dll.NewProc("GetProcAddress").Addr()
 	fmt.Printf("GetProcAddress: 0x%X\n", GetProcAddress)
-
+	
 	for _, proc := range []string{
 		"RT_GetProcAddressByName",
 		"RT_GetProcAddressByHash",
 		"RT_GetProcAddressOriginal",
 	} {
+		err := dll.NewProc(proc).Find()
+		if err != nil {
+			fmt.Println("[warning] failed to find runtime methods")
+			return
+		}
 		dllProcAddr := dll.NewProc(proc).Addr()
 		getProcAddr, err := syscall.GetProcAddress(hModule, proc)
 		checkError(err)
@@ -51,10 +56,10 @@ func testWindowsAPI() {
 		fmt.Printf("%s: 0x%X\n", proc, dllProcAddr)
 	}
 	fmt.Println()
-
+	
 	GetProcAddressOriginal, err := syscall.GetProcAddress(hModule, "RT_GetProcAddressOriginal")
 	checkError(err)
-
+	
 	// get original GetProcAddress
 	proc, err := syscall.BytePtrFromString("GetProcAddress")
 	checkError(err)
@@ -67,7 +72,7 @@ func testWindowsAPI() {
 	}
 	fmt.Printf("Original GetProcAddress: 0x%X\n", ret)
 	fmt.Printf("Hooked   GetProcAddress: 0x%X\n", GetProcAddress)
-
+	
 	// get original VirtualAlloc
 	proc, err = syscall.BytePtrFromString("VirtualAlloc")
 	checkError(err)
@@ -78,10 +83,10 @@ func testWindowsAPI() {
 	if ret == 0 {
 		log.Fatalln("failed to get GetProcAddress address")
 	}
-
+	
 	VirtualAlloc, err := syscall.GetProcAddress(hModule, "VirtualAlloc")
 	checkError(err)
-
+	
 	fmt.Printf("Original VirtualAlloc: 0x%X\n", ret)
 	fmt.Printf("Hooked   VirtualAlloc: 0x%X\n", VirtualAlloc)
 }
@@ -92,23 +97,23 @@ func testMemoryData() {
 	go func() {
 		localVar := 12121212
 		localStr := "hello GleamRT"
-
+		
 		for {
 			tid, _, _ := procGetCurrentThreadID.Call()
 			fmt.Println("Thread ID:", tid)
-
+			
 			fmt.Printf("global variable pointer: 0x%X\n", &globalVar)
 			fmt.Println("global variable value:  ", globalVar)
-
+			
 			fmt.Printf("local  variable pointer: 0x%X\n", &localVar)
 			fmt.Println("local  variable value:  ", localVar)
-
-			funcAddr := reflect.ValueOf(testWindowsAPI).Pointer()
+			
+			funcAddr := reflect.ValueOf(testRuntimeAPI).Pointer()
 			fmt.Printf("function instruction:      0x%X\n", funcAddr)
-
+			
 			inst := unsafe.Slice((*byte)(unsafe.Pointer(funcAddr)), 8)
 			fmt.Printf("function instruction data: %v\n", inst)
-
+			
 			time.Sleep(time.Second)
 			fmt.Println(localStr, "finish!")
 			fmt.Println()
