@@ -38,7 +38,6 @@ typedef struct {
 
 typedef struct {
     uintptr address;
-    uint32  type;
     uint32  protect;
 
     byte key[CRYPTO_KEY_SIZE];
@@ -85,12 +84,12 @@ static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr a
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context);
 static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
 static bool reserveRegion(MemoryTracker* tracker, uintptr address, uint size);
-static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
+static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect);
 static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 type);
 static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size);
 static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address);
-static bool deletePage(MemoryTracker* tracker, memPage* page, uint index);
 static bool releasePage(MemoryTracker* tracker, uintptr address, uint size);
+static bool deletePages(MemoryTracker* tracker, uintptr address, uint size);
 static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
 
 static uint32 replacePageProtect(uint32 protect);
@@ -284,7 +283,7 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     switch (type&0xF000)
     {
     case MEM_COMMIT:
-        return commitPage(tracker, address, size, type, protect);
+        return commitPage(tracker, address, size, protect);
     case MEM_RESERVE:
         return reserveRegion(tracker, address, size);
     case MEM_COMMIT|MEM_RESERVE:
@@ -292,7 +291,7 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
         {
             return false;
         }
-        return commitPage(tracker, address, size, type, protect);
+        return commitPage(tracker, address, size, protect);
     default:
         return false;
     }
@@ -307,7 +306,7 @@ static bool reserveRegion(MemoryTracker* tracker, uintptr address, uint size)
     return List_Insert(&tracker->Regions, &region);
 }
 
-static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect)
+static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect)
 {
     uint numPage = size / tracker->PageSize;
     if ((size % tracker->PageSize) != 0)
@@ -315,7 +314,6 @@ static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint3
         numPage++;
     }
     memPage page = {
-        .type    = type,
         .protect = protect,
     };
     for (uint i = 0; i < numPage; i++)
@@ -382,156 +380,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     {
         return decommitPageZeroSize(tracker, address);
     }
-    // scan memory pages that in this address range
-    List* pages = &tracker->Pages;
-    uint  last  = pages->Last;
-    memPage* page;
-    for (uint index = 0; index < last; index++)
-    {
-        page = List_Get(pages, index);
-        if (page->address == NULL)
-        {
-            continue;
-        }
-        if (!isPageTypeWriteable(page->type))
-        {
-            continue;
-        }
-        if (page->address >= address && page->address + page->size <= address + size)
-        {
-            if (!deletePage(tracker, page, index))
-            {
-                panic(PANIC_REACHABLE_TEST);
-                return false;
-            }
-            continue;
-        }
-        if (address >= page->address && address + size <= page->address + page->size)
-        {
-
-            // process split memory page
-            memPage pageFront = *page;
-            pageFront.size = address - page->address;
-            if (pageFront.size != 0)
-            {
-                RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
-                RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
-                if (!List_Insert(pages, &pageFront))
-                {
-                    panic(PANIC_REACHABLE_TEST);
-                    return false;
-                }
-            }
-            memPage pageBack = *page;
-            pageBack.address = address + size;
-            pageBack.size -= (pageFront.size + size);
-            if (pageBack.size != 0)
-            {
-                RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
-                RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
-                if (!List_Insert(pages, &pageBack))
-                {
-                    panic(PANIC_REACHABLE_TEST);
-                    return false;
-                }
-            }
-
-            if (!List_Delete(pages, index))
-            {
-                panic(PANIC_REACHABLE_TEST);
-                return false;
-            }
-
-            continue;
-        }
-   
-
-        if (address <= page->address && address + size >= page->address  && address + size <= page->address + page->size)
-        {
-            memPage pageBack = *page;
-            pageBack.address = address + size;
-            pageBack.size -= (address + size - page->address);
-            if (pageBack.size != 0)
-            {
-                RandBuf(&pageBack.key[0], CRYPTO_KEY_SIZE);
-                RandBuf(&pageBack.iv[0], CRYPTO_IV_SIZE);
-                if (!List_Insert(pages, &pageBack))
-                {
-                    panic(PANIC_REACHABLE_TEST);
-                    return false;
-                }
-            }
-       
-            memPage pageBak = *page;
-
-            if (!List_Delete(pages, index))
-            {
-                panic(PANIC_REACHABLE_TEST);
-                return false;
-            }
-
-            
-
-            // if (!decommitPage(tracker, address, pageBak.address - address))
-            // {
-            //     panic(PANIC_REACHABLE_TEST);
-            //     return false;
-            // }
-
-
-
-            continue;
-
-            // panic(PANIC_REACHABLE_TEST);
-        }
-
-        if (address >= page->address && address <= page->address + page->size && address + size >= page->address + page->size)
-        {
-            memPage pageFront = *page;
-            pageFront.size = address - page->address;
-            if (pageFront.size != 0)
-            {
-                RandBuf(&pageFront.key[0], CRYPTO_KEY_SIZE);
-                RandBuf(&pageFront.iv[0], CRYPTO_IV_SIZE);
-                if (!List_Insert(pages, &pageFront))
-                {
-                    panic(PANIC_REACHABLE_TEST);
-                    return false;
-                }
-            }
-         
-            memPage pageBak = *page;
-            if (!List_Delete(pages, index))
-            {
-                panic(PANIC_REACHABLE_TEST);
-                return false;
-            }
-
-
-            // if (!decommitPage(tracker, pageBak.address + pageBak.size, size - (pageBak.address + pageBak.size - address)))
-            // {
-            //     panic(PANIC_REACHABLE_TEST);
-            //     return false;
-            // }
-
-            
-            continue;
-        }
-    }
-
-    return true;
-    // try to fill random data before call VirtualFree
-    // if (!adjustPageProtect(tracker, page))
-    // {
-    //     return false;
-    // }
-    // uint randSize = size;
-    // if (randSize == 0)
-    // {
-    //     randSize = page->size;
-    // }
-    // RandBuf((byte*)address, randSize);
-    // return recoverPageProtect(tracker, page);
+    return
 }
 
 static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
@@ -547,11 +396,7 @@ static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
         {
             continue;
         }
-        if (!isPageTypeWriteable(page->type))
-        {
-            num++;
-            continue;
-        }
+
         if (address != page->address)
         {
             num++;
@@ -567,55 +412,82 @@ static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
     return deletePage(tracker, page, index);
 }
 
-static bool deletePage(MemoryTracker* tracker, memPage* page, uint index)
-{
-    List* pages = &tracker->Pages;
-    // try to fill random data before call VirtualFree
-    if (!adjustPageProtect(tracker, page))
-    {
-        panic(PANIC_REACHABLE_TEST);
-        return false;
-    }
-    RandBuf((byte*)(page->address), page->size);
-    if (!recoverPageProtect(tracker, page))
-    {
-        panic(PANIC_REACHABLE_TEST);
-        return false;
-    }
-    // remove page in page list
-    return List_Delete(pages, index);
-}
-
 static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
 {
     if (size != 0)
     {
         return false;
     }
+    // search memory regions list
+    List* regions = &tracker->Regions;
+    uint  index   = 0;
+    bool  found   = false;
+    memRegion* region;
+    for (uint num = 0; num < regions->Len; index++)
+    {
+        region = List_Get(regions, index);
+        if (region->address == NULL)
+        {
+            continue;
+        }
+
+        if (region->address != address)
+        {
+            num++;
+            continue;
+        }
+        found = true;
+        break;
+    }
+    if (!found)
+    {
+        return false;
+    }
+    if (!deletePages(tracker, region->address, region->size))
+    {
+        return false;
+    }
+    return true;
+}
+
+static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
+{
     List* pages = &tracker->Pages;
-    memPage page = {
-        .address = address,
-    };
-    uint index = 0;
-    if (!List_Find(pages, &page, sizeof(page.address), &index))
+    uint  len   = pages->Len;
+    uint  index = 0;
+    for (uint num = 0; num < len; index++)
     {
-        return false;
+        memPage* page = List_Get(pages, index);
+        if (page->address == NULL)
+        {
+            continue;
+        }
+        if ((page->address + tracker->PageSize <= address) || (page->address >= address + size))
+        {
+            num++;
+            continue;
+        }
+        // try to fill random data before call VirtualFree
+        if (!adjustPageProtect(tracker, page))
+        {
+            panic(PANIC_REACHABLE_TEST);
+            return false;
+        }
+        RandBuf((byte*)(page->address), tracker->PageSize);
+        if (!recoverPageProtect(tracker, page))
+        {
+            panic(PANIC_REACHABLE_TEST);
+            return false;
+        }
+        // remove page in page list
+        if (!List_Delete(pages, index))
+        {
+            panic(PANIC_REACHABLE_TEST);
+            return false;
+        }
+        num++;
     }
-    if (!List_Delete(pages, index))
-    {
-        return false;
-    }
-    // try to fill random data before call VirtualFree
-    if (!isPageTypeWriteable(page.type))
-    {
-        return true;
-    }
-    if (!adjustPageProtect(tracker, &page))
-    {
-        return false;
-    }
-    RandBuf((byte*)address, page.size);
-    return recoverPageProtect(tracker, &page);
+    return true;
 }
 
 __declspec(noinline)
@@ -704,11 +576,7 @@ static bool isPageTypeTrackable(uint32 type)
 
 static bool isPageTypeWriteable(uint32 type)
 {
-    if ((type&0xF000) == MEM_COMMIT)
-    {
-        return true;
-    }
-    return false;
+    return (type&0xF000) == MEM_COMMIT;
 }
 
 static bool isPageProtectWriteable(uint32 protect)
