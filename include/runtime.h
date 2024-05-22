@@ -5,9 +5,9 @@
 #include "windows_t.h"
 
 // for common shellcode development.
-typedef void* (*Alloc_t)(uint size);
-typedef void* (*Realloc_t)(void* address, uint size);
-typedef bool  (*Free_t)(void* address);
+typedef void* (*MemAlloc_t)(uint size);
+typedef void* (*MemRealloc_t)(void* address, uint size);
+typedef bool  (*MemFree_t)(void* address);
 
 // GetProcAddress, GetProcAddressByName and GetProcAddressByHash
 // are use Hash API module for implement original GetProcAddress.
@@ -32,9 +32,9 @@ typedef struct {
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
-    Alloc_t   Alloc;
-    Realloc_t Realloc;
-    Free_t    Free;
+    MemAlloc_t   MemAlloc;
+    MemRealloc_t MemRealloc;
+    MemFree_t    MemFree;
     
     GetProcAddress_t         GetProcAddress;
     GetProcAddressByName_t   GetProcAddressByName;
