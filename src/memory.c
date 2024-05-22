@@ -724,7 +724,7 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page)
     }
     if (skip)
     {
-        printf("skipped\n");
+        // printf("skipped\n");
         return true;
     }
 
@@ -787,7 +787,7 @@ static bool decryptPage(MemoryTracker* tracker, memPage* page)
     }
     if (skip)
     {
-        printf("skipped\n");
+        // printf("skipped\n");
         return true;
     }
 

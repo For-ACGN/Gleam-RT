@@ -122,7 +122,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         return NULL;
     }
     // set structure address
-    uintptr runtimeAddr = address + 300 + RandUint(address) % 256;
+    uintptr runtimeAddr = address + 100 + RandUint(address) % 256;
     uintptr moduleAddr  = address + 900 + RandUint(address) % 256;
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
@@ -698,13 +698,14 @@ bool RT_Sleep(uint32 milliseconds)
     return success;
 }
 
+__declspec(noinline)
 static bool sleep(Runtime* runtime, uint32 milliseconds)
 {
     if (milliseconds < 100)
     {
         milliseconds = 100;
     }
-    milliseconds += 1000;
+    milliseconds += 5000;
     // milliseconds += 10000000; // TODO remote it 
     return runtime->WaitForSingleObject(runtime->hProcess, milliseconds);
 }
@@ -723,6 +724,7 @@ bool RT_Hide()
     return success;
 }
 
+__declspec(noinline)
 static bool hide(Runtime* runtime)
 {
     bool success = true;
@@ -757,6 +759,7 @@ bool RT_Recover()
     return success;
 }
 
+__declspec(noinline)
 static bool recover(Runtime* runtime)
 {
     bool success = true;
