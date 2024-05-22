@@ -79,28 +79,31 @@ bool    MT_Encrypt();
 bool    MT_Decrypt();
 bool    MT_Clean();
 
-static bool   initTrackerAPI(MemoryTracker* tracker, Context* context);
-static bool   updateTrackerPointers(MemoryTracker* tracker);
-static bool   updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
-static bool   initTrackerEnvironment(MemoryTracker* tracker, Context* context);
-static bool   allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
-static bool   reserveRegion(MemoryTracker* tracker, uintptr address, uint size);
-static bool   commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
-static bool   decommitPage(MemoryTracker* tracker, uintptr address, uint size);
-static bool   decommitPageZeroSize(MemoryTracker* tracker, uintptr address);
-static bool   deletePage(MemoryTracker* tracker, memPage* page, uint index);
-static bool   releasePage(MemoryTracker* tracker, uintptr address, uint size);
-static bool   protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
-static bool   isPageTypeTrackable(uint32 type);
+static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
+static bool updateTrackerPointers(MemoryTracker* tracker);
+static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
+static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context);
+static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
+static bool reserveRegion(MemoryTracker* tracker, uintptr address, uint size);
+static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
+static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 type);
+static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size);
+static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address);
+static bool deletePage(MemoryTracker* tracker, memPage* page, uint index);
+static bool releasePage(MemoryTracker* tracker, uintptr address, uint size);
+static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
+
 static uint32 replacePageProtect(uint32 protect);
+static bool   isPageTypeTrackable(uint32 type);
 static bool   isPageTypeWriteable(uint32 type);
 static bool   isPageProtectWriteable(uint32 protect);
 static bool   adjustPageProtect(MemoryTracker* tracker, memPage* page);
 static bool   recoverPageProtect(MemoryTracker* tracker, memPage* page);
-static bool   encryptPage(MemoryTracker* tracker, memPage* page);
-static bool   decryptPage(MemoryTracker* tracker, memPage* page);
-static void   deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
-static bool   cleanPage(MemoryTracker* tracker, memPage* page);
+
+static bool encryptPage(MemoryTracker* tracker, memPage* page);
+static bool decryptPage(MemoryTracker* tracker, memPage* page);
+static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
+static bool cleanPage(MemoryTracker* tracker, memPage* page);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -306,29 +309,26 @@ static bool reserveRegion(MemoryTracker* tracker, uintptr address, uint size)
 
 static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect)
 {
+    uint numPage = size / tracker->PageSize;
+    if ((size % tracker->PageSize) != 0)
+    {
+        numPage++;
+    }
     memPage page = {
-        .address = address,
-        .type = type,
+        .type    = type,
         .protect = protect,
     };
-    RandBuf(&page.key[0], CRYPTO_KEY_SIZE);
-    RandBuf(&page.iv[0], CRYPTO_IV_SIZE);
-    return List_Insert(&tracker->Pages, &page);
-}
-
-// replacePageProtect is used to make sure all the page are readable.
-// avoid inadvertently using sensitive permissions.
-static uint32 replacePageProtect(uint32 protect)
-{
-    switch (protect)
+    for (uint i = 0; i < numPage; i++)
     {
-    case PAGE_NOACCESS:
-        return PAGE_READONLY;
-    case PAGE_EXECUTE:
-        return PAGE_EXECUTE_READ;
-    default:
-        return protect;
+        page.address = address + i * tracker->PageSize;
+        RandBuf(&page.key[0], CRYPTO_KEY_SIZE);
+        RandBuf(&page.iv[0], CRYPTO_IV_SIZE);
+        if (!List_Insert(&tracker->Pages, &page))
+        {
+            return false;
+        }
     }
+    return true;
 }
 
 __declspec(noinline)
@@ -346,17 +346,7 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
     bool success = true;
     for (;;)
     {
-        bool freeOK = true;
-        switch (type&0xF000)
-        {
-        case MEM_DECOMMIT:
-            freeOK = decommitPage(tracker, address, size);
-            break;
-        case MEM_RELEASE:
-            freeOK = releasePage(tracker, address, size);
-            break;
-        }
-        if (!freeOK)
+        if (!freePage(tracker, address, size, type))
         {
             success = false;
             break;
@@ -371,6 +361,19 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 
     tracker->ReleaseMutex(tracker->Mutex);
     return success;
+}
+
+static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 type)
+{
+    switch (type&0xF000)
+    {
+    case MEM_DECOMMIT:
+        return decommitPage(tracker, address, size);
+    case MEM_RELEASE:
+        return releasePage(tracker, address, size);
+    default:
+        return false;
+    }
 }
 
 static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
@@ -666,6 +669,21 @@ static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect)
     }
     p->protect = protect;
     return true;
+}
+
+// replacePageProtect is used to make sure all the page are readable.
+// avoid inadvertently using sensitive permissions.
+static uint32 replacePageProtect(uint32 protect)
+{
+    switch (protect&0xFF)
+    {
+    case PAGE_NOACCESS:
+        return (protect&0xFFFFFF00)+PAGE_READONLY;
+    case PAGE_EXECUTE:
+        return (protect&0xFFFFFF00)+PAGE_EXECUTE_READ;
+    default:
+        return protect;
+    }
 }
 
 static bool isPageTypeTrackable(uint32 type)
