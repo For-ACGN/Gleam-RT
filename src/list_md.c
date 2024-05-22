@@ -97,7 +97,7 @@ bool List_Find(List* list, void* data, uint equal, uint* idx)
         equLen = list->Unit;
     }
     uint index = 0;
-    bool find  = false;
+    bool found = false;
     for (uint num = 0; num < list->Len; index++)
     {
         void* item = List_Get(list, index);
@@ -110,10 +110,10 @@ bool List_Find(List* list, void* data, uint equal, uint* idx)
             num++;
             continue;
         }
-        find = true;
+        found = true;
         break;
     }
-    if (!find)
+    if (!found)
     {
         return false;
     }
@@ -147,7 +147,7 @@ bool List_Resize(List* list, uint cap)
 
 uint List_Size(List* list)
 {
-    return list->Cap * list->Unit;
+    return list->Last * list->Unit;
 }
 
 bool List_Free(List* list)
