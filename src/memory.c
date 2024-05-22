@@ -87,14 +87,12 @@ static bool reserveRegion(MemoryTracker* tracker, uintptr address, uint size);
 static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect);
 static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 type);
 static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size);
-static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address);
 static bool releasePage(MemoryTracker* tracker, uintptr address, uint size);
 static bool deletePages(MemoryTracker* tracker, uintptr address, uint size);
 static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
 
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
-static bool   isPageTypeWriteable(uint32 type);
 static bool   isPageProtectWriteable(uint32 protect);
 static bool   adjustPageProtect(MemoryTracker* tracker, memPage* page);
 static bool   recoverPageProtect(MemoryTracker* tracker, memPage* page);
@@ -376,40 +374,35 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 
 
 static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
 {
-    if (size == 0)
+    if (size != 0)
     {
-        return decommitPageZeroSize(tracker, address);
+        return deletePages(tracker, address, size);
     }
-    return
-}
-
-static bool decommitPageZeroSize(MemoryTracker* tracker, uintptr address)
-{
-    List* pages = &tracker->Pages;
-    uint  index = 0;
-    bool  find  = false;
-    memPage* page;
-    for (uint num = 0; num < pages->Len; index++)
+    // search memory regions list
+    List* regions = &tracker->Regions;
+    uint  index   = 0;
+    bool  found   = false;
+    memRegion* region;
+    for (uint num = 0; num < regions->Len; index++)
     {
-        page = List_Get(pages, index);
-        if (page->address == NULL)
+        region = List_Get(regions, index);
+        if (region->address == NULL)
         {
             continue;
         }
-
-        if (address != page->address)
+        if (region->address != address)
         {
             num++;
             continue;
         }
-        find = true;
+        found = true;
         break;
     }
-    if (!find)
+    if (!found)
     {
         return false;
     }
-    return deletePage(tracker, page, index);
+    return deletePages(tracker, region->address, region->size);
 }
 
 static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
@@ -430,7 +423,6 @@ static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
         {
             continue;
         }
-
         if (region->address != address)
         {
             num++;
@@ -447,7 +439,7 @@ static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
     {
         return false;
     }
-    return true;
+    return List_Delete(regions, index);
 }
 
 static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
@@ -605,7 +597,7 @@ static bool adjustPageProtect(MemoryTracker* tracker, memPage* page)
         return true;
     }
     uint32 old;
-    return tracker->VirtualProtect(page->address, page->size, PAGE_READWRITE, &old);
+    return tracker->VirtualProtect(page->address, tracker->PageSize, PAGE_READWRITE, &old);
 }
 
 // recoverPageProtect is used to recover to prevent protect.
@@ -616,7 +608,7 @@ static bool recoverPageProtect(MemoryTracker* tracker, memPage* page)
         return true;
     }
     uint32 old;
-    return tracker->VirtualProtect(page->address, page->size, page->protect, &old);
+    return tracker->VirtualProtect(page->address, tracker->PageSize, page->protect, &old);
 }
 
 __declspec(noinline)
@@ -707,20 +699,12 @@ bool MT_Encrypt()
 
 static bool encryptPage(MemoryTracker* tracker, memPage* page)
 {
-    if (!isPageTypeWriteable(page->type))
-    {
-        return true;
-    }
     if (!adjustPageProtect(tracker, page))
     {
         return false;
     }
 
-    printf
-    (
-        "enc Addr: 0x%llX, Size: 0x%llX, Protect: 0x%X, Type: 0x%X\n",
-        page->address, page->size, page->protect, page->type
-    );
+    // printf("enc Addr: 0x%llX, Protect: 0x%X\n",page->address, page->protect);
 
     // generate new key and IV
     RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
@@ -728,7 +712,7 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page)
     byte key[CRYPTO_KEY_SIZE];
     deriveKey(tracker, page, &key[0]);
 
-    EncryptBuf((byte*)(page->address), page->size, &key[0], &page->iv[0]);
+    EncryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
 
     return true;
 }
@@ -763,17 +747,12 @@ bool MT_Decrypt()
 
 static bool decryptPage(MemoryTracker* tracker, memPage* page)
 {
-    if (!isPageTypeWriteable(page->type))
-    {
-        return true;
-    }
-
     // printf("dec Size: 0x%llX\n", page->size);
 
     byte key[CRYPTO_KEY_SIZE];
     deriveKey(tracker, page, &key[0]);
 
-    DecryptBuf((byte*)(page->address), page->size, &key[0], &page->iv[0]);
+    DecryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
 
     return recoverPageProtect(tracker, page);
 }
@@ -820,14 +799,10 @@ bool MT_Clean()
 
 static bool cleanPage(MemoryTracker* tracker, memPage* page)
 {
-    if (!isPageTypeWriteable(page->type))
-    {
-        return true;
-    }
     if (!adjustPageProtect(tracker, page))
     {
         return false;
     }
-    RandBuf((byte*)(page->address), page->size);
+    RandBuf((byte*)(page->address), tracker->PageSize);
     return recoverPageProtect(tracker, page);
 }
