@@ -378,10 +378,10 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     {
         return deletePages(tracker, address, size);
     }
+    // search memory regions list
     register List* regions = &tracker->Regions;
     register uint  len     = regions->Len;
     register uint  index   = 0;
-    // search memory regions list
     register memRegion* region;
     bool found = false;
     for (uint num = 0; num < len; index++)
@@ -413,11 +413,12 @@ static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
         return false;
     }
     // search memory regions list
-    List* regions = &tracker->Regions;
-    uint  index   = 0;
-    bool  found   = false;
-    memRegion* region;
-    for (uint num = 0; num < regions->Len; index++)
+    register List* regions = &tracker->Regions;
+    register uint  len     = regions->Len;
+    register uint  index   = 0;
+    register memRegion* region;
+    bool found = false;
+    for (uint num = 0; num < len; index++)
     {
         region = List_Get(regions, index);
         if (region->address == NULL)
@@ -429,36 +430,32 @@ static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
             num++;
             continue;
         }
+        if (!deletePages(tracker, region->address, region->size))
+        {
+            return false;
+        }
+        if (!List_Delete(regions, index))
+        {
+            return false;
+        }
         found = true;
-        break;
+        // maybe exist same region, so need continue
+        num++;
     }
-    if (!found)
-    {
-        return false;
-    }
-    if (!deletePages(tracker, region->address, region->size))
-    {
-        return false;
-    }
-    return List_Delete(regions, index);
+    return found;
 }
 
 static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
 {
-    // return true;
-
-    // copy memory to register for improve performance
     register uint pageSize = tracker->PageSize;
 
     register List* pages = &tracker->Pages;
     register uint  len   = pages->Len;
     register uint  index = 0;
-
-    uint ss = 0;
-
+    register memPage* page;
     for (uint num = 0; num < len; index++)
     {
-        memPage* page = List_Get(pages, index);
+        page = List_Get(pages, index);
         if (page->address == NULL)
         {
             continue;
@@ -468,33 +465,12 @@ static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
             num++;
             continue;
         }
-        // try to fill random data before call VirtualFree
-        if (!adjustPageProtect(tracker, page))
-        {
-            panic(PANIC_REACHABLE_TEST);
-            return false;
-        }
-        // TODO think it !!!
-        // RandBuf((byte*)(page->address), pageSize);
-        if (!recoverPageProtect(tracker, page))
-        {
-            panic(PANIC_REACHABLE_TEST);
-            return false;
-        }
-        // remove page in page list
+        // remove page in list
         if (!List_Delete(pages, index))
         {
             panic(PANIC_REACHABLE_TEST);
             return false;
         }
-
-        ss += pageSize;
-        if (ss >= size)
-        {
-            // break;
-        }
-
-
         num++;
     }
     return true;
