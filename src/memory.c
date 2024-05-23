@@ -277,7 +277,7 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     {
         return true;
     }
-    // printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
+    printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
     switch (type&0xF000)
     {
     case MEM_COMMIT:
@@ -308,8 +308,7 @@ static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint3
 {
     // copy memory to register for improve performance
     register uint pageSize = tracker->PageSize;
-
-    register uint numPage = size / pageSize;
+    register uint numPage  = size / pageSize;
     if ((size % pageSize) != 0)
     {
         numPage++;
@@ -317,10 +316,11 @@ static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint3
     memPage page = {
         .protect = protect,
     };
+    register List* pages = &tracker->Pages;
     for (uint i = 0; i < numPage; i++)
     {
         page.address = address + i * pageSize;
-        if (!List_Insert(&tracker->Pages, &page))
+        if (!List_Insert(pages, &page))
         {
             return false;
         }
@@ -360,7 +360,7 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 
 static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 type)
 {
-    // printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
+    printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
     switch (type&0xF000)
     {
     case MEM_DECOMMIT:
@@ -382,8 +382,8 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     register uint  len     = regions->Len;
     register uint  index   = 0;
     // search memory regions list
+    register memRegion* region;
     bool found = false;
-    memRegion* region;
     for (uint num = 0; num < len; index++)
     {
         region = List_Get(regions, index);
@@ -445,12 +445,17 @@ static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
 
 static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
 {
+    // return true;
+
     // copy memory to register for improve performance
     register uint pageSize = tracker->PageSize;
 
     register List* pages = &tracker->Pages;
     register uint  len   = pages->Len;
     register uint  index = 0;
+
+    uint ss = 0;
+
     for (uint num = 0; num < len; index++)
     {
         memPage* page = List_Get(pages, index);
@@ -469,7 +474,8 @@ static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
             panic(PANIC_REACHABLE_TEST);
             return false;
         }
-        RandBuf((byte*)(page->address), pageSize);
+        // TODO think it !!!
+        // RandBuf((byte*)(page->address), pageSize);
         if (!recoverPageProtect(tracker, page))
         {
             panic(PANIC_REACHABLE_TEST);
@@ -481,6 +487,14 @@ static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
             panic(PANIC_REACHABLE_TEST);
             return false;
         }
+
+        ss += pageSize;
+        if (ss >= size)
+        {
+            // break;
+        }
+
+
         num++;
     }
     return true;
@@ -705,11 +719,14 @@ bool MT_Encrypt()
 
 static bool encryptPage(MemoryTracker* tracker, memPage* page)
 {
+    // return true;
+
     if (!adjustPageProtect(tracker, page))
     {
         return false;
     }
 
+    // TODO improve it
     bool skip = true;
     register byte*  addr = (byte*)(page->address);
     register uint32 size = tracker->PageSize;
@@ -771,6 +788,8 @@ bool MT_Decrypt()
 
 static bool decryptPage(MemoryTracker* tracker, memPage* page)
 {
+    // return true;
+    // 
     // printf("dec Size: 0x%llX\n", page->size);
 
     bool skip = true;
