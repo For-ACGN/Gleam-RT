@@ -101,7 +101,7 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page);
 static bool decryptPage(MemoryTracker* tracker, memPage* page);
 static bool isEmptyPage(MemoryTracker* tracker, memPage* page);
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
-static bool cleanPage(MemoryTracker* tracker, memPage* page);
+static bool cleanRegion(MemoryTracker* tracker, memRegion* region);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -567,11 +567,6 @@ static bool isPageTypeTrackable(uint32 type)
     return true;
 }
 
-static bool isPageTypeWriteable(uint32 type)
-{
-    return (type&0xF000) == MEM_COMMIT;
-}
-
 static bool isPageProtectWriteable(uint32 protect)
 {
     switch (protect&0xFF)
@@ -666,7 +661,7 @@ bool MT_MemFree(void* address)
     uintptr addr = (uintptr)(address)-16;
     uint    size = *(uint*)addr;
     mem_clean((byte*)addr, size);
-    return tracker->VirtualFree(addr, 0, MEM_RELEASE);
+    return MT_VirtualFree(addr, 0, MEM_RELEASE);
 }
 
 __declspec(noinline)
@@ -789,6 +784,34 @@ bool MT_Clean()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
+    List* regions = &tracker->Regions;
+    uint  index = 0;
+    for (uint num = 0; num < regions->Len; index++)
+    {
+        memRegion* region = List_Get(regions, index);
+        if (region->address == NULL)
+        {
+            continue;
+        }
+        if (!cleanRegion(tracker, region))
+        {
+            return false;
+        }
+        num++;
+    }
+    // clean memory region and page list
+    RandBuf(regions->Data, List_Size(regions));
+    List* pages = &tracker->Pages;
+    RandBuf(pages->Data, List_Size(pages));
+    return true;
+}
+
+static bool cleanRegion(MemoryTracker* tracker, memRegion* region)
+{
+    uint    pageSize = tracker->PageSize;
+    uintptr address  = region->address;
+    uint    size     = region->size;
+    
     List* pages = &tracker->Pages;
     uint  index = 0;
     for (uint num = 0; num < pages->Len; index++)
@@ -798,28 +821,21 @@ bool MT_Clean()
         {
             continue;
         }
-        if (!cleanPage(tracker, page))
+        if ((page->address + pageSize <= address) || (page->address >= address + size))
+        {
+            num++;
+            continue;
+        }
+        if (!adjustPageProtect(tracker, page))
         {
             return false;
         }
-        if (!tracker->VirtualFree(page->address, 0, MEM_RELEASE))
+        RandBuf((byte*)(page->address), tracker->PageSize);
+        if (!recoverPageProtect(tracker, page))
         {
             return false;
         }
         num++;
     }
-
-    // clean page list
-    RandBuf(pages->Data, List_Size(pages));
     return true;
-}
-
-static bool cleanPage(MemoryTracker* tracker, memPage* page)
-{
-    if (!adjustPageProtect(tracker, page))
-    {
-        return false;
-    }
-    RandBuf((byte*)(page->address), tracker->PageSize);
-    return recoverPageProtect(tracker, page);
 }
