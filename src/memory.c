@@ -89,7 +89,7 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 
 static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size);
 static bool releasePage(MemoryTracker* tracker, uintptr address, uint size);
 static bool deletePages(MemoryTracker* tracker, uintptr address, uint size);
-static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect);
+static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect);
 
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
@@ -486,8 +486,6 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
         return false;
     }
 
-    // printf("VirtualProtect: 0x%llX, %llu, 0x%X\n", address, size, new);
-
     bool success = true;
     for (;;)
     {
@@ -496,7 +494,7 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
             success = false;
             break;
         }
-        if (!protectPage(tracker, address, new))
+        if (!protectPage(tracker, address, size, new))
         {
             success = false;
             break;
@@ -508,25 +506,34 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
     return success;
 }
 
-static bool protectPage(MemoryTracker* tracker, uintptr address, uint32 protect)
+static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect)
 {
-    List* pages = &tracker->Pages;
-    memPage page = {
-        .address = address,
-    };
-    uint index;
-    if (!List_Find(pages, &page, sizeof(uintptr), &index))
+    printf("VirtualProtect: 0x%llX, %llu, 0x%X\n", address, size, protect);
+
+    register uint pageSize = tracker->PageSize;
+
+    register List* pages = &tracker->Pages;
+    register uint  len   = pages->Len;
+    register uint  index = 0;
+    register memPage* page;
+    bool found = false;
+    for (uint num = 0; num < len; index++)
     {
-        return true;
+        page = List_Get(pages, index);
+        if (page->address == NULL)
+        {
+            continue;
+        }
+        if ((page->address + pageSize <= address) || (page->address >= address + size))
+        {
+            num++;
+            continue;
+        }
+        page->protect = protect;
+        found = true;
+        num++;
     }
-    // update protect in page list
-    memPage* p = List_Get(pages, index);
-    if (p == NULL)
-    {
-        return false;
-    }
-    p->protect = protect;
-    return true;
+    return found;
 }
 
 // replacePageProtect is used to make sure all the page are readable.
