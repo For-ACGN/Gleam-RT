@@ -22,12 +22,10 @@ func main() {
 	testMemoryData()
 	testGoRoutine()
 	testLargeBuffer()
-	
+	kernel32Sleep()
+
 	for {
-		// wait go routine run test
-		time.Sleep(5 * time.Second)
-		// trigger Gleam-RT Sleep
-		kernel32Sleep()
+		time.Sleep(time.Second)
 	}
 }
 
@@ -36,7 +34,7 @@ func testRuntimeAPI() {
 	hModule := syscall.Handle(dll.Handle())
 	GetProcAddress := dll.NewProc("GetProcAddress").Addr()
 	fmt.Printf("GetProcAddress: 0x%X\n", GetProcAddress)
-	
+
 	for _, proc := range []string{
 		"RT_GetProcAddressByName",
 		"RT_GetProcAddressByHash",
@@ -56,10 +54,10 @@ func testRuntimeAPI() {
 		fmt.Printf("%s: 0x%X\n", proc, dllProcAddr)
 	}
 	fmt.Println()
-	
+
 	GetProcAddressOriginal, err := syscall.GetProcAddress(hModule, "RT_GetProcAddressOriginal")
 	checkError(err)
-	
+
 	// get original GetProcAddress
 	proc, err := syscall.BytePtrFromString("GetProcAddress")
 	checkError(err)
@@ -72,7 +70,7 @@ func testRuntimeAPI() {
 	}
 	fmt.Printf("Original GetProcAddress: 0x%X\n", ret)
 	fmt.Printf("Hooked   GetProcAddress: 0x%X\n", GetProcAddress)
-	
+
 	// get original VirtualAlloc
 	proc, err = syscall.BytePtrFromString("VirtualAlloc")
 	checkError(err)
@@ -83,10 +81,10 @@ func testRuntimeAPI() {
 	if ret == 0 {
 		log.Fatalln("failed to get GetProcAddress address")
 	}
-	
+
 	VirtualAlloc, err := syscall.GetProcAddress(hModule, "VirtualAlloc")
 	checkError(err)
-	
+
 	fmt.Printf("Original VirtualAlloc: 0x%X\n", ret)
 	fmt.Printf("Hooked   VirtualAlloc: 0x%X\n", VirtualAlloc)
 }
@@ -97,23 +95,23 @@ func testMemoryData() {
 	go func() {
 		localVar := 12121212
 		localStr := "hello GleamRT"
-		
+
 		for {
 			tid, _, _ := procGetCurrentThreadID.Call()
 			fmt.Println("Thread ID:", tid)
-			
+
 			fmt.Printf("global variable pointer: 0x%X\n", &globalVar)
 			fmt.Println("global variable value:  ", globalVar)
-			
-			fmt.Printf("local  variable pointer: 0x%X\n", &localVar)
-			fmt.Println("local  variable value:  ", localVar)
-			
+
+			fmt.Printf("local variable pointer:  0x%X\n", &localVar)
+			fmt.Println("local variable value:   ", localVar)
+
 			funcAddr := reflect.ValueOf(testRuntimeAPI).Pointer()
-			fmt.Printf("function instruction:      0x%X\n", funcAddr)
-			
+			fmt.Printf("instruction:             0x%X\n", funcAddr)
+
 			inst := unsafe.Slice((*byte)(unsafe.Pointer(funcAddr)), 8)
-			fmt.Printf("function instruction data: %v\n", inst)
-			
+			fmt.Printf("instruction data:        %v\n", inst)
+
 			time.Sleep(time.Second)
 			fmt.Println(localStr, "finish!")
 			fmt.Println()
@@ -151,7 +149,7 @@ func testGoRoutine() {
 }
 
 func testLargeBuffer() {
-	go func() {
+	alloc := func() {
 		for {
 			buf := make([]byte, 1+rand.Intn(8*1024*1024))
 			for i := 0; i < len(buf); i++ {
@@ -160,15 +158,29 @@ func testLargeBuffer() {
 			fmt.Println("alloc buffer", len(buf))
 			time.Sleep(250 * time.Millisecond)
 		}
-	}()
+	}
+	for i := 0; i < 4; i++ {
+		go alloc()
+	}
 }
 
 func kernel32Sleep() {
-	fmt.Println("call kernel32.Sleep [hooked]")
-	now := time.Now()
-	ok, _, _ := procSleep.Call(100)
-	fmt.Println("Sleep:", time.Since(now), "ok:", ok)
-	fmt.Println()
+	go func() {
+		for {
+			// wait go routine run test
+			time.Sleep(5 * time.Second)
+
+			// trigger Gleam-RT Sleep
+			fmt.Println("call kernel32.Sleep [hooked]")
+			now := time.Now()
+			ok, _, _ := procSleep.Call(100)
+			if ok != 1 {
+				log.Fatalln("occurred when sleep")
+			}
+			fmt.Println("Sleep:", time.Since(now))
+			fmt.Println()
+		}
+	}()
 }
 
 func checkError(err error) {
