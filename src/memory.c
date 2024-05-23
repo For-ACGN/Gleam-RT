@@ -305,6 +305,7 @@ static bool reserveRegion(MemoryTracker* tracker, uintptr address, uint size)
     return List_Insert(&tracker->Regions, &region);
 }
 
+#pragma optimize("t", on)
 static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect)
 {
     // copy memory to register for improve performance
@@ -328,6 +329,7 @@ static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint3
     }
     return true;
 }
+#pragma optimize("t", off)
 
 __declspec(noinline)
 bool MT_VirtualFree(uintptr address, uint size, uint32 type)
@@ -446,6 +448,7 @@ static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
     return found;
 }
 
+#pragma optimize("t", on)
 static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
 {
     register uint pageSize = tracker->PageSize;
@@ -475,6 +478,7 @@ static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
     }
     return true;
 }
+#pragma optimize("t", off)
 
 __declspec(noinline)
 bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)

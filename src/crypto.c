@@ -21,6 +21,8 @@ static byte swapBit(byte b, uint8 p1, uint8 p2);
 static byte ror(byte value, uint8 bits);
 static byte rol(byte value, uint8 bits);
 
+#pragma optimize("t", on)
+
 void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
 {
     if (size == 0)
@@ -267,3 +269,5 @@ static byte rol(byte value, uint8 bits)
 {
     return value << bits | value >> (8 - bits);
 }
+
+#pragma optimize("t", off)

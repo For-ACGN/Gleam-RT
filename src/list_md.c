@@ -2,6 +2,8 @@
 #include "lib_memory.h"
 #include "list_md.h"
 
+#pragma optimize("t", on)
+
 void List_Init(List* list, List_Ctx* ctx, uint unit)
 {
     list->ctx  = *ctx;
@@ -154,3 +156,5 @@ bool List_Free(List* list)
 {
     return list->ctx.free(list->Data);
 }
+
+#pragma optimize("t", off)

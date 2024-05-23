@@ -5,6 +5,8 @@ static uint64  rand(uint64 seed, uint64 m);
 static uint64  ror(uint64 value, uint8 bits);
 static uintptr getStackAddr();
 
+#pragma optimize("t", on)
+
 void RandBuf(byte* buf, int64 size)
 {
     uint64 seed = RandUint64((uint64)(buf));
@@ -96,3 +98,5 @@ static uintptr getStackAddr()
     return (uintptr)(&stack);
 }
 #pragma warning(pop)
+
+#pragma optimize("t", off)
