@@ -99,6 +99,7 @@ static bool   recoverPageProtect(MemoryTracker* tracker, memPage* page);
 
 static bool encryptPage(MemoryTracker* tracker, memPage* page);
 static bool decryptPage(MemoryTracker* tracker, memPage* page);
+static bool isEmptyPage(MemoryTracker* tracker, memPage* page);
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
 static bool cleanPage(MemoryTracker* tracker, memPage* page);
 
@@ -468,7 +469,6 @@ static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
         // remove page in list
         if (!List_Delete(pages, index))
         {
-            panic(PANIC_REACHABLE_TEST);
             return false;
         }
         num++;
@@ -702,42 +702,20 @@ bool MT_Encrypt()
 
 static bool encryptPage(MemoryTracker* tracker, memPage* page)
 {
-    // return true;
-
     if (!adjustPageProtect(tracker, page))
     {
         return false;
     }
-
-    // TODO improve it
-    bool skip = true;
-    register byte*  addr = (byte*)(page->address);
-    register uint32 size = tracker->PageSize;
-    for (uint i = 0; i < size; i++)
+    if (isEmptyPage(tracker, page))
     {
-        if (*addr != 0)
-        {
-            skip = false;
-            break;
-        }
-        addr++;
-    }
-    if (skip)
-    {
-        // printf("skipped\n");
         return true;
     }
-
-    // printf("enc Addr: 0x%llX, Protect: 0x%X\n",page->address, page->protect);
-
     // generate new key and IV
     RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
     RandBuf(&page->iv[0], CRYPTO_IV_SIZE);
     byte key[CRYPTO_KEY_SIZE];
     deriveKey(tracker, page, &key[0]);
-
     EncryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
-
     return true;
 }
 
@@ -771,35 +749,29 @@ bool MT_Decrypt()
 
 static bool decryptPage(MemoryTracker* tracker, memPage* page)
 {
-    // return true;
-    // 
-    // printf("dec Size: 0x%llX\n", page->size);
+    if (isEmptyPage(tracker, page))
+    {
+        return true;
+    }
+    byte key[CRYPTO_KEY_SIZE];
+    deriveKey(tracker, page, &key[0]);
+    DecryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
+    return recoverPageProtect(tracker, page);
+}
 
-    bool skip = true;
-    register byte*  addr = (byte*)(page->address);
-    register uint32 size = tracker->PageSize;
-    for (uint i = 0; i < size; i++)
+static bool isEmptyPage(MemoryTracker* tracker, memPage* page)
+{
+    register uint*  addr = (uint*)(page->address);
+    register uint32 num  = tracker->PageSize/sizeof(uint);
+    for (uint i = 0; i < num; i++)
     {
         if (*addr != 0)
         {
-            skip = false;
-            break;
+            return false;
         }
         addr++;
     }
-    if (skip)
-    {
-        // printf("skipped\n");
-        return true;
-    }
-
-
-    byte key[CRYPTO_KEY_SIZE];
-    deriveKey(tracker, page, &key[0]);
-
-    DecryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
-
-    return recoverPageProtect(tracker, page);
+    return true;
 }
 
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key)
