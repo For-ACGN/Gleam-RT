@@ -101,7 +101,7 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page);
 static bool decryptPage(MemoryTracker* tracker, memPage* page);
 static bool isEmptyPage(MemoryTracker* tracker, memPage* page);
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
-static bool cleanRegion(MemoryTracker* tracker, memRegion* region);
+static bool cleanPage(MemoryTracker* tracker, memPage* page);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -687,11 +687,20 @@ bool MT_Encrypt()
 
     printf("num pages: %llu\n", pages->Len);
 
-    // TODO encrypt page list
+    // encrypt region and page list
+    List* list = &tracker->Regions;
+    byte* key  = &tracker->RegionsKey[0];
+    byte* iv   = &tracker->RegionsIV[0];
+    RandBuf(key, CRYPTO_KEY_SIZE);
+    RandBuf(iv, CRYPTO_IV_SIZE);
+    EncryptBuf(list->Data, List_Size(list), key, iv);
 
-    // RandBuf(&tracker->PagesKey[0], CRYPTO_KEY_SIZE);
-    // RandBuf(&tracker->PagesIV[0], CRYPTO_IV_SIZE);
-
+    list = &tracker->Pages;
+    key  = &tracker->PagesKey[0];
+    iv   = &tracker->PagesIV[0];
+    RandBuf(key, CRYPTO_KEY_SIZE);
+    RandBuf(iv, CRYPTO_IV_SIZE);
+    EncryptBuf(list->Data, List_Size(list), key, iv);
     return true;
 }
 
@@ -719,7 +728,16 @@ bool MT_Decrypt()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_DECRYPT);
 
-    // TODO decrypt page list
+    // decrypt region and page list
+    List* list = &tracker->Regions;
+    byte* key  = &tracker->RegionsKey[0];
+    byte* iv   = &tracker->RegionsIV[0];
+    DecryptBuf(list->Data, List_Size(list), key, iv);
+
+    list = &tracker->Pages;
+    key  = &tracker->PagesKey[0];
+    iv   = &tracker->PagesIV[0];
+    DecryptBuf(list->Data, List_Size(list), key, iv);
 
     // reverse order traversal is used to deal with the problem
     // that some memory pages may be encrypted twice, like use
@@ -784,34 +802,6 @@ bool MT_Clean()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
-    List* regions = &tracker->Regions;
-    uint  index = 0;
-    for (uint num = 0; num < regions->Len; index++)
-    {
-        memRegion* region = List_Get(regions, index);
-        if (region->address == NULL)
-        {
-            continue;
-        }
-        if (!cleanRegion(tracker, region))
-        {
-            return false;
-        }
-        num++;
-    }
-    // clean memory region and page list
-    RandBuf(regions->Data, List_Size(regions));
-    List* pages = &tracker->Pages;
-    RandBuf(pages->Data, List_Size(pages));
-    return true;
-}
-
-static bool cleanRegion(MemoryTracker* tracker, memRegion* region)
-{
-    uint    pageSize = tracker->PageSize;
-    uintptr address  = region->address;
-    uint    size     = region->size;
-    
     List* pages = &tracker->Pages;
     uint  index = 0;
     for (uint num = 0; num < pages->Len; index++)
@@ -821,21 +811,25 @@ static bool cleanRegion(MemoryTracker* tracker, memRegion* region)
         {
             continue;
         }
-        if ((page->address + pageSize <= address) || (page->address >= address + size))
-        {
-            num++;
-            continue;
-        }
-        if (!adjustPageProtect(tracker, page))
-        {
-            return false;
-        }
-        RandBuf((byte*)(page->address), tracker->PageSize);
-        if (!recoverPageProtect(tracker, page))
+        if (!cleanPage(tracker, page))
         {
             return false;
         }
         num++;
     }
+    // clean memory region and page list
+    List* regions = &tracker->Regions;
+    RandBuf(regions->Data, List_Size(regions));
+    RandBuf(pages->Data, List_Size(pages));
     return true;
+}
+
+static bool cleanPage(MemoryTracker* tracker, memPage* page)
+{
+    if (!adjustPageProtect(tracker, page))
+    {
+        return false;
+    }
+    RandBuf((byte*)(page->address), tracker->PageSize);
+    return recoverPageProtect(tracker, page);
 }
