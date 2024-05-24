@@ -806,7 +806,10 @@ bool MT_Clean()
 {
     MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
 
-    List* pages = &tracker->Pages;
+    List* pages   = &tracker->Pages;
+    List* regions = &tracker->Regions;
+
+    // decommit memory pages
     uint  index = 0;
     for (uint num = 0; num < pages->Len; index++)
     {
@@ -821,19 +824,48 @@ bool MT_Clean()
         }
         num++;
     }
+
+    // release reserved memory region
+    index = 0;
+    for (uint num = 0; num < regions->Len; index++)
+    {
+        memRegion* region = List_Get(regions, index);
+        if (region->address == NULL)
+        {
+            continue;
+        }
+        if (!tracker->VirtualFree(region->address, 0, MEM_RELEASE))
+        {
+            return false;
+        }
+        num++;
+    }
+
     // clean memory region and page list
-    List* regions = &tracker->Regions;
     RandBuf(regions->Data, List_Size(regions));
     RandBuf(pages->Data, List_Size(pages));
+    if (!List_Free(regions))
+    {
+        return false;
+    }
+    if (!List_Free(pages))
+    {
+        return false;
+    }
     return true;
 }
 
 static bool cleanPage(MemoryTracker* tracker, memPage* page)
 {
+    // try to fill random data before decommit memory page.
     if (!adjustPageProtect(tracker, page))
     {
         return false;
     }
     RandBuf((byte*)(page->address), tracker->PageSize);
-    return recoverPageProtect(tracker, page);
+    if (!recoverPageProtect(tracker, page))
+    {
+        return false;
+    }
+    return tracker->VirtualFree(page->address, tracker->PageSize, MEM_DECOMMIT);
 }
