@@ -10,27 +10,6 @@
 #include "crypto.h"
 #include "memory.h"
 
-// hard encoded address in methods for replace
-#ifdef _WIN64
-    #define METHOD_ADDR_VIRTUAL_ALLOC   0x7FFFFFFFFFFFFF00
-    #define METHOD_ADDR_VIRTUAL_FREE    0x7FFFFFFFFFFFFF01
-    #define METHOD_ADDR_VIRTUAL_PROTECT 0x7FFFFFFFFFFFFF02
-    #define METHOD_ADDR_MEM_ALLOC       0x7FFFFFFFFFFFFF03
-    #define METHOD_ADDR_MEM_FREE        0x7FFFFFFFFFFFFF04
-    #define METHOD_ADDR_ENCRYPT         0x7FFFFFFFFFFFFF05
-    #define METHOD_ADDR_DECRYPT         0x7FFFFFFFFFFFFF06
-    #define METHOD_ADDR_CLEAN           0x7FFFFFFFFFFFFF07
-#elif _WIN32
-    #define METHOD_ADDR_VIRTUAL_ALLOC   0x7FFFFF00
-    #define METHOD_ADDR_VIRTUAL_FREE    0x7FFFFF01
-    #define METHOD_ADDR_VIRTUAL_PROTECT 0x7FFFFF02
-    #define METHOD_ADDR_MEM_ALLOC       0x7FFFFF03
-    #define METHOD_ADDR_MEM_FREE        0x7FFFFF04
-    #define METHOD_ADDR_ENCRYPT         0x7FFFFF05
-    #define METHOD_ADDR_DECRYPT         0x7FFFFF06
-    #define METHOD_ADDR_CLEAN           0x7FFFFF07
-#endif
-
 typedef struct {
     uintptr address;
     uint    size;
@@ -78,9 +57,16 @@ bool    MT_Encrypt();
 bool    MT_Decrypt();
 bool    MT_Clean();
 
+// hard encoded address in getTrackerPointer for replace
+#ifdef _WIN64
+    #define TRACKER_POINTER 0x7FFFFFFFFFFFFF00
+#elif _WIN32
+    #define TRACKER_POINTER 0x7FFFFF00
+#endif
+static MemoryTracker* getTrackerPointer();
+
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
-static bool updateTrackerPointers(MemoryTracker* tracker);
-static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address);
+static bool updateTrackerPointer(MemoryTracker* tracker);
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context);
 static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
 static bool reserveRegion(MemoryTracker* tracker, uintptr address, uint size);
@@ -119,7 +105,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
             errCode = 0x01;
             break;
         }
-        if (!updateTrackerPointers(tracker))
+        if (!updateTrackerPointer(tracker))
         {
             errCode = 0x02;
             break;
@@ -161,42 +147,14 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
     return true;
 }
 
-static bool updateTrackerPointers(MemoryTracker* tracker)
-{
-    typedef struct {
-        void* address; uintptr pointer;
-    } method;
-    method methods[] = 
-    {
-        { &MT_VirtualAlloc,   METHOD_ADDR_VIRTUAL_ALLOC },
-        { &MT_VirtualFree,    METHOD_ADDR_VIRTUAL_FREE },
-        { &MT_VirtualProtect, METHOD_ADDR_VIRTUAL_PROTECT },
-        { &MT_MemAlloc,       METHOD_ADDR_MEM_ALLOC },
-        { &MT_MemFree,        METHOD_ADDR_MEM_FREE },
-        { &MT_Encrypt,        METHOD_ADDR_ENCRYPT },
-        { &MT_Decrypt,        METHOD_ADDR_DECRYPT },
-        { &MT_Clean,          METHOD_ADDR_CLEAN },
-    };
-    bool success = true;
-    for (int i = 0; i < arrlen(methods); i++)
-    {
-        if (!updateTrackerPointer(tracker, methods[i].address, methods[i].pointer))
-        {
-            success = false;
-            break;
-        }
-    }
-    return success;
-}
-
-static bool updateTrackerPointer(MemoryTracker* tracker, void* method, uintptr address)
+static bool updateTrackerPointer(MemoryTracker* tracker)
 {
     bool success = false;
-    uintptr target = (uintptr)method;
+    uintptr target = (uintptr)(&getTrackerPointer);
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
-        if (*pointer != address)
+        if (*pointer != TRACKER_POINTER)
         {
             target++;
             continue;
@@ -224,11 +182,12 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     return true;
 }
 
-// updateTrackerPointers will replace hard encode address to the actual address.
+// updateTrackerPointer will replace hard encode address to the actual address.
 // Must disable compiler optimize, otherwise updateTrackerPointer will fail.
 #pragma optimize("", off)
-static MemoryTracker* getTrackerPointer(uintptr pointer)
+static MemoryTracker* getTrackerPointer()
 {
+    uint pointer = TRACKER_POINTER;
     return (MemoryTracker*)(pointer);
 }
 #pragma optimize("", on)
@@ -236,7 +195,7 @@ static MemoryTracker* getTrackerPointer(uintptr pointer)
 __declspec(noinline)
 uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 {
-    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_ALLOC);
+    MemoryTracker* tracker = getTrackerPointer();
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -334,7 +293,7 @@ static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint3
 __declspec(noinline)
 bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 {
-    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_FREE);
+    MemoryTracker* tracker = getTrackerPointer();
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -483,7 +442,7 @@ static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
 __declspec(noinline)
 bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 {
-    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_VIRTUAL_PROTECT);
+    MemoryTracker* tracker = getTrackerPointer();
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -614,7 +573,7 @@ static bool recoverPageProtect(MemoryTracker* tracker, memPage* page)
 __declspec(noinline)
 void* MT_MemAlloc(uint size)
 {
-    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_MEM_ALLOC);
+    MemoryTracker* tracker = getTrackerPointer();
 
     // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
@@ -659,7 +618,7 @@ void* MT_MemRealloc(void* address, uint size)
 __declspec(noinline)
 bool MT_MemFree(void* address)
 {
-    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_MEM_FREE);
+    MemoryTracker* tracker = getTrackerPointer();
 
     // clean the buffer data before call VirtualFree.
     uintptr addr = (uintptr)(address)-16;
@@ -671,7 +630,7 @@ bool MT_MemFree(void* address)
 __declspec(noinline)
 bool MT_Encrypt()
 {
-    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_ENCRYPT);
+    MemoryTracker* tracker = getTrackerPointer();
 
     List* pages = &tracker->Pages;
     uint  index = 0;
@@ -730,7 +689,7 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page)
 __declspec(noinline)
 bool MT_Decrypt()
 {
-    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_DECRYPT);
+    MemoryTracker* tracker = getTrackerPointer();
 
     // decrypt region and page list
     List* list = &tracker->Regions;
@@ -804,13 +763,13 @@ static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key)
 __declspec(noinline)
 bool MT_Clean()
 {
-    MemoryTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
+    MemoryTracker* tracker = getTrackerPointer();
 
     List* pages   = &tracker->Pages;
     List* regions = &tracker->Regions;
 
     // decommit memory pages
-    uint  index = 0;
+    uint index = 0;
     for (uint num = 0; num < pages->Len; index++)
     {
         memPage* page = List_Get(pages, index);
