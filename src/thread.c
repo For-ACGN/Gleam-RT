@@ -9,27 +9,6 @@
 #include "crypto.h"
 #include "thread.h"
 
-// hard encoded address in methods for replace
-#ifdef _WIN64
-    #define METHOD_ADDR_CREATE_THREAD    0x7FFFFFFFFFFFFF10
-    #define METHOD_ADDR_EXIT_THREAD      0x7FFFFFFFFFFFFF11
-    #define METHOD_ADDR_SUSPEND_THREAD   0x7FFFFFFFFFFFFF12
-    #define METHOD_ADDR_RESUME_THREAD    0x7FFFFFFFFFFFFF13
-    #define METHOD_ADDR_TERMINATE_THREAD 0x7FFFFFFFFFFFFF14
-    #define METHOD_ADDR_SUSPEND_ALL      0x7FFFFFFFFFFFFF15
-    #define METHOD_ADDR_RESUME_ALL       0x7FFFFFFFFFFFFF16
-    #define METHOD_ADDR_CLEAN            0x7FFFFFFFFFFFFF17
-#elif _WIN32
-    #define METHOD_ADDR_CREATE_THREAD    0x7FFFFF10
-    #define METHOD_ADDR_EXIT_THREAD      0x7FFFFF11
-    #define METHOD_ADDR_SUSPEND_THREAD   0x7FFFFF12
-    #define METHOD_ADDR_RESUME_THREAD    0x7FFFFF13
-    #define METHOD_ADDR_TERMINATE_THREAD 0x7FFFFF14
-    #define METHOD_ADDR_SUSPEND_ALL      0x7FFFFF15
-    #define METHOD_ADDR_RESUME_ALL       0x7FFFFF16
-    #define METHOD_ADDR_CLEAN            0x7FFFFF17
-#endif
-
 typedef struct {
     uint32 threadID;
     HANDLE hThread;
@@ -71,9 +50,16 @@ bool   TT_SuspendAll();
 bool   TT_ResumeAll();
 bool   TT_Clean();
 
+// hard encoded address in getTrackerPointer for replace
+#ifdef _WIN64
+    #define TRACKER_POINTER 0x7FFFFFFFFFFFFF01
+#elif _WIN32
+    #define TRACKER_POINTER 0x7FFFFF01
+#endif
+static ThreadTracker* getTrackerPointer();
+
 static bool initTrackerAPI(ThreadTracker* tracker, Context* context);
-static bool updateTrackerPointers(ThreadTracker* tracker);
-static bool updateTrackerPointer(ThreadTracker* tracker, void* method, uintptr address);
+static bool updateTrackerPointer(ThreadTracker* tracker);
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
 static void delThread(ThreadTracker* tracker, uint32 threadID);
@@ -94,7 +80,7 @@ ThreadTracker_M* InitThreadTracker(Context* context)
             errCode = 0x11;
             break;
         }
-        if (!updateTrackerPointers(tracker))
+        if (!updateTrackerPointer(tracker))
         {
             errCode = 0x12;
             break;
@@ -178,42 +164,14 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
     return true;
 }
 
-static bool updateTrackerPointers(ThreadTracker* tracker)
-{
-    typedef struct {
-        void* address; uintptr pointer;
-    } method;
-    method methods[] = 
-    {
-        { &TT_CreateThread,    METHOD_ADDR_CREATE_THREAD },
-        { &TT_ExitThread,      METHOD_ADDR_EXIT_THREAD },
-        { &TT_SuspendThread,   METHOD_ADDR_SUSPEND_THREAD },
-        { &TT_ResumeThread,    METHOD_ADDR_RESUME_THREAD },
-        { &TT_TerminateThread, METHOD_ADDR_TERMINATE_THREAD },
-        { &TT_SuspendAll,      METHOD_ADDR_SUSPEND_ALL },
-        { &TT_ResumeAll,       METHOD_ADDR_RESUME_ALL },
-        { &TT_Clean,           METHOD_ADDR_CLEAN},
-    };
-    bool success = true;
-    for (int i = 0; i < arrlen(methods); i++)
-    {
-        if (!updateTrackerPointer(tracker, methods[i].address, methods[i].pointer))
-        {
-            success = false;
-            break;
-        }
-    }
-    return success;
-}
-
-static bool updateTrackerPointer(ThreadTracker* tracker, void* method, uintptr address)
+static bool updateTrackerPointer(ThreadTracker* tracker)
 {
     bool success = false;
-    uintptr target = (uintptr)method;
+    uintptr target = (uintptr)(&getTrackerPointer);
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
-        if (*pointer != address)
+        if (*pointer != TRACKER_POINTER)
         {
             target++;
             continue;
@@ -247,11 +205,12 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
     return addThread(tracker, threadID, CURRENT_THREAD);
 }
 
-// updateTrackerPointers will replace hard encode address to the actual address.
+// updateTrackerPointer will replace hard encode address to the actual address.
 // Must disable compiler optimize, otherwise updateTrackerPointer will fail.
 #pragma optimize("", off)
-static ThreadTracker* getTrackerPointer(uintptr pointer)
+static ThreadTracker* getTrackerPointer()
 {
+    uint pointer = TRACKER_POINTER;
     return (ThreadTracker*)(pointer);
 }
 #pragma optimize("", on)
@@ -262,7 +221,7 @@ HANDLE TT_CreateThread(
     uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
 )
 {
-    ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_CREATE_THREAD);
+    ThreadTracker* tracker = getTrackerPointer();
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -335,7 +294,7 @@ static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
 __declspec(noinline)
 void TT_ExitThread(uint32 dwExitCode)
 {
-    ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_EXIT_THREAD);
+    ThreadTracker* tracker = getTrackerPointer();
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -376,7 +335,7 @@ static void delThread(ThreadTracker* tracker, uint32 threadID)
 __declspec(noinline)
 uint32 TT_SuspendThread(HANDLE hThread)
 {
-    ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_SUSPEND_THREAD);
+    ThreadTracker* tracker = getTrackerPointer();
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -401,7 +360,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
 __declspec(noinline)
 uint32 TT_ResumeThread(HANDLE hThread)
 {
-    ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_RESUME_THREAD);
+    ThreadTracker* tracker = getTrackerPointer();
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -418,7 +377,7 @@ uint32 TT_ResumeThread(HANDLE hThread)
 __declspec(noinline)
 bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
 {
-    ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_TERMINATE_THREAD);
+    ThreadTracker* tracker = getTrackerPointer();
 
     if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -439,7 +398,7 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
 __declspec(noinline)
 bool TT_SuspendAll()
 {
-    ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_SUSPEND_ALL);
+    ThreadTracker* tracker = getTrackerPointer();
 
     uint32 currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
@@ -480,7 +439,7 @@ bool TT_SuspendAll()
 __declspec(noinline)
 bool TT_ResumeAll()
 {
-    ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_RESUME_ALL);
+    ThreadTracker* tracker = getTrackerPointer();
 
     // TODO decrypt thread list
 
@@ -521,7 +480,7 @@ bool TT_ResumeAll()
 __declspec(noinline)
 bool TT_Clean()
 {
-    ThreadTracker* tracker = getTrackerPointer(METHOD_ADDR_CLEAN);
+    ThreadTracker* tracker = getTrackerPointer();
 
     uint32 currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
