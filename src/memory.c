@@ -237,7 +237,7 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     {
         return true;
     }
-    printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
+    // printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
     switch (type&0xF000)
     {
     case MEM_COMMIT:
@@ -322,7 +322,7 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 
 static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 type)
 {
-    printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
+    // printf("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
     switch (type&0xF000)
     {
     case MEM_DECOMMIT:
@@ -471,8 +471,7 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 
 static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect)
 {
-    printf("VirtualProtect: 0x%llX, %llu, 0x%X\n", address, size, protect);
-
+    // printf("VirtualProtect: 0x%llX, %llu, 0x%X\n", address, size, protect);
     register uint pageSize = tracker->PageSize;
 
     register List* pages = &tracker->Pages;

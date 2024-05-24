@@ -63,7 +63,7 @@ bool RT_Hide();
 bool RT_Recover();
 bool RT_Stop();
 
-// internal methods about Runtime
+// internal methods for Runtime submodules
 void* RT_malloc(uint size);
 void* RT_realloc(void* address, uint size);
 bool  RT_free(void* address);
@@ -94,6 +94,9 @@ static uintptr replaceToHook(Runtime* runtime, uintptr proc);
 static bool sleep(Runtime* runtime, uint32 milliseconds);
 static bool hide(Runtime* runtime);
 static bool recover(Runtime* runtime);
+
+static bool rt_lock(Runtime* runtime);
+static bool rt_unlock(Runtime* runtime);
 
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Opts* opts)
@@ -441,26 +444,6 @@ static bool initIATHooks(Runtime* runtime)
     return true;
 }
 
-static void cleanRuntime(Runtime* runtime)
-{
-    CloseHandle_t closeHandle = runtime->CloseHandle;
-    if (closeHandle != NULL && runtime->Mutex != NULL)
-    {
-        closeHandle(runtime->Mutex);
-    }
-
-    // TODO Protect ASM self
-    // TODO Remove self
-
-    // must copy api address before call RandBuf
-    VirtualFree_t virtualFree = runtime->VirtualFree;
-    RandBuf((byte*)runtime->MainMemPage, MAIN_MEM_PAGE_SIZE);
-    if (virtualFree != NULL)
-    {
-        virtualFree(runtime->MainMemPage, 0, MEM_RELEASE);
-    }
-}
-
 // updateRuntimePointer will replace hard encode address to the actual address.
 // Must disable compiler optimize, otherwise updateRuntimePointer will fail.
 #pragma optimize("", off)
@@ -622,7 +605,7 @@ bool RT_Sleep(uint32 milliseconds)
 {
     Runtime* runtime = getRuntimePointer();
 
-    if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (!rt_lock(runtime))
     {
         return false;
     }
@@ -647,7 +630,10 @@ bool RT_Sleep(uint32 milliseconds)
         break;
     }
 
-    runtime->ReleaseMutex(runtime->Mutex);
+    if (!rt_unlock(runtime))
+    {
+        return false;
+    }
     return success;
 }
 
@@ -666,12 +652,15 @@ bool RT_Hide()
 {
     Runtime* runtime = getRuntimePointer();
 
-    if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (!rt_lock(runtime))
     {
         return false;
     }
     bool success = hide(runtime);
-    runtime->ReleaseMutex(runtime->Mutex);
+    if (!rt_unlock(runtime))
+    {
+        return false;
+    }
     return success;
 }
 
@@ -701,12 +690,15 @@ bool RT_Recover()
 {
     Runtime* runtime = getRuntimePointer();
 
-    if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (!rt_lock(runtime))
     {
         return false;
     }
     bool success = recover(runtime);
-    runtime->ReleaseMutex(runtime->Mutex);
+    if (!rt_unlock(runtime))
+    {
+        return false;
+    }
     return success;
 }
 
@@ -736,7 +728,7 @@ bool RT_Stop()
 {
     Runtime* runtime = getRuntimePointer();
 
-    if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (!rt_lock(runtime))
     {
         return false;
     }
@@ -757,7 +749,10 @@ bool RT_Stop()
         break;
     }
 
-    runtime->ReleaseMutex(runtime->Mutex);
+    if (!rt_unlock(runtime))
+    {
+        return false;
+    }
     return success;
 }
 
@@ -821,4 +816,35 @@ bool RT_free(void* address)
     uint    size = *(uint*)addr;
     mem_clean((byte*)addr, size);
     return runtime->VirtualFree(addr, 0, MEM_RELEASE);
+}
+
+static bool rt_lock(Runtime* runtime)
+{
+    uint32 event = runtime->WaitForSingleObject(runtime->Mutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+static bool rt_unlock(Runtime* runtime)
+{
+    return runtime->ReleaseMutex(runtime->Mutex);
+}
+
+static void cleanRuntime(Runtime* runtime)
+{
+    CloseHandle_t closeHandle = runtime->CloseHandle;
+    if (closeHandle != NULL && runtime->Mutex != NULL)
+    {
+        closeHandle(runtime->Mutex);
+    }
+
+    // TODO Protect ASM self
+    // TODO Remove self
+
+    // must copy api address before call RandBuf
+    VirtualFree_t virtualFree = runtime->VirtualFree;
+    RandBuf((byte*)runtime->MainMemPage, MAIN_MEM_PAGE_SIZE);
+    if (virtualFree != NULL)
+    {
+        virtualFree(runtime->MainMemPage, 0, MEM_RELEASE);
+    }
 }
