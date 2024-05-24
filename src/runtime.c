@@ -12,31 +12,6 @@
 #include "runtime.h"
 #include "epilogue.h"
 
-// hard encoded address in methods for replace
-#ifdef _WIN64
-    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH  0x7FFFFFFFFFFFFFF0
-    #define METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL 0x7FFFFFFFFFFFFFF1
-    
-    #define METHOD_ADDR_SLEEP   0x7FFFFFFFFFFFFFE0
-    #define METHOD_ADDR_HIDE    0x7FFFFFFFFFFFFFE1
-    #define METHOD_ADDR_RECOVER 0x7FFFFFFFFFFFFFE2
-    #define METHOD_ADDR_STOP    0x7FFFFFFFFFFFFFE3
-
-    #define METHOD_ADDR_MALLOC 0x7FFFFFFFFFFFFFD0
-    #define METHOD_ADDR_FREE   0x7FFFFFFFFFFFFFD1
-#elif _WIN32
-    #define METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH  0x7FFFFFF0
-    #define METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL 0x7FFFFFF1
-
-    #define METHOD_ADDR_SLEEP   0x7FFFFFE0
-    #define METHOD_ADDR_HIDE    0x7FFFFFE1
-    #define METHOD_ADDR_RECOVER 0x7FFFFFE2
-    #define METHOD_ADDR_STOP    0x7FFFFFE3
-
-    #define METHOD_ADDR_MALLOC 0x7FFFFFD0
-    #define METHOD_ADDR_FREE   0x7FFFFFD1
-#endif
-
 #define MAIN_MEM_PAGE_SIZE 4096
 
 // for IAT hooks
@@ -93,12 +68,19 @@ void* RT_malloc(uint size);
 void* RT_realloc(void* address, uint size);
 bool  RT_free(void* address);
 
+// hard encoded address in getRuntimePointer for replace
+#ifdef _WIN64
+    #define RUNTIME_POINTER 0x7FFFFFFFFFFFFFFF
+#elif _WIN32
+    #define RUNTIME_POINTER 0x7FFFFFFF
+#endif
+static Runtime* getRuntimePointer();
+
 static uintptr allocateRuntimeMemory();
 static bool initRuntimeAPI(Runtime* runtime);
 static bool adjustPageProtect(Runtime* runtime, uint32* old);
 static bool recoverPageProtect(Runtime* runtime, uint32* old);
-static bool updateRuntimePointers(Runtime* runtime);
-static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address);
+static bool updateRuntimePointer(Runtime* runtime);
 static uint initRuntimeEnvironment(Runtime* runtime);
 static uint initMemoryTracker(Runtime* runtime, Context* context);
 static uint initThreadTracker(Runtime* runtime, Context* context);
@@ -143,7 +125,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
             errCode = 0xF2;
             break;
         }
-        if (!updateRuntimePointers(runtime))
+        if (!updateRuntimePointer(runtime))
         {
             errCode = 0xF3;
             break;
@@ -307,44 +289,14 @@ static bool recoverPageProtect(Runtime* runtime, uint32* old)
     return true;
 }
 
-static bool updateRuntimePointers(Runtime* runtime)
-{    
-    typedef struct {
-        void* address; uintptr pointer;
-    } method;
-    method methods[] = 
-    {
-        { &RT_GetProcAddressByHash,   METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH },
-        { &RT_GetProcAddressOriginal, METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL },
-
-        { &RT_Sleep,   METHOD_ADDR_SLEEP },
-        { &RT_Hide,    METHOD_ADDR_HIDE },
-        { &RT_Recover, METHOD_ADDR_RECOVER },
-        { &RT_Stop,    METHOD_ADDR_STOP },
-
-        { &RT_malloc, METHOD_ADDR_MALLOC },
-        { &RT_free,   METHOD_ADDR_FREE },
-    };
-    bool success = true;
-    for (int i = 0; i < arrlen(methods); i++)
-    {
-        if (!updateRuntimePointer(runtime, methods[i].address, methods[i].pointer))
-        {
-            success = false;
-            break;
-        }
-    }
-    return success;
-}
-
-static bool updateRuntimePointer(Runtime* runtime, void* method, uintptr address)
+static bool updateRuntimePointer(Runtime* runtime)
 {
     bool success = false;
-    uintptr target = (uintptr)method;
+    uintptr target = (uintptr)(&getRuntimePointer);
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
-        if (*pointer != address)
+        if (*pointer != RUNTIME_POINTER)
         {
             target++;
             continue;
@@ -509,11 +461,12 @@ static void cleanRuntime(Runtime* runtime)
     }
 }
 
-// updateRuntimePointers will replace hard encode address to the actual address.
+// updateRuntimePointer will replace hard encode address to the actual address.
 // Must disable compiler optimize, otherwise updateRuntimePointer will fail.
 #pragma optimize("", off)
-static Runtime* getRuntimePointer(uintptr pointer)
+static Runtime* getRuntimePointer()
 {
+    uint pointer = RUNTIME_POINTER;
     return (Runtime*)(pointer);
 }
 #pragma optimize("", on)
@@ -549,7 +502,7 @@ uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
 __declspec(noinline)
 uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
 {
-    Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_BY_HASH);
+    Runtime* runtime = getRuntimePointer();
 
     uintptr proc = FindAPI(hash, key);
     if (proc == NULL)
@@ -658,7 +611,7 @@ static uintptr replaceToHook(Runtime* runtime, uintptr proc)
 __declspec(noinline)
 uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 {
-    Runtime* runtime = getRuntimePointer(METHOD_ADDR_GET_PROC_ADDRESS_ORIGINAL);
+    Runtime* runtime = getRuntimePointer();
 
     return runtime->GetProcAddress(hModule, lpProcName);
 }
@@ -667,7 +620,7 @@ uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 __declspec(noinline)
 bool RT_Sleep(uint32 milliseconds)
 {
-    Runtime* runtime = getRuntimePointer(METHOD_ADDR_SLEEP);
+    Runtime* runtime = getRuntimePointer();
 
     if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -705,14 +658,13 @@ static bool sleep(Runtime* runtime, uint32 milliseconds)
     {
         milliseconds = 100;
     }
-    // milliseconds += 5000; // TODO remote it 
     return runtime->WaitForSingleObject(runtime->hProcess, milliseconds);
 }
 
 __declspec(noinline)
 bool RT_Hide()
 {
-    Runtime* runtime = getRuntimePointer(METHOD_ADDR_HIDE);
+    Runtime* runtime = getRuntimePointer();
 
     if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -747,7 +699,7 @@ static bool hide(Runtime* runtime)
 __declspec(noinline)
 bool RT_Recover()
 {
-    Runtime* runtime = getRuntimePointer(METHOD_ADDR_RECOVER);
+    Runtime* runtime = getRuntimePointer();
 
     if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -782,7 +734,7 @@ static bool recover(Runtime* runtime)
 __declspec(noinline)
 bool RT_Stop()
 {
-    Runtime* runtime = getRuntimePointer(METHOD_ADDR_STOP);
+    Runtime* runtime = getRuntimePointer();
 
     if (runtime->WaitForSingleObject(runtime->Mutex, INFINITE) != WAIT_OBJECT_0)
     {
@@ -812,7 +764,7 @@ bool RT_Stop()
 __declspec(noinline)
 void* RT_malloc(uint size)
 {
-    Runtime* runtime = getRuntimePointer(METHOD_ADDR_MALLOC);
+    Runtime* runtime = getRuntimePointer();
 
     // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
@@ -860,7 +812,7 @@ void* RT_realloc(void* address, uint size)
 __declspec(noinline)
 bool RT_free(void* address)
 {
-    Runtime* runtime = getRuntimePointer(METHOD_ADDR_FREE);
+    Runtime* runtime = getRuntimePointer();
 
     printf("rt_free: 0x%llX\n", (uintptr)address);
 
