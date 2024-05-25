@@ -430,7 +430,7 @@ bool TT_SuspendAll()
     for (uint num = 0; num < threads->Len; index++)
     {
         thread* thread = List_Get(threads, index);
-        if (thread->threadID == NULL)
+        if (thread->threadID == 0)
         {
             continue;
         }
@@ -440,20 +440,12 @@ bool TT_SuspendAll()
             num++;
             continue;
         }
-        // suspend loop until count is greater than zero
-        for (;;)
+        uint32 count = tracker->SuspendThread(thread->hThread);
+        if (count == -1)
         {
-            uint32 count = tracker->SuspendThread(thread->hThread);
-            if (count == -1)
-            {
-                delThread(tracker, thread->threadID);
-                error = true;
-                break;
-            }
-            if (count >= 1)
-            {
-                break;
-            }
+            delThread(tracker, thread->threadID);
+            error = true;
+            break;
         }
         num++;
     }
@@ -482,7 +474,7 @@ bool TT_ResumeAll()
     for (uint num = 0; num < threads->Len; index++)
     {
         thread* thread = List_Get(threads, index);
-        if (thread->threadID == NULL)
+        if (thread->threadID == 0)
         {
             continue;
         }
@@ -502,7 +494,7 @@ bool TT_ResumeAll()
                 error = true;
                 break;
             }
-            if (count == 0)
+            if (count <= 1)
             {
                 break;
             }
@@ -530,7 +522,7 @@ bool TT_Clean()
     for (uint num = 0; num < threads->Len; index++)
     {
         thread* thread = List_Get(threads, index);
-        if (thread->threadID == NULL)
+        if (thread->threadID == 0)
         {
             continue;
         }
