@@ -226,7 +226,7 @@ HANDLE TT_CreateThread(
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tt_lock(tracker))
+    if (!tt_lock(tracker))
     {
         return NULL;
     }
@@ -256,7 +256,7 @@ HANDLE TT_CreateThread(
         printf("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
     }
 
-    if (tt_unlock(tracker))
+    if (!tt_unlock(tracker))
     {
         return NULL;
     }
@@ -302,7 +302,7 @@ void TT_ExitThread(uint32 dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tt_lock(tracker))
+    if (!tt_lock(tracker))
     {
         return;
     }
@@ -315,7 +315,7 @@ void TT_ExitThread(uint32 dwExitCode)
 
     printf("ExitThread: %lu\n", threadID);
 
-    if (tt_unlock(tracker))
+    if (!tt_unlock(tracker))
     {
         return;
     }
@@ -345,7 +345,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tt_lock(tracker))
+    if (!tt_lock(tracker))
     {
         return -1;
     }
@@ -355,14 +355,14 @@ uint32 TT_SuspendThread(HANDLE hThread)
     uint32 threadID = tracker->GetThreadID(hThread);
     if (threadID == tracker->GetCurrentThreadID() || threadID == 0)
     {
-        if (tt_unlock(tracker))
+        if (!tt_unlock(tracker))
         {
             return -1;
         }
         count = tracker->SuspendThread(hThread);
     } else {
         count = tracker->SuspendThread(hThread);
-        if (tt_unlock(tracker))
+        if (!tt_unlock(tracker))
         {
             return -1;
         }
@@ -375,14 +375,14 @@ uint32 TT_ResumeThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tt_lock(tracker))
+    if (!tt_lock(tracker))
     {
         return -1;
     }
 
     uint32 count = tracker->ResumeThread(hThread);
 
-    if (tt_unlock(tracker))
+    if (!tt_unlock(tracker))
     {
         return -1;
     }
@@ -394,7 +394,7 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tt_lock(tracker))
+    if (!tt_lock(tracker))
     {
         return false;
     }
@@ -405,7 +405,7 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
         delThread(tracker, threadID);
     }
 
-    if (tt_unlock(tracker))
+    if (!tt_unlock(tracker))
     {
         return false;
     }
@@ -440,11 +440,20 @@ bool TT_SuspendAll()
             num++;
             continue;
         }
-        uint32 count = tracker->SuspendThread(thread->hThread);
-        if (count == -1)
+        // suspend loop until count is greater than zero
+        for (;;)
         {
-            delThread(tracker, thread->threadID);
-            error = true;
+            uint32 count = tracker->SuspendThread(thread->hThread);
+            if (count == -1)
+            {
+                delThread(tracker, thread->threadID);
+                error = true;
+                break;
+            }
+            if (count >= 1)
+            {
+                break;
+            }
         }
         num++;
     }
@@ -483,11 +492,20 @@ bool TT_ResumeAll()
             num++;
             continue;
         }
-        uint32 count = tracker->ResumeThread(thread->hThread);
-        if (count == -1)
+        // resume loop until count is zero
+        for (;;)
         {
-            delThread(tracker, thread->threadID);
-            error = true;
+            uint32 count = tracker->ResumeThread(thread->hThread);
+            if (count == -1)
+            {
+                delThread(tracker, thread->threadID);
+                error = true;
+                break;
+            }
+            if (count == 0)
+            {
+                break;
+            }
         }
         num++;
     }
