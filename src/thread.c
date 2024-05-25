@@ -64,6 +64,9 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
 static void delThread(ThreadTracker* tracker, uint32 threadID);
 
+static bool tt_lock(ThreadTracker* tracker);
+static bool tt_unlock(ThreadTracker* tracker);
+
 ThreadTracker_M* InitThreadTracker(Context* context)
 {
     // set structure address
@@ -223,7 +226,7 @@ HANDLE TT_CreateThread(
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (tt_lock(tracker))
     {
         return NULL;
     }
@@ -253,7 +256,10 @@ HANDLE TT_CreateThread(
         printf("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
     }
 
-    tracker->ReleaseMutex(tracker->Mutex);
+    if (tt_unlock(tracker))
+    {
+        return NULL;
+    }
 
     if (!success)
     {
@@ -296,7 +302,7 @@ void TT_ExitThread(uint32 dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (tt_lock(tracker))
     {
         return;
     }
@@ -309,8 +315,10 @@ void TT_ExitThread(uint32 dwExitCode)
 
     printf("ExitThread: %lu\n", threadID);
 
-    tracker->ReleaseMutex(tracker->Mutex);
-
+    if (tt_unlock(tracker))
+    {
+        return;
+    }
     tracker->ExitThread(dwExitCode);
 }
 
@@ -337,7 +345,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (tt_lock(tracker))
     {
         return -1;
     }
@@ -347,13 +355,18 @@ uint32 TT_SuspendThread(HANDLE hThread)
     uint32 threadID = tracker->GetThreadID(hThread);
     if (threadID == tracker->GetCurrentThreadID() || threadID == 0)
     {
-        tracker->ReleaseMutex(tracker->Mutex);
+        if (tt_unlock(tracker))
+        {
+            return -1;
+        }
         count = tracker->SuspendThread(hThread);
     } else {
         count = tracker->SuspendThread(hThread);
-        tracker->ReleaseMutex(tracker->Mutex);
+        if (tt_unlock(tracker))
+        {
+            return -1;
+        }
     }
-
     return count;
 }
 
@@ -362,15 +375,17 @@ uint32 TT_ResumeThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (tt_lock(tracker))
     {
         return -1;
     }
 
     uint32 count = tracker->ResumeThread(hThread);
 
-    tracker->ReleaseMutex(tracker->Mutex);
-
+    if (tt_unlock(tracker))
+    {
+        return -1;
+    }
     return count;
 }
 
@@ -379,7 +394,7 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (tt_lock(tracker))
     {
         return false;
     }
@@ -390,8 +405,10 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
         delThread(tracker, threadID);
     }
 
-    tracker->ReleaseMutex(tracker->Mutex);
-
+    if (tt_unlock(tracker))
+    {
+        return false;
+    }
     return tracker->TerminateThread(hThread, dwExitCode);
 }
 
@@ -519,4 +536,15 @@ bool TT_Clean()
     // clean thread list
     RandBuf(threads->Data, List_Size(threads));
     return !error;
+}
+
+static bool tt_lock(ThreadTracker* tracker)
+{
+    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+static bool tt_unlock(ThreadTracker* tracker)
+{
+    return tracker->ReleaseMutex(tracker->Mutex);
 }
