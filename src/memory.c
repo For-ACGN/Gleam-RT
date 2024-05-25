@@ -89,6 +89,9 @@ static bool isEmptyPage(MemoryTracker* tracker, memPage* page);
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
 static bool cleanPage(MemoryTracker* tracker, memPage* page);
 
+static bool mt_lock(MemoryTracker* tracker);
+static bool mt_unlock(MemoryTracker* tracker);
+
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
     // set structure address
@@ -197,7 +200,7 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (!mt_lock(tracker))
     {
         return NULL;
     }
@@ -223,7 +226,10 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
         break;
     }
 
-    tracker->ReleaseMutex(tracker->Mutex);
+    if (!mt_unlock(tracker))
+    {
+        return NULL;
+    }
     if (!success)
     {
         return NULL;
@@ -295,7 +301,7 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (!mt_lock(tracker))
     {
         return false;
     }
@@ -316,7 +322,10 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
         break;
     }
 
-    tracker->ReleaseMutex(tracker->Mutex);
+    if (!mt_unlock(tracker))
+    {
+        return false;
+    }
     return success;
 }
 
@@ -444,7 +453,7 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    if (tracker->WaitForSingleObject(tracker->Mutex, INFINITE) != WAIT_OBJECT_0)
+    if (!mt_lock(tracker))
     {
         return false;
     }
@@ -465,7 +474,10 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
         break;
     }
 
-    tracker->ReleaseMutex(tracker->Mutex);
+    if (!mt_unlock(tracker))
+    {
+        return false;
+    }
     return success;
 }
 
@@ -826,4 +838,15 @@ static bool cleanPage(MemoryTracker* tracker, memPage* page)
         return false;
     }
     return tracker->VirtualFree(page->address, tracker->PageSize, MEM_DECOMMIT);
+}
+
+static bool mt_lock(MemoryTracker* tracker)
+{
+    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+static bool mt_unlock(MemoryTracker* tracker)
+{
+    return tracker->ReleaseMutex(tracker->Mutex);
 }
