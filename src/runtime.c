@@ -343,6 +343,8 @@ static uint initRuntimeEnvironment(Runtime* runtime)
     Context context = {
         .MainMemPage = runtime->MainMemPage,
 
+        .TrackCurrentThread = runtime->Options->TrackCurrentThread,
+
         .VirtualAlloc        = runtime->VirtualAlloc,
         .VirtualFree         = runtime->VirtualFree,
         .VirtualProtect      = runtime->VirtualProtect,

@@ -200,12 +200,19 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
     RandBuf(&tracker->ThreadsKey[0], CRYPTO_KEY_SIZE);
     RandBuf(&tracker->ThreadsIV[0], CRYPTO_IV_SIZE);
     // add current thread for special executable file like Golang
-    uint32 threadID = tracker->GetCurrentThreadID();
-    if (threadID == 0)
+    if (context->TrackCurrentThread)
     {
-        return false;
+        uint32 threadID = tracker->GetCurrentThreadID();
+        if (threadID == 0)
+        {
+            return false;
+        }
+        if (!addThread(tracker, threadID, CURRENT_THREAD))
+        {
+            return false;
+        }
     }
-    return addThread(tracker, threadID, CURRENT_THREAD);
+    return true;
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.
