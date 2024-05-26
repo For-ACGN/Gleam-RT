@@ -26,8 +26,11 @@ typedef bool (*Recover_t)();
 typedef bool (*Stop_t)();
 
 typedef struct {
-    // not adjust current memory page protect
+    // not adjust current memory page protect for change runtime data.
     bool NotAdjustProtect;
+
+    // track current thread for some special executable file like Go
+    bool TrackCurrentThread;
 } Runtime_Opts;
 
 // Runtime_M contains exported runtime methods.
@@ -35,7 +38,7 @@ typedef struct {
     MemAlloc_t   MemAlloc;
     MemRealloc_t MemRealloc;
     MemFree_t    MemFree;
-    
+
     GetProcAddress_t         GetProcAddress;
     GetProcAddressByName_t   GetProcAddressByName;
     GetProcAddressByHash_t   GetProcAddressByHash;
