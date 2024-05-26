@@ -9,6 +9,9 @@ typedef struct {
     // arguments for initialize runtime
     uintptr MainMemPage;
 
+    // runtime options
+    bool TrackCurrentThread;
+
     // context data about initialize runtime
     VirtualAlloc_t        VirtualAlloc;
     VirtualFree_t         VirtualFree;
