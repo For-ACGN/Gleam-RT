@@ -5,18 +5,17 @@
 #include "windows_t.h"
 #include "context.h"
 
-typedef bool (*LibFreeAll_t)();
+typedef bool (*LibClean_t)();
 
 typedef struct {
-    LoadLibraryA_t   LoadLibraryA;
-    LoadLibraryW_t   LoadLibraryW;
-    LoadLibraryExA_t LoadLibraryExA;
-    LoadLibraryExW_t LoadLibraryExW;
-
+    LoadLibraryA_t             LoadLibraryA;
+    LoadLibraryW_t             LoadLibraryW;
+    LoadLibraryExA_t           LoadLibraryExA;
+    LoadLibraryExW_t           LoadLibraryExW;
     FreeLibrary_t              FreeLibrary;
     FreeLibraryAndExitThread_t FreeLibraryAndExitThread;
 
-    LibFreeAll_t LibFreeAll;
+    LibClean_t LibClean;
 } LibraryTracker_M;
 
 LibraryTracker_M* InitLibraryTracker(Context* context);
