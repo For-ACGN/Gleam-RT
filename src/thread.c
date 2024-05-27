@@ -50,11 +50,11 @@ bool   TT_SuspendAll();
 bool   TT_ResumeAll();
 bool   TT_Clean();
 
-// hard encoded address in getTrackerPointer for replace
+// hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
-    #define TRACKER_POINTER 0x7FFFFFFFFFFFFF01
+    #define TRACKER_POINTER 0x7FABCDEF11111102
 #elif _WIN32
-    #define TRACKER_POINTER 0x7FFFFF01
+    #define TRACKER_POINTER 0x7FABCD02
 #endif
 static ThreadTracker* getTrackerPointer();
 

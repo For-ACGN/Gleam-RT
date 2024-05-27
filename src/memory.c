@@ -57,11 +57,11 @@ bool    MT_Encrypt();
 bool    MT_Decrypt();
 bool    MT_Clean();
 
-// hard encoded address in getTrackerPointer for replace
+// hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
-    #define TRACKER_POINTER 0x7FFFFFFFFFFFFF00
+    #define TRACKER_POINTER 0x7FABCDEF11111101
 #elif _WIN32
-    #define TRACKER_POINTER 0x7FFFFF00
+    #define TRACKER_POINTER 0x7FABCD01
 #endif
 static MemoryTracker* getTrackerPointer();
 

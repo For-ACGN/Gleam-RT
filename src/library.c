@@ -31,6 +31,14 @@ typedef struct {
     byte ModulesIV [CRYPTO_IV_SIZE];
 } LibraryTracker;
 
+// hard encoded address in getTrackerPointer for replacement
+#ifdef _WIN64
+    #define TRACKER_POINTER 0x7FABCDEF11111100
+#elif _WIN32
+    #define TRACKER_POINTER 0x7FABCD00
+#endif
+static LibraryTracker* getTrackerPointer();
+
 LibraryTracker_M* InitLibraryTracker(Context* context)
 {
     // set structure address

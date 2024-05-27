@@ -70,11 +70,11 @@ void* RT_malloc(uint size);
 void* RT_realloc(void* address, uint size);
 bool  RT_free(void* address);
 
-// hard encoded address in getRuntimePointer for replace
+// hard encoded address in getRuntimePointer for replacement
 #ifdef _WIN64
-    #define RUNTIME_POINTER 0x7FFFFFFFFFFFFFFF
+    #define RUNTIME_POINTER 0x7FABCDEF111111FF
 #elif _WIN32
-    #define RUNTIME_POINTER 0x7FFFFFFF
+    #define RUNTIME_POINTER 0x7FABCDFF
 #endif
 static Runtime* getRuntimePointer();
 
