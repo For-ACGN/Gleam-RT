@@ -31,6 +31,15 @@ typedef struct {
     byte ModulesIV [CRYPTO_IV_SIZE];
 } LibraryTracker;
 
+// methods about library tracker
+HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName);
+HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName);
+HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags);
+HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags);
+bool    LT_FreeLibrary(HMODULE hLibModule);
+void    LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode);
+bool    LT_Clean();
+
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
     #define TRACKER_POINTER 0x7FABCDEF11111100
@@ -75,9 +84,18 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     {
         return (LibraryTracker_M*)errCode;
     }
-
-
-    return NULL;
+    // create methods for tracker
+    LibraryTracker_M* module = (LibraryTracker_M*)moduleAddr;
+    // Windows API hooks
+    module->LoadLibraryA             = (LoadLibraryA_t            )(&LT_LoadLibraryA);
+    module->LoadLibraryW             = (LoadLibraryW_t            )(&LT_LoadLibraryW);
+    module->LoadLibraryExA           = (LoadLibraryExA_t          )(&LT_LoadLibraryExA);
+    module->LoadLibraryExW           = (LoadLibraryExW_t          )(&LT_LoadLibraryExW);
+    module->FreeLibrary              = (FreeLibrary_t             )(&LT_FreeLibrary);
+    module->FreeLibraryAndExitThread = (FreeLibraryAndExitThread_t)(&LT_FreeLibraryAndExitThread);
+    // methods for runtime     
+    module->LibClean = &LT_Clean;
+    return module;
 }
 
 static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
@@ -127,11 +145,36 @@ static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
 
 static bool updateTrackerPointer(LibraryTracker* tracker)
 {
-
+    bool success = false;
+    uintptr target = (uintptr)(&getTrackerPointer);
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != TRACKER_POINTER)
+        {
+            target++;
+            continue;
+        }
+        *pointer = (uintptr)tracker;
+        success = true;
+        break;
+    }
+    return success;
 }
 
 static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context)
 {
-
+    // copy runtime context data
+    tracker->Mutex = context->Mutex;
+    // initialize module list
+    List_Ctx ctx = {
+        .malloc  = context->malloc,
+        .realloc = context->realloc,
+        .free    = context->free,
+    };
+    List_Init(&tracker->Modules, &ctx, sizeof(module));
+    // set crypto context data
+    RandBuf(&tracker->ModulesKey[0], CRYPTO_KEY_SIZE);
+    RandBuf(&tracker->ModulesIV[0], CRYPTO_IV_SIZE);
+    return true;
 }
-
