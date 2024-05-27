@@ -15,29 +15,29 @@ uint32 GetModuleFileName(HMODULE hModule, byte* name, uint32 size)
 #endif
     for (;; mod = *(uintptr*)(mod))
     {
-#ifdef _WIN64
+    #ifdef _WIN64
         uintptr modName = *(uintptr*)(mod + 80);
-#elif _WIN32
+    #elif _WIN32
         uintptr modName = *(uintptr*)(mod + 40);
-#endif
+    #endif
         if (modName == 0x00)
         {
             break;
         }
-#ifdef _WIN64
+    #ifdef _WIN64
         uintptr modBase = *(uintptr*)(mod + 32);
-#elif _WIN32
+    #elif _WIN32
         uintptr modBase = *(uintptr*)(mod + 16);
-#endif
+    #endif
         if (modBase != hModule)
         {
             continue;
         }
-#ifdef _WIN64
+    #ifdef _WIN64
         uint16 nameLen = *(uint16*)(mod + 74);
-#elif _WIN32
+    #elif _WIN32
         uint16 nameLen = *(uint16*)(mod + 38);
-#endif
+    #endif
         if (nameLen > size)
         {
             nameLen = size;
