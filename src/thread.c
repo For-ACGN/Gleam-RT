@@ -71,8 +71,8 @@ ThreadTracker_M* InitThreadTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 2400 + RandUint(address) % 256;
-    uintptr moduleAddr  = address + 3100 + RandUint(address) % 256;
+    uintptr trackerAddr = address + 3000 + RandUint(address) % 128;
+    uintptr moduleAddr  = address + 3600 + RandUint(address) % 128;
     // initialize tracker
     ThreadTracker* tracker = (ThreadTracker*)trackerAddr;
     uint errCode = 0;

@@ -108,8 +108,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         return NULL;
     }
     // set structure address
-    uintptr runtimeAddr = address + 100 + RandUint(address) % 256;
-    uintptr moduleAddr  = address + 900 + RandUint(address) % 256;
+    uintptr runtimeAddr = address + 100 + RandUint(address) % 128;
+    uintptr moduleAddr  = address + 700 + RandUint(address) % 128;
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     runtime->Options = opts;
