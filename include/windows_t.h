@@ -7,6 +7,13 @@
 * Documents:
 * https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/ns-sysinfoapi-system_info
 * https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsysteminfo
+* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya
+* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryw
+* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexa
+* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw
+* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-freelibrary
+* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-freelibraryandexitthread
+* https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getprocaddress
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualfree
 * https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualprotect
@@ -18,13 +25,6 @@
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthreadid
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminatethread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-flushinstructioncache
-* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibrarya
-* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryw
-* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexa
-* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw
-* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-freelibrary
-* https://learn.microsoft.com/zh-cn/windows/win32/api/libloaderapi/nf-libloaderapi-freelibraryandexitthread
-* https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getprocaddress
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createmutexa
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-releasemutex
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
@@ -85,6 +85,41 @@ typedef void (*GetSystemInfo_t)
     SYSTEM_INFO* lpSystemInfo
 );
 
+typedef HMODULE (*LoadLibraryA_t)
+(
+    LPCSTR lpLibFileName
+);
+
+typedef HMODULE (*LoadLibraryW_t)
+(
+    LPCWSTR lpLibFileName
+);
+
+typedef HMODULE (*LoadLibraryExA_t)
+(
+    LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags
+);
+
+typedef HMODULE(*LoadLibraryExW_t)
+(
+    LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags
+);
+
+typedef bool (*FreeLibrary_t)
+(
+    HMODULE hLibModule
+);
+
+typedef void (*FreeLibraryAndExitThread_t)
+(
+    HMODULE hLibModule, uint32 dwExitCode
+);
+
+typedef uintptr (*GetProcAddress_t)
+(
+    HMODULE hModule, LPCSTR lpProcName
+);
+
 typedef uintptr (*VirtualAlloc_t)
 (
     uintptr lpAddress, uint dwSize, uint32 flAllocationType, uint32 flProtect
@@ -136,41 +171,6 @@ typedef bool (*TerminateThread_t)
 typedef bool (*FlushInstructionCache_t)
 (
     HANDLE hProcess, uintptr lpBaseAddress, uint dwSize
-);
-
-typedef HMODULE (*LoadLibraryA_t)
-(
-    LPCSTR lpLibFileName
-);
-
-typedef HMODULE (*LoadLibraryW_t)
-(
-    LPCWSTR lpLibFileName
-);
-
-typedef HMODULE (*LoadLibraryExA_t)
-(
-    LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags
-);
-
-typedef HMODULE(*LoadLibraryExW_t)
-(
-    LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags
-);
-
-typedef bool (*FreeLibrary_t)
-(
-    HMODULE hLibModule
-);
-
-typedef void (*FreeLibraryAndExitThread_t)
-(
-    HMODULE hLibModule, uint32 dwExitCode
-);
-
-typedef uintptr (*GetProcAddress_t)
-(
-    HMODULE hModule, LPCSTR lpProcName
 );
 
 typedef HANDLE (*CreateMutexA_t)
