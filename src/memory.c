@@ -182,6 +182,11 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     };
     List_Init(&tracker->Regions, &ctx, sizeof(memRegion));
     List_Init(&tracker->Pages,   &ctx, sizeof(memPage));
+    // set crypto context data
+    RandBuf(&tracker->RegionsKey[0], CRYPTO_KEY_SIZE);
+    RandBuf(&tracker->RegionsIV[0], CRYPTO_IV_SIZE);
+    RandBuf(&tracker->PagesKey[0], CRYPTO_KEY_SIZE);
+    RandBuf(&tracker->PagesIV[0], CRYPTO_IV_SIZE);
     return true;
 }
 

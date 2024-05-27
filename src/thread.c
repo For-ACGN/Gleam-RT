@@ -197,6 +197,7 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
         .free    = context->free,
     };
     List_Init(&tracker->Threads, &ctx, sizeof(thread));
+    // set crypto context data
     RandBuf(&tracker->ThreadsKey[0], CRYPTO_KEY_SIZE);
     RandBuf(&tracker->ThreadsIV[0], CRYPTO_IV_SIZE);
     // add current thread for special executable file like Golang
