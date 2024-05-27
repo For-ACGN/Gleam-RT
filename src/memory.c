@@ -105,17 +105,17 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     {
         if (!initTrackerAPI(tracker, context))
         {
-            errCode = 0x01;
+            errCode = 0x11;
             break;
         }
         if (!updateTrackerPointer(tracker))
         {
-            errCode = 0x02;
+            errCode = 0x12;
             break;
         }
         if (!initTrackerEnvironment(tracker, context))
         {
-            errCode = 0x03;
+            errCode = 0x13;
             break;
         }
         break;

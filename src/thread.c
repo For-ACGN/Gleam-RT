@@ -80,17 +80,17 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     {
         if (!initTrackerAPI(tracker, context))
         {
-            errCode = 0x11;
+            errCode = 0x21;
             break;
         }
         if (!updateTrackerPointer(tracker))
         {
-            errCode = 0x12;
+            errCode = 0x22;
             break;
         }
         if (!initTrackerEnvironment(tracker, context))
         {
-            errCode = 0x13;
+            errCode = 0x23;
             break;
         }
         break;
