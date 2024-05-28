@@ -56,6 +56,7 @@ static bool initTrackerAPI(LibraryTracker* tracker, Context* context);
 static bool updateTrackerPointer(LibraryTracker* tracker);
 static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context);
 static bool addModule(LibraryTracker* tracker, HMODULE hModule);
+static bool delModule(LibraryTracker* tracker, HMODULE hModule);
 
 LibraryTracker_M* InitLibraryTracker(Context* context)
 {
@@ -249,19 +250,6 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
     return hModule;
 }
 
-static bool addModule(LibraryTracker* tracker, HMODULE hModule)
-{
-    module module = {
-        .hModule = hModule,
-    };
-    if (!List_Insert(&tracker->Modules, &module))
-    {
-        tracker->FreeLibrary(hModule);
-        return false;
-    }
-    return true;
-}
-
 __declspec(noinline)
 HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
 {
@@ -347,13 +335,74 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
 __declspec(noinline)
 HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
 {
+    LibraryTracker* tracker = getTrackerPointer();
 
+    if (!lt_lock(tracker))
+    {
+        return NULL;
+    }
+
+    HMODULE hModule;
+
+    bool success = true;
+    for (;;)
+    {
+        hModule = tracker->LoadLibraryExW(lpLibFileName, hFile, dwFlags);
+        if (hModule == NULL)
+        {
+            success = false;
+            break;
+        }
+        if (!addModule(tracker, hModule))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
+    if (!lt_unlock(tracker))
+    {
+        return NULL;
+    }
+
+    if (!success)
+    {
+        return NULL;
+    }
+    return hModule;
+}
+
+static bool addModule(LibraryTracker* tracker, HMODULE hModule)
+{
+    module module = {
+        .hModule = hModule,
+    };
+    if (!List_Insert(&tracker->Modules, &module))
+    {
+        tracker->FreeLibrary(hModule);
+        return false;
+    }
+    return true;
 }
 
 __declspec(noinline)
 bool LT_FreeLibrary(HMODULE hLibModule)
 {
 
+}
+
+static bool delModule(LibraryTracker* tracker, HMODULE hModule)
+{
+    module module = {
+        .hModule = hModule,
+    };
+    if (!List_Insert(&tracker->Modules, &module))
+    {
+        tracker->FreeLibrary(hModule);
+        return false;
+    }
+    return true;
 }
 
 __declspec(noinline)
