@@ -314,12 +314,12 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
     bool success = true;
     for (;;)
     {
-        if (!freePage(tracker, address, size, type))
+        if (!tracker->VirtualFree(address, size, type))
         {
             success = false;
             break;
         }
-        if (!tracker->VirtualFree(address, size, type))
+        if (!freePage(tracker, address, size, type))
         {
             success = false;
             break;
