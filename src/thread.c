@@ -341,7 +341,7 @@ static void delThread(ThreadTracker* tracker, uint32 threadID)
     {
         return;
     }
-    if (List_Delete(threads, index))
+    if (!List_Delete(threads, index))
     {
         return;
     }
