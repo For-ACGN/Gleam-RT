@@ -65,6 +65,9 @@ bool    MT_Clean();
 #endif
 static MemoryTracker* getTrackerPointer();
 
+static bool mt_lock(MemoryTracker* tracker);
+static bool mt_unlock(MemoryTracker* tracker);
+
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
 static bool updateTrackerPointer(MemoryTracker* tracker);
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context);
@@ -88,9 +91,6 @@ static bool decryptPage(MemoryTracker* tracker, memPage* page);
 static bool isEmptyPage(MemoryTracker* tracker, memPage* page);
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
 static bool cleanPage(MemoryTracker* tracker, memPage* page);
-
-static bool mt_lock(MemoryTracker* tracker);
-static bool mt_unlock(MemoryTracker* tracker);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -199,6 +199,17 @@ static MemoryTracker* getTrackerPointer()
     return (MemoryTracker*)(pointer);
 }
 #pragma optimize("", on)
+
+static bool mt_lock(MemoryTracker* tracker)
+{
+    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+static bool mt_unlock(MemoryTracker* tracker)
+{
+    return tracker->ReleaseMutex(tracker->Mutex);
+}
 
 __declspec(noinline)
 uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
@@ -843,15 +854,4 @@ static bool cleanPage(MemoryTracker* tracker, memPage* page)
         return false;
     }
     return tracker->VirtualFree(page->address, tracker->PageSize, MEM_DECOMMIT);
-}
-
-static bool mt_lock(MemoryTracker* tracker)
-{
-    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
-    return event == WAIT_OBJECT_0;
-}
-
-static bool mt_unlock(MemoryTracker* tracker)
-{
-    return tracker->ReleaseMutex(tracker->Mutex);
 }

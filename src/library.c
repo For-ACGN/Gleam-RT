@@ -40,7 +40,7 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags);
 HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags);
 bool    LT_FreeLibrary(HMODULE hLibModule);
 void    LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode);
-bool    LT_Clean();
+uint    LT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
@@ -49,6 +49,7 @@ bool    LT_Clean();
     #define TRACKER_POINTER 0x7FABCD00
 #endif
 static LibraryTracker* getTrackerPointer();
+
 static bool lt_lock(LibraryTracker* tracker);
 static bool lt_unlock(LibraryTracker* tracker);
 
@@ -458,7 +459,7 @@ static bool delModule(LibraryTracker* tracker, HMODULE hModule)
 }
 
 __declspec(noinline)
-bool LT_Clean()
+uint LT_Clean()
 {
 
 }

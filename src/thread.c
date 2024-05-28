@@ -58,14 +58,14 @@ bool   TT_Clean();
 #endif
 static ThreadTracker* getTrackerPointer();
 
+static bool tt_lock(ThreadTracker* tracker);
+static bool tt_unlock(ThreadTracker* tracker);
+
 static bool initTrackerAPI(ThreadTracker* tracker, Context* context);
 static bool updateTrackerPointer(ThreadTracker* tracker);
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
 static void delThread(ThreadTracker* tracker, uint32 threadID);
-
-static bool tt_lock(ThreadTracker* tracker);
-static bool tt_unlock(ThreadTracker* tracker);
 
 ThreadTracker_M* InitThreadTracker(Context* context)
 {
@@ -225,6 +225,17 @@ static ThreadTracker* getTrackerPointer()
     return (ThreadTracker*)(pointer);
 }
 #pragma optimize("", on)
+
+static bool tt_lock(ThreadTracker* tracker)
+{
+    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+static bool tt_unlock(ThreadTracker* tracker)
+{
+    return tracker->ReleaseMutex(tracker->Mutex);
+}
 
 __declspec(noinline)
 HANDLE TT_CreateThread(
@@ -556,13 +567,3 @@ bool TT_Clean()
     return !error;
 }
 
-static bool tt_lock(ThreadTracker* tracker)
-{
-    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
-    return event == WAIT_OBJECT_0;
-}
-
-static bool tt_unlock(ThreadTracker* tracker)
-{
-    return tracker->ReleaseMutex(tracker->Mutex);
-}
