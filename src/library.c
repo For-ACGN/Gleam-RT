@@ -265,12 +265,83 @@ static bool addModule(LibraryTracker* tracker, HMODULE hModule)
 __declspec(noinline)
 HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
 {
+    LibraryTracker* tracker = getTrackerPointer();
 
+    if (!lt_lock(tracker))
+    {
+        return NULL;
+    }
+
+    HMODULE hModule;
+
+    bool success = true;
+    for (;;)
+    {
+        hModule = tracker->LoadLibraryW(lpLibFileName);
+        if (hModule == NULL)
+        {
+            success = false;
+            break;
+        }
+        if (!addModule(tracker, hModule))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
+    if (!lt_unlock(tracker))
+    {
+        return NULL;
+    }
+
+    if (!success)
+    {
+        return NULL;
+    }
+    return hModule;
 }
 
 __declspec(noinline)
 HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
 {
+    LibraryTracker* tracker = getTrackerPointer();
+
+    if (!lt_lock(tracker))
+    {
+        return NULL;
+    }
+
+    HMODULE hModule;
+
+    bool success = true;
+    for (;;)
+    {
+        hModule = tracker->LoadLibraryExA(lpLibFileName, hFile, dwFlags);
+        if (hModule == NULL)
+        {
+            success = false;
+            break;
+        }
+        if (!addModule(tracker, hModule))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
+    if (!lt_unlock(tracker))
+    {
+        return NULL;
+    }
+
+    if (!success)
+    {
+        return NULL;
+    }
+    return hModule;
 }
 
 __declspec(noinline)
