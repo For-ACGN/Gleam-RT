@@ -21,6 +21,8 @@ typedef struct {
     LoadLibraryExW_t           LoadLibraryExW;
     FreeLibrary_t              FreeLibrary;
     FreeLibraryAndExitThread_t FreeLibraryAndExitThread;
+    ReleaseMutex_t             ReleaseMutex;
+    WaitForSingleObject_t      WaitForSingleObject;
 
     // runtime data
     HANDLE Mutex; // global mutex
@@ -140,6 +142,9 @@ static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
     tracker->LoadLibraryExW           = (LoadLibraryExW_t          )(list[3].address);
     tracker->FreeLibrary              = (FreeLibrary_t             )(list[4].address);
     tracker->FreeLibraryAndExitThread = (FreeLibraryAndExitThread_t)(list[5].address);
+
+    tracker->ReleaseMutex        = context->ReleaseMutex;
+    tracker->WaitForSingleObject = context->WaitForSingleObject;
     return true;
 }
 
@@ -177,4 +182,66 @@ static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context)
     RandBuf(&tracker->ModulesKey[0], CRYPTO_KEY_SIZE);
     RandBuf(&tracker->ModulesIV[0], CRYPTO_IV_SIZE);
     return true;
+}
+
+// updateTrackerPointer will replace hard encode address to the actual address.
+// Must disable compiler optimize, otherwise updateTrackerPointer will fail.
+#pragma optimize("", off)
+static LibraryTracker* getTrackerPointer()
+{
+    uint pointer = TRACKER_POINTER;
+    return (LibraryTracker*)(pointer);
+}
+#pragma optimize("", on)
+
+__declspec(noinline)
+HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
+{
+
+}
+
+__declspec(noinline)
+HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
+{
+
+}
+
+__declspec(noinline)
+HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
+{
+}
+
+__declspec(noinline)
+HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
+{
+
+}
+
+__declspec(noinline)
+bool LT_FreeLibrary(HMODULE hLibModule)
+{
+
+}
+
+__declspec(noinline)
+void LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode)
+{
+
+}
+
+__declspec(noinline)
+bool LT_Clean()
+{
+
+}
+
+static bool lt_lock(LibraryTracker* tracker)
+{
+    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+static bool lt_unlock(LibraryTracker* tracker)
+{
+    return tracker->ReleaseMutex(tracker->Mutex);
 }
