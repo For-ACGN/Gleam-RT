@@ -389,26 +389,72 @@ static bool addModule(LibraryTracker* tracker, HMODULE hModule)
 __declspec(noinline)
 bool LT_FreeLibrary(HMODULE hLibModule)
 {
+    LibraryTracker* tracker = getTrackerPointer();
 
-}
-
-static bool delModule(LibraryTracker* tracker, HMODULE hModule)
-{
-    module module = {
-        .hModule = hModule,
-    };
-    if (!List_Insert(&tracker->Modules, &module))
+    if (!lt_lock(tracker))
     {
-        tracker->FreeLibrary(hModule);
-        return false;
+        return NULL;
     }
-    return true;
+
+    bool success = true;
+    for (;;)
+    {
+        if (!tracker->FreeLibrary(hLibModule))
+        {
+            success = false;
+            break;
+        }
+        if (!delModule(tracker, hLibModule))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
+    if (!lt_unlock(tracker))
+    {
+        return NULL;
+    }
+    return success;
 }
 
 __declspec(noinline)
 void LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode)
 {
+    LibraryTracker* tracker = getTrackerPointer();
 
+    if (!lt_lock(tracker))
+    {
+        return NULL;
+    }
+
+    delModule(tracker, hLibModule);
+
+    if (!lt_unlock(tracker))
+    {
+        return NULL;
+    }
+
+    tracker->FreeLibraryAndExitThread(hLibModule, dwExitCode);
+}
+
+static bool delModule(LibraryTracker* tracker, HMODULE hModule)
+{
+    List*  modules = &tracker->Modules;
+    module module  = {
+        .hModule = hModule,
+    };
+    uint index;
+    if (!List_Find(modules, &module, sizeof(module.hModule), &index))
+    {
+        return false;
+    }
+    if (!List_Delete(modules, index))
+    {
+        return false;
+    }
+    return true;
 }
 
 __declspec(noinline)
