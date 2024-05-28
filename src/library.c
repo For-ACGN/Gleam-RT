@@ -49,10 +49,13 @@ bool    LT_Clean();
     #define TRACKER_POINTER 0x7FABCD00
 #endif
 static LibraryTracker* getTrackerPointer();
+static bool lt_lock(LibraryTracker* tracker);
+static bool lt_unlock(LibraryTracker* tracker);
 
 static bool initTrackerAPI(LibraryTracker* tracker, Context* context);
 static bool updateTrackerPointer(LibraryTracker* tracker);
 static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context);
+static bool addModule(LibraryTracker* tracker, HMODULE hModule);
 
 LibraryTracker_M* InitLibraryTracker(Context* context)
 {
@@ -194,10 +197,69 @@ static LibraryTracker* getTrackerPointer()
 }
 #pragma optimize("", on)
 
+static bool lt_lock(LibraryTracker* tracker)
+{
+    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+static bool lt_unlock(LibraryTracker* tracker)
+{
+    return tracker->ReleaseMutex(tracker->Mutex);
+}
+
 __declspec(noinline)
 HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
 {
+    LibraryTracker* tracker = getTrackerPointer();
 
+    if (!lt_lock(tracker))
+    {
+        return NULL;
+    }
+
+    HMODULE hModule;
+
+    bool success = true;
+    for (;;)
+    {
+        hModule = tracker->LoadLibraryA(lpLibFileName);
+        if (hModule == NULL)
+        {
+            success = false;
+            break;
+        }
+        if (!addModule(tracker, hModule))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
+    if (!lt_unlock(tracker))
+    {
+        return NULL;
+    }
+
+    if (!success)
+    {
+        return NULL;
+    }
+    return hModule;
+}
+
+static bool addModule(LibraryTracker* tracker, HMODULE hModule)
+{
+    module module = {
+        .hModule = hModule,
+    };
+    if (!List_Insert(&tracker->Modules, &module))
+    {
+        tracker->FreeLibrary(hModule);
+        return false;
+    }
+    return true;
 }
 
 __declspec(noinline)
@@ -233,15 +295,4 @@ __declspec(noinline)
 bool LT_Clean()
 {
 
-}
-
-static bool lt_lock(LibraryTracker* tracker)
-{
-    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
-    return event == WAIT_OBJECT_0;
-}
-
-static bool lt_unlock(LibraryTracker* tracker)
-{
-    return tracker->ReleaseMutex(tracker->Mutex);
 }
