@@ -1,0 +1,16 @@
+#ifndef ERRNO_H
+#define ERRNO_H
+
+#include "c_types.h"
+
+typedef uint errno;
+
+#define NO_ERROR 0x00000000
+
+#define ERR_LIBRARY_INIT_API   0x00010001
+#define ERR_LIBRARY_UPDATE_PTR 0x00010002
+#define ERR_LIBRARY_INIT_ENV   0x00010003
+#define ERR_LIBRARY_CLEAN_MOD  0x00010004
+#define ERR_LIBRARY_FREE_LIST  0x00010005
+
+#endif // ERRNO_H
