@@ -46,8 +46,8 @@ void   TT_ExitThread(uint32 dwExitCode);
 uint32 TT_SuspendThread(HANDLE hThread);
 uint32 TT_ResumeThread(HANDLE hThread);
 bool   TT_TerminateThread(HANDLE hThread, uint32 dwExitCode);
-bool   TT_SuspendAll();
-bool   TT_ResumeAll();
+bool   TT_Suspend();
+bool   TT_Resume();
 bool   TT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
@@ -108,9 +108,9 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     module->ResumeThread    = (ResumeThread_t   )(&TT_ResumeThread);
     module->TerminateThread = (TerminateThread_t)(&TT_TerminateThread);
     // methods for runtime
-    module->ThdSuspendAll = &TT_SuspendAll;
-    module->ThdResumeAll  = &TT_ResumeAll;
-    module->ThdClean      = &TT_Clean;
+    module->ThdSuspend = &TT_Suspend;
+    module->ThdResume  = &TT_Resume;
+    module->ThdClean   = &TT_Clean;
     return module;
 }
 
@@ -432,7 +432,7 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
 }
 
 __declspec(noinline)
-bool TT_SuspendAll()
+bool TT_Suspend()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
@@ -474,7 +474,7 @@ bool TT_SuspendAll()
 }
 
 __declspec(noinline)
-bool TT_ResumeAll()
+bool TT_Resume()
 {
     ThreadTracker* tracker = getTrackerPointer();
 

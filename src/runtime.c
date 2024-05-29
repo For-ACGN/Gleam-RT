@@ -658,7 +658,7 @@ static bool hide(Runtime* runtime)
     bool success = true;
     for (;;)
     {
-        if (!runtime->ThreadTracker->ThdSuspendAll())
+        if (!runtime->ThreadTracker->ThdSuspend())
         {
             success = false;
             break;
@@ -711,7 +711,7 @@ static bool recover(Runtime* runtime)
             success = false;
             break;
         }
-        if (!runtime->ThreadTracker->ThdResumeAll())
+        if (!runtime->ThreadTracker->ThdResume())
         {
             success = false;
             break;
