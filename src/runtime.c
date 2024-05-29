@@ -43,7 +43,7 @@ typedef struct {
     GetProcAddress_t        GetProcAddress;
 
     // IAT hooks about GetProcAddress
-    Hook Hooks[10];
+    Hook Hooks[16];
 
     // runtime data
     uint32 PageSize; // memory management
