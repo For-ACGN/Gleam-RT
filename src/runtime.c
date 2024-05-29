@@ -51,8 +51,9 @@ typedef struct {
     HANDLE Mutex;    // global mutex
 
     // submodules
-    MemoryTracker_M* MemoryTracker;
-    ThreadTracker_M* ThreadTracker;
+    LibraryTracker_M* LibraryTracker;
+    MemoryTracker_M*  MemoryTracker;
+    ThreadTracker_M*  ThreadTracker;
 } Runtime;
 
 // export methods about Runtime
@@ -85,6 +86,7 @@ static bool adjustPageProtect(Runtime* runtime, uint32* old);
 static bool recoverPageProtect(Runtime* runtime, uint32* old);
 static bool updateRuntimePointer(Runtime* runtime);
 static uint initRuntimeEnvironment(Runtime* runtime);
+static uint initLibraryTracker(Runtime* runtime, Context* context);
 static uint initMemoryTracker(Runtime* runtime, Context* context);
 static uint initThreadTracker(Runtime* runtime, Context* context);
 static bool initIATHooks(Runtime* runtime);
@@ -363,6 +365,11 @@ static uint initRuntimeEnvironment(Runtime* runtime)
         .Mutex    = runtime->Mutex,
     };
     uint errCode;
+    errCode = initLibraryTracker(runtime, &context);
+    if (errCode != 0x00)
+    {
+        return errCode;
+    }
     errCode = initMemoryTracker(runtime, &context);
     if (errCode != 0x00)
     {
@@ -376,6 +383,17 @@ static uint initRuntimeEnvironment(Runtime* runtime)
     // clean useless API functions in runtime structure
     RandBuf(&runtime->GetSystemInfo, sizeof(uintptr));
     RandBuf(&runtime->CreateMutexA,  sizeof(uintptr));
+    return 0x00;
+}
+
+static uint initLibraryTracker(Runtime* runtime, Context* context)
+{
+    LibraryTracker_M* tracker = InitLibraryTracker(context);
+    if (tracker < (LibraryTracker_M*)(0x10))
+    {
+        return (uint)tracker;
+    }
+    runtime->LibraryTracker = tracker;
     return 0x00;
 }
 
@@ -411,6 +429,12 @@ static bool initIATHooks(Runtime* runtime)
     {
         { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, &RT_GetProcAddress },
         { 0xCED5CC955152CD43, 0xAA22C83C068CB037, &RT_Sleep },
+        { 0xAF5FD54749244397, 0xA063C6DB28B3D3B2, runtime->LibraryTracker->LoadLibraryA },
+        { 0xAA82C4918E0EC8EC, 0x939364E42EB5C6DC, runtime->LibraryTracker->LoadLibraryW },
+        { 0xB5B6D8C97CA99911, 0xD38714745DA33718, runtime->LibraryTracker->LoadLibraryExA },
+        { 0xADAA836A259BB790, 0x243E8C036C91259F, runtime->LibraryTracker->LoadLibraryExW },
+        { 0xB1EA6C78485E0EBC, 0x4DB3B65B36C2C324, runtime->LibraryTracker->FreeLibrary },
+        { 0xB3DDECBCA4D8369A, 0x9063BC5C04308424, runtime->LibraryTracker->FreeLibraryAndExitThread },
         { 0x18A3895F35B741C8, 0x96C9890F48D55E7E, runtime->MemoryTracker->VirtualAlloc },
         { 0xDB54AA6683574A8B, 0x3137DE2D71D3FF3E, runtime->MemoryTracker->VirtualFree },
         { 0xF5469C21B43D23E5, 0xF80028997F625A05, runtime->MemoryTracker->VirtualProtect },
@@ -424,6 +448,12 @@ static bool initIATHooks(Runtime* runtime)
     {
         { 0x5E5065D4, 0x63CDAD01, &RT_GetProcAddress },
         { 0x705D4FAD, 0x94CF33BF, &RT_Sleep },
+        { 0x17319CC6, 0x39074882, runtime->LibraryTracker->LoadLibraryA },
+        { 0x6854E21B, 0xE5A72C07, runtime->LibraryTracker->LoadLibraryW },
+        { 0x90509B56, 0x722D720C, runtime->LibraryTracker->LoadLibraryExA },
+        { 0x0F3D82D4, 0xCF884A7E, runtime->LibraryTracker->LoadLibraryExW },
+        { 0xB3C29256, 0x60CBB933, runtime->LibraryTracker->FreeLibrary },
+        { 0x95A74E81, 0x4A567F10, runtime->LibraryTracker->FreeLibraryAndExitThread },
         { 0xD5B65767, 0xF3A27766, runtime->MemoryTracker->VirtualAlloc },
         { 0x4F0FC063, 0x182F3CC6, runtime->MemoryTracker->VirtualFree },
         { 0xEBD60441, 0x280A4A9F, runtime->MemoryTracker->VirtualProtect },
@@ -638,6 +668,11 @@ static bool hide(Runtime* runtime)
             success = false;
             break;
         }
+        if (!runtime->LibraryTracker->LibEncrypt())
+        {
+            success = false;
+            break;
+        }
         break;
     }
     return success;
@@ -666,6 +701,11 @@ static bool recover(Runtime* runtime)
     bool success = true;
     for (;;)
     {
+        if (!runtime->LibraryTracker->LibDecrypt())
+        {
+            success = false;
+            break;
+        }
         if (!runtime->MemoryTracker->MemDecrypt())
         {
             success = false;
@@ -700,6 +740,11 @@ bool RT_Stop()
             break;
         }
         if (!runtime->MemoryTracker->MemClean())
+        {
+            success = false;
+            break;
+        }
+        if (!runtime->LibraryTracker->LibClean())
         {
             success = false;
             break;
