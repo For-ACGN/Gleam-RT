@@ -5,6 +5,8 @@
 #include "windows_t.h"
 #include "context.h"
 
+typedef bool (*LibEncrypt_t)();
+typedef bool (*LibDecrypt_t)();
 typedef bool (*LibClean_t)();
 
 typedef struct {
@@ -15,7 +17,9 @@ typedef struct {
     FreeLibrary_t              FreeLibrary;
     FreeLibraryAndExitThread_t FreeLibraryAndExitThread;
 
-    LibClean_t LibClean;
+    LibEncrypt_t LibEncrypt;
+    LibDecrypt_t LibDecrypt;
+    LibClean_t   LibClean;
 } LibraryTracker_M;
 
 LibraryTracker_M* InitLibraryTracker(Context* context);
