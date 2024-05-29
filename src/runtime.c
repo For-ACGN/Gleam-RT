@@ -8,9 +8,10 @@
 #include "random.h"
 #include "crypto.h"
 #include "winapi.h"
+#include "errno.h"
+#include "library.h"
 #include "memory.h"
 #include "thread.h"
-#include "library.h"
 #include "runtime.h"
 #include "epilogue.h"
 
