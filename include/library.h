@@ -4,10 +4,11 @@
 #include "c_types.h"
 #include "windows_t.h"
 #include "context.h"
+#include "errno.h"
 
-typedef bool (*LibEncrypt_t)();
-typedef bool (*LibDecrypt_t)();
-typedef bool (*LibClean_t)();
+typedef bool  (*LibEncrypt_t)();
+typedef bool  (*LibDecrypt_t)();
+typedef errno (*LibClean_t)();
 
 typedef struct {
     LoadLibraryA_t             LoadLibraryA;
