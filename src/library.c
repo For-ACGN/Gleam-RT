@@ -40,7 +40,10 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags);
 HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags);
 bool    LT_FreeLibrary(HMODULE hLibModule);
 void    LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode);
-uint    LT_Clean();
+
+bool LT_Encrypt();
+bool LT_Decrypt();
+uint LT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
@@ -58,6 +61,7 @@ static bool updateTrackerPointer(LibraryTracker* tracker);
 static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context);
 static bool addModule(LibraryTracker* tracker, HMODULE hModule);
 static bool delModule(LibraryTracker* tracker, HMODULE hModule);
+static bool cleanModule(LibraryTracker* tracker, module* module);
 
 LibraryTracker_M* InitLibraryTracker(Context* context)
 {
@@ -100,8 +104,10 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     module->LoadLibraryExW           = (LoadLibraryExW_t          )(&LT_LoadLibraryExW);
     module->FreeLibrary              = (FreeLibrary_t             )(&LT_FreeLibrary);
     module->FreeLibraryAndExitThread = (FreeLibraryAndExitThread_t)(&LT_FreeLibraryAndExitThread);
-    // methods for runtime     
-    module->LibClean = &LT_Clean;
+    // methods for runtime   
+    module->LibEncrypt = &LT_Encrypt;
+    module->LibDecrypt = &LT_Decrypt;
+    module->LibClean   = &LT_Clean;
     return module;
 }
 
@@ -459,7 +465,65 @@ static bool delModule(LibraryTracker* tracker, HMODULE hModule)
 }
 
 __declspec(noinline)
+bool LT_Encrypt()
+{
+    LibraryTracker* tracker = getTrackerPointer();
+
+    List* list = &tracker->Modules;
+    byte* key  = &tracker->ModulesKey[0];
+    byte* iv   = &tracker->ModulesIV[0];
+    RandBuf(key, CRYPTO_KEY_SIZE);
+    RandBuf(iv, CRYPTO_IV_SIZE);
+    EncryptBuf(list->Data, List_Size(list), key, iv);
+    return true;
+}
+
+__declspec(noinline)
+bool LT_Decrypt()
+{
+    LibraryTracker* tracker = getTrackerPointer();
+
+    List* list = &tracker->Modules;
+    byte* key  = &tracker->ModulesKey[0];
+    byte* iv   = &tracker->ModulesIV[0];
+    DecryptBuf(list->Data, List_Size(list), key, iv);
+    return true;
+}
+
+__declspec(noinline)
 uint LT_Clean()
 {
+    LibraryTracker* tracker = getTrackerPointer();
 
+    uint errno = 0;
+
+    // clean modules
+    List* modules = &tracker->Modules;
+    uint  index = 0;
+    for (uint num = 0; num < modules->Len; index++)
+    {
+        module* module = List_Get(modules, index);
+        if (module->hModule== NULL)
+        {
+            continue;
+        }
+        if (!cleanModule(tracker, module))
+        {
+            
+        }
+        num++;
+    }
+
+    // clean module list
+    RandBuf(modules->Data, List_Size(modules));
+    if (!List_Free(modules))
+    {
+        return false;
+    }
+    return 0;
+}
+
+static bool cleanModule(LibraryTracker* tracker, module* module)
+{
+    return tracker->FreeLibrary(module->hModule);
 }
