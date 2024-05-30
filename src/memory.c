@@ -697,13 +697,13 @@ bool MT_Encrypt()
 
 static bool encryptPage(MemoryTracker* tracker, memPage* page)
 {
-    if (!adjustPageProtect(tracker, page))
-    {
-        return false;
-    }
     if (isEmptyPage(tracker, page))
     {
         return true;
+    }
+    if (!adjustPageProtect(tracker, page))
+    {
+        return false;
     }
     // generate new key and IV
     RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
