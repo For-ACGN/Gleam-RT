@@ -455,6 +455,10 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode)
 
 static bool delModule(LibraryTracker* tracker, HMODULE hModule)
 {
+    if (hModule == NULL)
+    {
+        return false;
+    }
     List*  modules = &tracker->Modules;
     module module  = {
         .hModule = hModule,
