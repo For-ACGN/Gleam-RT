@@ -507,10 +507,10 @@ errno LT_Clean()
     LibraryTracker* tracker = getTrackerPointer();
 
     List* modules = &tracker->Modules;
-
+    errno errno   = NO_ERROR;
+    
     // clean modules
-    uint  index = 0;
-    errno errno = NO_ERROR;
+    uint index = 0;
     for (uint num = 0; num < modules->Len; index++)
     {
         module* module = List_Get(modules, index);
@@ -524,18 +524,14 @@ errno LT_Clean()
         }
         num++;
     }
-    if (errno != NO_ERROR)
-    {
-        return errno;
-    }
 
     // clean module list
     RandBuf(modules->Data, List_Size(modules));
     if (!List_Free(modules))
     {
-        return ERR_LIBRARY_FREE_LIST;
+        errno = ERR_LIBRARY_FREE_LIST; 
     }
-    return NO_ERROR;
+    return errno;
 }
 
 static bool cleanModule(LibraryTracker* tracker, module* module)
