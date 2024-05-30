@@ -469,7 +469,13 @@ bool TT_Suspend()
         num++;
     }
 
-    // TODO encrypt thread list
+    // encrypt thread list
+    List* list = &tracker->Threads;
+    byte* key  = &tracker->ThreadsKey[0];
+    byte* iv   = &tracker->ThreadsIV[0];
+    RandBuf(key, CRYPTO_KEY_SIZE);
+    RandBuf(iv, CRYPTO_IV_SIZE);
+    EncryptBuf(list->Data, List_Size(list), key, iv);
     return !error;
 }
 
@@ -478,13 +484,17 @@ bool TT_Resume()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    // TODO decrypt thread list
-
     uint32 currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
     {
         return false;
     }
+
+    // decrypt thread list
+    List* list = &tracker->Threads;
+    byte* key = &tracker->ThreadsKey[0];
+    byte* iv = &tracker->ThreadsIV[0];
+    DecryptBuf(list->Data, List_Size(list), key, iv);
 
     bool error = false;
 
@@ -564,6 +574,9 @@ bool TT_Clean()
 
     // clean thread list
     RandBuf(threads->Data, List_Size(threads));
+    if (!List_Free(threads))
+    {
+       
+    }
     return !error;
 }
-
