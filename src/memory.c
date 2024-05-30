@@ -8,6 +8,7 @@
 #include "context.h"
 #include "random.h"
 #include "crypto.h"
+#include "errno.h"
 #include "memory.h"
 
 typedef struct {
@@ -55,7 +56,7 @@ void*   MT_MemRealloc(void* address, uint size);
 bool    MT_MemFree(void* address);
 bool    MT_Encrypt();
 bool    MT_Decrypt();
-bool    MT_Clean();
+errno   MT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
@@ -100,29 +101,29 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     uintptr moduleAddr  = address + 2600 + RandUint(address) % 128;
     // initialize tracker
     MemoryTracker* tracker = (MemoryTracker*)trackerAddr;
-    uint errCode = 0;
+    errno errno = NO_ERROR;
     for (;;)
     {
         if (!initTrackerAPI(tracker, context))
         {
-            errCode = 0x11;
+            errno = ERR_MEMORY_INIT_API;
             break;
         }
         if (!updateTrackerPointer(tracker))
         {
-            errCode = 0x12;
+            errno = ERR_MEMORY_UPDATE_PTR;
             break;
         }
         if (!initTrackerEnvironment(tracker, context))
         {
-            errCode = 0x13;
+            errno = ERR_MEMORY_INIT_ENV;
             break;
         }
         break;
     }
-    if (errCode != 0x00)
+    if (errno != NO_ERROR)
     {
-        return (MemoryTracker_M*)errCode;
+        return (MemoryTracker_M*)errno;
     }
     // create methods for tracker
     MemoryTracker_M* module = (MemoryTracker_M*)moduleAddr;
@@ -765,8 +766,8 @@ static bool decryptPage(MemoryTracker* tracker, memPage* page)
 static bool isEmptyPage(MemoryTracker* tracker, memPage* page)
 {
     register uint*  addr = (uint*)(page->address);
-    register uint32 num  = tracker->PageSize/sizeof(uint);
-    for (uint i = 0; i < num; i++)
+    register uint32 num  = tracker->PageSize/sizeof(uint*);
+    for (uint32 i = 0; i < num; i++)
     {
         if (*addr != 0)
         {
@@ -788,13 +789,14 @@ static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key)
 }
 
 __declspec(noinline)
-bool MT_Clean()
+errno MT_Clean()
 {
     MemoryTracker* tracker = getTrackerPointer();
 
     List* pages   = &tracker->Pages;
     List* regions = &tracker->Regions;
-
+    errno errno   = NO_ERROR;
+    
     // decommit memory pages
     uint index = 0;
     for (uint num = 0; num < pages->Len; index++)
@@ -806,7 +808,7 @@ bool MT_Clean()
         }
         if (!cleanPage(tracker, page))
         {
-            return false;
+            errno = ERR_MEMORY_CLEAN_PAGE;
         }
         num++;
     }
@@ -822,7 +824,7 @@ bool MT_Clean()
         }
         if (!tracker->VirtualFree(region->address, 0, MEM_RELEASE))
         {
-            return false;
+            errno = ERR_MEMORY_CLEAN_REGION;
         }
         num++;
     }
@@ -832,13 +834,13 @@ bool MT_Clean()
     RandBuf(pages->Data, List_Size(pages));
     if (!List_Free(regions))
     {
-        return false;
+        errno = ERR_MEMORY_FREE_PAGE_LIST;
     }
     if (!List_Free(pages))
     {
-        return false;
+        errno = ERR_MEMORY_FREE_REGION_LIST;
     }
-    return true;
+    return errno;
 }
 
 static bool cleanPage(MemoryTracker* tracker, memPage* page)
