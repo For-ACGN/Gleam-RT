@@ -4,13 +4,14 @@
 #include "c_types.h"
 #include "windows_t.h"
 #include "context.h"
+#include "errno.h"
 
 typedef void* (*MemAlloc_t)(uint size);
 typedef void* (*MemRealloc_t)(void* address, uint size);
 typedef bool  (*MemFree_t)(void* address);
 typedef bool  (*MemEncrypt_t)();
 typedef bool  (*MemDecrypt_t)();
-typedef bool  (*MemClean_t)();
+typedef errno (*MemClean_t)();
 
 typedef struct {
     VirtualAlloc_t   VirtualAlloc;
