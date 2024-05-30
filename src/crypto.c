@@ -14,6 +14,7 @@
 static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
 static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
 static void initSBox(byte* sBox, byte* key);
+static void initStatus(byte* iv, byte* sBox, byte* pLast);
 static void rotateSBox(byte* sBox, byte key);
 static void permuteSBox(byte* sBox);
 static byte negBit(byte b, uint8 n);
@@ -29,12 +30,10 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
     {
         return;
     } 
-    // initialize S-Box
     byte sBox[256];
     initSBox(&sBox[0], key);
-    // encrypt iv and data
     byte last = 170;
-    encryptBuf(iv, CRYPTO_IV_SIZE, key, &sBox[0], &last);
+    initStatus(iv, &sBox[0], &last);
     encryptBuf(buf, size, key, &sBox[0], &last);
 }
 
@@ -108,13 +107,11 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
     {
         return;
     }
-    // initialize S-Box
     byte sBox[256];
     initSBox(&sBox[0], key);
-    permuteSBox(&sBox[0]);
-    // decrypt iv and data
     byte last = 170;
-    decryptBuf(iv, CRYPTO_IV_SIZE, key, &sBox[0], &last);
+    initStatus(iv, &sBox[0], &last);
+    permuteSBox(&sBox[0]);
     decryptBuf(buf, size, key, &sBox[0], &last);
 }
 
@@ -216,6 +213,27 @@ static void initSBox(byte* sBox, byte* key)
             seed = (a * seed + c) % UINT32_MAX;
             k++;
         }
+    }
+}
+
+static void initStatus(byte* iv, byte* sBox, byte* pLast)
+{
+    byte idxA = 100;
+    byte idxB = 170;
+    for (int i = 0; i < CRYPTO_IV_SIZE; i++)
+    {
+        // swap S-Box item
+        idxA += *(iv + i) + 1;
+        idxB *= *(iv + i) + 2;
+        byte prev  = sBox[idxA];
+        sBox[idxA] = sBox[idxB];
+        sBox[idxB] = prev;
+        // update last byte
+        *pLast += idxA % ((idxB % 64) + 1);
+        *pLast += idxB % ((idxA % 64) + 1);
+        // update swap index
+        idxA += *pLast;
+        idxB *= *pLast;
     }
 }
 
