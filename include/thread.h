@@ -4,10 +4,11 @@
 #include "c_types.h"
 #include "windows_t.h"
 #include "context.h"
+#include "errno.h"
 
-typedef bool (*ThdSuspend_t)();
-typedef bool (*ThdResume_t)();
-typedef bool (*ThdClean_t)();
+typedef errno (*ThdSuspend_t)();
+typedef errno (*ThdResume_t)();
+typedef errno (*ThdClean_t)();
 
 typedef struct {
     CreateThread_t    CreateThread;
