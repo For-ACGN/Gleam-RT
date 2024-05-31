@@ -48,9 +48,9 @@ errno LT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
-    #define TRACKER_POINTER 0x7FABCDEF11111100
+    #define TRACKER_POINTER 0x7FABCDEF11111101
 #elif _WIN32
-    #define TRACKER_POINTER 0x7FABCD00
+    #define TRACKER_POINTER 0x7FABCD01
 #endif
 static LibraryTracker* getTrackerPointer();
 

@@ -53,9 +53,9 @@ errno  TT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
-    #define TRACKER_POINTER 0x7FABCDEF11111102
+    #define TRACKER_POINTER 0x7FABCDEF11111103
 #elif _WIN32
-    #define TRACKER_POINTER 0x7FABCD02
+    #define TRACKER_POINTER 0x7FABCD03
 #endif
 static ThreadTracker* getTrackerPointer();
 
@@ -371,8 +371,8 @@ uint32 TT_SuspendThread(HANDLE hThread)
     }
    
     uint32 count;
-
     uint32 threadID = tracker->GetThreadID(hThread);
+    printf("SuspendThread: %lu\n", threadID);
     if (threadID == tracker->GetCurrentThreadID() || threadID == 0)
     {
         if (!tt_unlock(tracker))
@@ -402,6 +402,8 @@ uint32 TT_ResumeThread(HANDLE hThread)
 
     uint32 count = tracker->ResumeThread(hThread);
 
+    printf("ResumeThread: %llu\n", hThread);
+
     if (!tt_unlock(tracker))
     {
         return -1;
@@ -424,6 +426,8 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
     {
         delThread(tracker, threadID);
     }
+
+    printf("TerminateThread: %lu\n", threadID);
 
     if (!tt_unlock(tracker))
     {
@@ -561,8 +565,7 @@ errno TT_Clean()
         // skip self thread
         if (thread->threadID != currentTID)
         {
-            uint32 count = tracker->TerminateThread(thread->hThread, 0);
-            if (count == -1)
+            if (!tracker->TerminateThread(thread->hThread, 0))
             {
                 errno = ERR_THREAD_TERMINATE;
             }

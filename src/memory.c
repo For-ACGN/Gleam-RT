@@ -60,9 +60,9 @@ errno   MT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
-    #define TRACKER_POINTER 0x7FABCDEF11111101
+    #define TRACKER_POINTER 0x7FABCDEF11111102
 #elif _WIN32
-    #define TRACKER_POINTER 0x7FABCD01
+    #define TRACKER_POINTER 0x7FABCD02
 #endif
 static MemoryTracker* getTrackerPointer();
 
