@@ -54,8 +54,8 @@ bool    MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old);
 void*   MT_MemAlloc(uint size);
 void*   MT_MemRealloc(void* address, uint size);
 bool    MT_MemFree(void* address);
-bool    MT_Encrypt();
-bool    MT_Decrypt();
+errno   MT_Encrypt();
+errno   MT_Decrypt();
 errno   MT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
@@ -656,7 +656,7 @@ bool MT_MemFree(void* address)
 }
 
 __declspec(noinline)
-bool MT_Encrypt()
+errno MT_Encrypt()
 {
     MemoryTracker* tracker = getTrackerPointer();
 
@@ -671,7 +671,7 @@ bool MT_Encrypt()
         }
         if (!encryptPage(tracker, page))
         {
-            return false;
+            return ERR_MEMORY_ENCRYPT_PAGE;
         }
         num++;
     }
@@ -692,7 +692,7 @@ bool MT_Encrypt()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
-    return true;
+    return NO_ERROR;
 }
 
 static bool encryptPage(MemoryTracker* tracker, memPage* page)
@@ -715,7 +715,7 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page)
 }
 
 __declspec(noinline)
-bool MT_Decrypt()
+errno MT_Decrypt()
 {
     MemoryTracker* tracker = getTrackerPointer();
 
@@ -744,11 +744,11 @@ bool MT_Decrypt()
         }
         if (!decryptPage(tracker, page))
         {
-            return false;
+            return ERR_MEMORY_DECRYPT_PAGE;
         }
         num++;
     }
-    return true;
+    return NO_ERROR;
 }
 
 static bool decryptPage(MemoryTracker* tracker, memPage* page)
