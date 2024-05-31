@@ -19,7 +19,7 @@
 
 // for IAT hooks
 typedef struct {
-    uintptr Original;
+    uintptr Func;
     uintptr Hook;
 } Hook;
 
@@ -62,10 +62,10 @@ uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook);
 uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 
-bool RT_Sleep(uint32 milliseconds);
-bool RT_Hide();
-bool RT_Recover();
-bool RT_Stop();
+errno RT_Sleep(uint32 milliseconds);
+errno RT_Hide();
+errno RT_Recover();
+errno RT_Stop();
 
 // internal methods for Runtime submodules
 void* RT_malloc(uint size);
@@ -82,8 +82,8 @@ static Runtime* getRuntimePointer();
 
 static uintptr allocateRuntimeMemory();
 static bool initRuntimeAPI(Runtime* runtime);
-static bool adjustPageProtect(Runtime* runtime, uint32* old);
-static bool recoverPageProtect(Runtime* runtime, uint32* old);
+static bool adjustPageProtect(Runtime* runtime);
+static bool flushInstructionCache(Runtime* runtime);
 static bool updateRuntimePointer(Runtime* runtime);
 static uint initRuntimeEnvironment(Runtime* runtime);
 static uint initLibraryTracker(Runtime* runtime, Context* context);
@@ -118,8 +118,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     runtime->Options = opts;
     runtime->MainMemPage = address;
     // initialize runtime
-    uint32 protect = 0;
-    uint   errCode = 0;
+    uint errCode = 0;
     for (;;)
     {
         if (!initRuntimeAPI(runtime))
@@ -127,7 +126,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
             errCode = 0xF1;
             break;
         }
-        if (!adjustPageProtect(runtime, &protect))
+        if (!adjustPageProtect(runtime))
         {
             errCode = 0xF2;
             break;
@@ -142,7 +141,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         {
             break;
         }
-        if (!recoverPageProtect(runtime, &protect))
+        if (!flushInstructionCache(runtime))
         {
             errCode = 0xFA;
             break;
@@ -262,7 +261,7 @@ static bool initRuntimeAPI(Runtime* runtime)
 }
 
 // change memory protect for dynamic update pointer that hard encode.
-static bool adjustPageProtect(Runtime* runtime, uint32* old)
+static bool adjustPageProtect(Runtime* runtime)
 {
     if (runtime->Options->NotAdjustProtect)
     {
@@ -271,21 +270,15 @@ static bool adjustPageProtect(Runtime* runtime, uint32* old)
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
     uint    size  = end - begin;
-    return runtime->VirtualProtect(begin, size, PAGE_EXECUTE_READWRITE, old);
+    uint32  old;
+    return runtime->VirtualProtect(begin, size, PAGE_EXECUTE_READWRITE, &old);
 }
 
-static bool recoverPageProtect(Runtime* runtime, uint32* old)
+static bool flushInstructionCache(Runtime* runtime)
 {
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
     uint    size  = end - begin;
-    if (!runtime->Options->NotAdjustProtect)
-    {
-        if (!runtime->VirtualProtect(begin, size, *old, old))
-        {
-            return false;
-        }
-    }
     if (!runtime->FlushInstructionCache(CURRENT_PROCESS, begin, size))
     {
         return false;
@@ -464,16 +457,16 @@ static bool initIATHooks(Runtime* runtime)
         { 0x6EF0E2AA, 0xE014E29F, runtime->ThreadTracker->TerminateThread },
     };
 #endif
-    uintptr proc;
+    uintptr func;
     for (int i = 0; i < arrlen(items); i++)
     {
-        proc = FindAPI(items[i].hash, items[i].key);
-        if (proc == NULL)
+        func = FindAPI(items[i].hash, items[i].key);
+        if (func == NULL)
         {
             return false;
         }
-        runtime->Hooks[i].Original = proc;
-        runtime->Hooks[i].Hook     = (uintptr)items[i].hook;
+        runtime->Hooks[i].Func = func;
+        runtime->Hooks[i].Hook = (uintptr)items[i].hook;
     }
     return true;
 }
@@ -568,7 +561,7 @@ static uintptr replaceToHook(Runtime* runtime, uintptr proc)
 {
     for (int i = 0; i < arrlen(runtime->Hooks); i++)
     {
-        if (proc != runtime->Hooks[i].Original)
+        if (proc != runtime->Hooks[i].Func)
         {
             continue;
         }
@@ -589,7 +582,7 @@ uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 #pragma optimize("", on)
 
 __declspec(noinline)
-bool RT_Sleep(uint32 milliseconds)
+errno RT_Sleep(uint32 milliseconds)
 {
     Runtime* runtime = getRuntimePointer();
 
@@ -636,7 +629,7 @@ static bool sleep(Runtime* runtime, uint32 milliseconds)
 }
 
 __declspec(noinline)
-bool RT_Hide()
+errno RT_Hide()
 {
     Runtime* runtime = getRuntimePointer();
 
@@ -679,7 +672,7 @@ static bool hide(Runtime* runtime)
 }
 
 __declspec(noinline)
-bool RT_Recover()
+errno RT_Recover()
 {
     Runtime* runtime = getRuntimePointer();
 
@@ -722,7 +715,7 @@ static bool recover(Runtime* runtime)
 }
 
 __declspec(noinline)
-bool RT_Stop()
+errno RT_Stop()
 {
     Runtime* runtime = getRuntimePointer();
 
