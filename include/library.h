@@ -6,8 +6,8 @@
 #include "context.h"
 #include "errno.h"
 
-typedef bool  (*LibEncrypt_t)();
-typedef bool  (*LibDecrypt_t)();
+typedef errno (*LibEncrypt_t)();
+typedef errno (*LibDecrypt_t)();
 typedef errno (*LibClean_t)();
 
 typedef struct {
