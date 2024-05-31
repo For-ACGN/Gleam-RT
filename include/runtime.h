@@ -3,6 +3,7 @@
 
 #include "c_types.h"
 #include "windows_t.h"
+#include "errno.h"
 
 // for common shellcode development.
 typedef void* (*MemAlloc_t)(uint size);
@@ -20,10 +21,10 @@ typedef uintptr (*GetProcAddressByHash_t)(uint hash, uint key, bool hook);
 typedef uintptr (*GetProcAddressOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
 
 // runtime core methods
-typedef bool (*Sleep_t)(uint32 milliseconds);
-typedef bool (*Hide_t)();
-typedef bool (*Recover_t)();
-typedef bool (*Stop_t)();
+typedef errno (*Sleep_t)(uint32 milliseconds);
+typedef errno (*Hide_t)();
+typedef errno (*Recover_t)();
+typedef errno (*Stop_t)();
 
 typedef struct {
     // not adjust current memory page protect for change runtime data.
