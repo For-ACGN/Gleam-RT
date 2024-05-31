@@ -42,8 +42,8 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags);
 bool    LT_FreeLibrary(HMODULE hLibModule);
 void    LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode);
 
-bool  LT_Encrypt();
-bool  LT_Decrypt();
+errno LT_Encrypt();
+errno LT_Decrypt();
 errno LT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
@@ -476,7 +476,7 @@ static bool delModule(LibraryTracker* tracker, HMODULE hModule)
 }
 
 __declspec(noinline)
-bool LT_Encrypt()
+errno LT_Encrypt()
 {
     LibraryTracker* tracker = getTrackerPointer();
 
@@ -486,11 +486,11 @@ bool LT_Encrypt()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
-    return true;
+    return NO_ERROR;
 }
 
 __declspec(noinline)
-bool LT_Decrypt()
+errno LT_Decrypt()
 {
     LibraryTracker* tracker = getTrackerPointer();
 
@@ -498,7 +498,7 @@ bool LT_Decrypt()
     byte* key  = &tracker->ModulesKey[0];
     byte* iv   = &tracker->ModulesIV[0];
     DecryptBuf(list->Data, List_Size(list), key, iv);
-    return true;
+    return NO_ERROR;
 }
 
 __declspec(noinline)
