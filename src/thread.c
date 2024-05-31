@@ -7,6 +7,7 @@
 #include "context.h"
 #include "random.h"
 #include "crypto.h"
+#include "errno.h"
 #include "thread.h"
 
 typedef struct {
@@ -46,9 +47,9 @@ void   TT_ExitThread(uint32 dwExitCode);
 uint32 TT_SuspendThread(HANDLE hThread);
 uint32 TT_ResumeThread(HANDLE hThread);
 bool   TT_TerminateThread(HANDLE hThread, uint32 dwExitCode);
-bool   TT_Suspend();
-bool   TT_Resume();
-bool   TT_Clean();
+errno  TT_Suspend();
+errno  TT_Resume();
+errno  TT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
@@ -75,29 +76,29 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     uintptr moduleAddr  = address + 3600 + RandUint(address) % 128;
     // initialize tracker
     ThreadTracker* tracker = (ThreadTracker*)trackerAddr;
-    uint errCode = 0;
+    errno errno = NO_ERROR;
     for (;;)
     {
         if (!initTrackerAPI(tracker, context))
         {
-            errCode = 0x21;
+            errno = ERR_THREAD_INIT_API;
             break;
         }
         if (!updateTrackerPointer(tracker))
         {
-            errCode = 0x22;
+            errno = ERR_THREAD_UPDATE_PTR;
             break;
         }
         if (!initTrackerEnvironment(tracker, context))
         {
-            errCode = 0x23;
+            errno = ERR_THREAD_INIT_ENV;
             break;
         }
         break;
     }
-    if (errCode != 0x00)
+    if (errno != NO_ERROR)
     {
-        return (ThreadTracker_M*)errCode;
+        return (ThreadTracker_M*)errno;
     }
     // create methods for tracker
     ThreadTracker_M* module = (ThreadTracker_M*)moduleAddr;
@@ -432,20 +433,21 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
 }
 
 __declspec(noinline)
-bool TT_Suspend()
+errno TT_Suspend()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
     uint32 currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
     {
-        return false;
+        return ERR_THREAD_GET_CURRENT_TID;
     }
 
-    bool error = false;
-
     List* threads = &tracker->Threads;
-    uint  index   = 0;
+    errno errno   = NO_ERROR;
+
+    // suspend threads
+    uint index = 0;
     for (uint num = 0; num < threads->Len; index++)
     {
         thread* thread = List_Get(threads, index);
@@ -463,8 +465,7 @@ bool TT_Suspend()
         if (count == -1)
         {
             delThread(tracker, thread->threadID);
-            error = true;
-            break;
+            errno = ERR_THREAD_SUSPEND;
         }
         num++;
     }
@@ -476,30 +477,31 @@ bool TT_Suspend()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
-    return !error;
+    return errno;
 }
 
 __declspec(noinline)
-bool TT_Resume()
+errno TT_Resume()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
     uint32 currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
     {
-        return false;
+        return ERR_THREAD_GET_CURRENT_TID;
     }
 
     // decrypt thread list
     List* list = &tracker->Threads;
-    byte* key = &tracker->ThreadsKey[0];
-    byte* iv = &tracker->ThreadsIV[0];
+    byte* key  = &tracker->ThreadsKey[0];
+    byte* iv   = &tracker->ThreadsIV[0];
     DecryptBuf(list->Data, List_Size(list), key, iv);
 
-    bool error = false;
-
     List* threads = &tracker->Threads;
-    uint  index   = 0;
+    errno errno   = NO_ERROR;
+
+    // resume threads
+    uint index = 0;
     for (uint num = 0; num < threads->Len; index++)
     {
         thread* thread = List_Get(threads, index);
@@ -520,7 +522,7 @@ bool TT_Resume()
             if (count == -1)
             {
                 delThread(tracker, thread->threadID);
-                error = true;
+                errno = ERR_THREAD_RESUME;
                 break;
             }
             if (count <= 1)
@@ -530,24 +532,25 @@ bool TT_Resume()
         }
         num++;
     }
-    return !error;
+    return errno;
 }
 
 __declspec(noinline)
-bool TT_Clean()
+errno TT_Clean()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
     uint32 currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
     {
-        return false;
+        return ERR_THREAD_GET_CURRENT_TID;
     }
 
-    bool error = false;
-
     List* threads = &tracker->Threads;
-    uint  index   = 0;
+    errno errno   = NO_ERROR;
+
+    // terminate threads
+    uint index = 0;
     for (uint num = 0; num < threads->Len; index++)
     {
         thread* thread = List_Get(threads, index);
@@ -561,13 +564,12 @@ bool TT_Clean()
             uint32 count = tracker->TerminateThread(thread->hThread, 0);
             if (count == -1)
             {
-                delThread(tracker, thread->threadID);
-                error = true;
+                errno = ERR_THREAD_TERMINATE;
             }
         }
         if (!tracker->CloseHandle(thread->hThread))
         {
-            error = true;
+            errno = ERR_THREAD_CLOSE_HANDLE;
         }
         num++;
     }
@@ -576,7 +578,7 @@ bool TT_Clean()
     RandBuf(threads->Data, List_Size(threads));
     if (!List_Free(threads))
     {
-       
+        errno = ERR_THREAD_FREE_LIST;
     }
-    return !error;
+    return errno;
 }

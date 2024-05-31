@@ -734,6 +734,7 @@ bool RT_Stop()
     bool success = true;
     for (;;)
     {
+        // TODO process errno
         if (!runtime->ThreadTracker->ThdClean())
         {
             success = false;
