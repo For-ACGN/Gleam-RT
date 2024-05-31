@@ -81,23 +81,23 @@ bool  RT_free(void* address);
 static Runtime* getRuntimePointer();
 
 static uintptr allocateRuntimeMemory();
-static bool initRuntimeAPI(Runtime* runtime);
-static bool adjustPageProtect(Runtime* runtime);
-static bool flushInstructionCache(Runtime* runtime);
-static bool updateRuntimePointer(Runtime* runtime);
-static uint initRuntimeEnvironment(Runtime* runtime);
-static uint initLibraryTracker(Runtime* runtime, Context* context);
-static uint initMemoryTracker(Runtime* runtime, Context* context);
-static uint initThreadTracker(Runtime* runtime, Context* context);
-static bool initIATHooks(Runtime* runtime);
-static void cleanRuntime(Runtime* runtime);
+static bool  initRuntimeAPI(Runtime* runtime);
+static bool  adjustPageProtect(Runtime* runtime);
+static bool  flushInstructionCache(Runtime* runtime);
+static bool  updateRuntimePointer(Runtime* runtime);
+static errno initRuntimeEnvironment(Runtime* runtime);
+static errno initLibraryTracker(Runtime* runtime, Context* context);
+static errno initMemoryTracker(Runtime* runtime, Context* context);
+static errno initThreadTracker(Runtime* runtime, Context* context);
+static bool  initIATHooks(Runtime* runtime);
+static void  cleanRuntime(Runtime* runtime);
 
 static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName);
 static uintptr replaceToHook(Runtime* runtime, uintptr proc);
 
-static bool sleep(Runtime* runtime, uint32 milliseconds);
-static bool hide(Runtime* runtime);
-static bool recover(Runtime* runtime);
+static bool  sleep(Runtime* runtime, uint32 milliseconds);
+static errno hide(Runtime* runtime);
+static errno recover(Runtime* runtime);
 
 static bool rt_lock(Runtime* runtime);
 static bool rt_unlock(Runtime* runtime);
@@ -118,45 +118,45 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     runtime->Options = opts;
     runtime->MainMemPage = address;
     // initialize runtime
-    uint errCode = 0;
+    errno errno = NO_ERROR;
     for (;;)
     {
         if (!initRuntimeAPI(runtime))
         {
-            errCode = 0xF1;
+            errno = ERR_RUNTIME_INIT_API;
             break;
         }
         if (!adjustPageProtect(runtime))
         {
-            errCode = 0xF2;
+            errno = ERR_RUNTIME_ADJUST_PROTECT;
             break;
         }
         if (!updateRuntimePointer(runtime))
         {
-            errCode = 0xF3;
+            errno = ERR_RUNTIME_UPDATE_PTR;
             break;
         }
-        errCode = initRuntimeEnvironment(runtime);
-        if (errCode != 0x00)
+        errno = initRuntimeEnvironment(runtime);
+        if (errno != NO_ERROR)
         {
             break;
         }
         if (!flushInstructionCache(runtime))
         {
-            errCode = 0xFA;
+            errno = ERR_RUNTIME_FLUSH_INST;
             break;
         }
         if (!initIATHooks(runtime))
         {
-            errCode = 0xFB;
+            errno = ERR_RUNTIME_INIT_IAT_HOOKS;
             break;
         }
         break;
     }
-    if (errCode != 0x00)
+    if (errno != NO_ERROR)
     {
         cleanRuntime(runtime);
-        return (Runtime_M*)errCode;
+        return (Runtime_M*)errno;
     }
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
@@ -308,7 +308,7 @@ static bool updateRuntimePointer(Runtime* runtime)
     return success;
 }
 
-static uint initRuntimeEnvironment(Runtime* runtime)
+static errno initRuntimeEnvironment(Runtime* runtime)
 {
     // initialize structure fields
     runtime->hProcess = NULL;
@@ -326,14 +326,14 @@ static uint initRuntimeEnvironment(Runtime* runtime)
         0, false, DUPLICATE_SAME_ACCESS
     ))
     {
-        return 0xF4;
+        return ERR_RUNTIME_DUP_HANDLE;
     }
     runtime->hProcess = dupHandle;
     // create global mutex
     HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
     if (hMutex == NULL)
     {
-        return 0xF5;
+        return ERR_RUNTIME_CREATE_MUTEX;
     }
     runtime->Mutex = hMutex;
     // create context data for initialize other modules
@@ -357,59 +357,59 @@ static uint initRuntimeEnvironment(Runtime* runtime)
         .PageSize = runtime->PageSize,
         .Mutex    = runtime->Mutex,
     };
-    uint errCode;
-    errCode = initLibraryTracker(runtime, &context);
-    if (errCode != 0x00)
+    errno errno;
+    errno = initLibraryTracker(runtime, &context);
+    if (errno != NO_ERROR)
     {
-        return errCode;
+        return errno;
     }
-    errCode = initMemoryTracker(runtime, &context);
-    if (errCode != 0x00)
+    errno = initMemoryTracker(runtime, &context);
+    if (errno != NO_ERROR)
     {
-        return errCode;
+        return errno;
     }
-    errCode = initThreadTracker(runtime, &context);
-    if (errCode != 0x00)
+    errno = initThreadTracker(runtime, &context);
+    if (errno != NO_ERROR)
     {
-        return errCode;
+        return errno;
     }
     // clean useless API functions in runtime structure
     RandBuf(&runtime->GetSystemInfo, sizeof(uintptr));
     RandBuf(&runtime->CreateMutexA,  sizeof(uintptr));
-    return 0x00;
+    return NO_ERROR;
 }
 
-static uint initLibraryTracker(Runtime* runtime, Context* context)
+static errno initLibraryTracker(Runtime* runtime, Context* context)
 {
     LibraryTracker_M* tracker = InitLibraryTracker(context);
-    if (tracker < (LibraryTracker_M*)(0x10))
+    if (tracker < (LibraryTracker_M*)(MAX_ERROR))
     {
-        return (uint)tracker;
+        return (errno)tracker;
     }
     runtime->LibraryTracker = tracker;
-    return 0x00;
+    return NO_ERROR;
 }
 
-static uint initMemoryTracker(Runtime* runtime, Context* context)
+static errno initMemoryTracker(Runtime* runtime, Context* context)
 {
     MemoryTracker_M* tracker = InitMemoryTracker(context);
-    if (tracker < (MemoryTracker_M*)(0x10))
+    if (tracker < (MemoryTracker_M*)(MAX_ERROR))
     {
-        return (uint)tracker;
+        return (errno)tracker;
     }
     runtime->MemoryTracker = tracker;
-    return 0x00;
+    return NO_ERROR;
 }
 
-static uint initThreadTracker(Runtime* runtime, Context* context)
+static errno initThreadTracker(Runtime* runtime, Context* context)
 {
     ThreadTracker_M* tracker = InitThreadTracker(context);
-    if (tracker < (ThreadTracker_M*)(0x20))
+    if (tracker < (ThreadTracker_M*)(MAX_ERROR))
     {
-        return (uint)tracker;
+        return (errno)tracker;
     }
     runtime->ThreadTracker = tracker;
-    return 0x00;
+    return NO_ERROR;
 }
 
 static bool initIATHooks(Runtime* runtime)
@@ -588,24 +588,24 @@ errno RT_Sleep(uint32 milliseconds)
 
     if (!rt_lock(runtime))
     {
-        return false;
+        return ERR_RUNTIME_LOCK;
     }
 
-    bool success = true;
+    errno errno = NO_ERROR;
     for (;;)
     {
         if (!hide(runtime))
         {
-            success = false;
+            errno = false;
             break;
         }
         if (!sleep(runtime, milliseconds))
         {
-            success = false;
+            errno = false;
         }
         if (!recover(runtime))
         {
-            success = false;
+            errno = false;
             break;
         }
         break;
@@ -613,9 +613,9 @@ errno RT_Sleep(uint32 milliseconds)
 
     if (!rt_unlock(runtime))
     {
-        return false;
+        return ERR_RUNTIME_LOCK;
     }
-    return success;
+    return errno;
 }
 
 __declspec(noinline)
@@ -646,7 +646,7 @@ errno RT_Hide()
 }
 
 __declspec(noinline)
-static bool hide(Runtime* runtime)
+static errno hide(Runtime* runtime)
 {
     bool success = true;
     for (;;)
@@ -689,7 +689,7 @@ errno RT_Recover()
 }
 
 __declspec(noinline)
-static bool recover(Runtime* runtime)
+static errno recover(Runtime* runtime)
 {
     bool success = true;
     for (;;)
