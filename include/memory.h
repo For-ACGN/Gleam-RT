@@ -9,8 +9,8 @@
 typedef void* (*MemAlloc_t)(uint size);
 typedef void* (*MemRealloc_t)(void* address, uint size);
 typedef bool  (*MemFree_t)(void* address);
-typedef bool  (*MemEncrypt_t)();
-typedef bool  (*MemDecrypt_t)();
+typedef errno (*MemEncrypt_t)();
+typedef errno (*MemDecrypt_t)();
 typedef errno (*MemClean_t)();
 
 typedef struct {
