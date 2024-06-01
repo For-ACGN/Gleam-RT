@@ -810,6 +810,11 @@ bool RT_free(void* address)
 {
     Runtime* runtime = getRuntimePointer();
 
+    if (address == NULL)
+    {
+        return true;
+    }
+
     printf("rt_free: 0x%llX\n", (uintptr)address);
 
     // clean the buffer data before call VirtualFree.

@@ -648,6 +648,10 @@ bool MT_MemFree(void* address)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
+    if (address == NULL)
+    {
+        return true;
+    }
     // clean the buffer data before call VirtualFree.
     uintptr addr = (uintptr)(address)-16;
     uint    size = *(uint*)addr;
