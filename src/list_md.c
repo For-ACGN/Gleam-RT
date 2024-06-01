@@ -154,6 +154,10 @@ uint List_Size(List* list)
 
 bool List_Free(List* list)
 {
+    if (list->Data == NULL)
+    {
+        return true;
+    }
     return list->ctx.free(list->Data);
 }
 
