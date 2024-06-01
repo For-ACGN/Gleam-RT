@@ -5,11 +5,15 @@
 
 typedef uint32 errno;
 
-#define NO_ERROR 0x00000000
+#define NO_ERROR  0x00000000
+#define MAX_ERROR 0x000FFFFF
 
 // 0x0000，，，， module id
 //   ，，，，00，， flags [1 = can skip]
 //   ，，，，，，00 error number
+
+#define ERR_FLAG_MASK     0x0000FF00
+#define ERR_FLAG_CAN_SKIP 0x00000100
 
 #define ERR_RUNTIME_INIT_API       0x00010001
 #define ERR_RUNTIME_ADJUST_PROTECT 0x00010002
@@ -18,6 +22,8 @@ typedef uint32 errno;
 #define ERR_RUNTIME_CREATE_MUTEX   0x00010011
 #define ERR_RUNTIME_FLUSH_INST     0x00010004
 #define ERR_RUNTIME_INIT_IAT_HOOKS 0x00010005
+#define ERR_RUNTIME_LOCK           0x00010021
+#define ERR_RUNTIME_UNLOCK         0x00010022
 
 #define ERR_LIBRARY_INIT_API   0x00020001
 #define ERR_LIBRARY_UPDATE_PTR 0x00020002
