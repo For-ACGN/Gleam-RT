@@ -520,7 +520,7 @@ errno LT_Clean()
         }
         if (!cleanModule(tracker, module))
         {
-            errno = ERR_LIBRARY_CLEAN_MOD;
+            errno = ERR_LIBRARY_CLEAN_MODULE;
         }
         num++;
     }
