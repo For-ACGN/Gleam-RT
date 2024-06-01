@@ -595,17 +595,17 @@ errno RT_Sleep(uint32 milliseconds)
     for (;;)
     {
         errno = hide(runtime);
-        if (errno != NO_ERROR)
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
         errno = sleep(runtime, milliseconds);
-        if (errno != NO_ERROR)
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
         errno = recover(runtime);
-        if (errno != NO_ERROR)
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
@@ -726,26 +726,25 @@ errno RT_Stop()
 
     if (!rt_lock(runtime))
     {
-        return false;
+        return ERR_RUNTIME_LOCK;
     }
 
-    bool success = true;
+    errno errno = NO_ERROR;
     for (;;)
     {
-        // TODO process errno
-        if (!runtime->ThreadTracker->ThdClean())
+        errno = runtime->ThreadTracker->ThdClean();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
-            success = false;
             break;
         }
-        if (!runtime->MemoryTracker->MemClean())
+        errno = runtime->MemoryTracker->MemClean();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
-            success = false;
             break;
         }
-        if (!runtime->LibraryTracker->LibClean())
+        errno = runtime->LibraryTracker->LibClean();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
-            success = false;
             break;
         }
         break;
@@ -753,9 +752,9 @@ errno RT_Stop()
 
     if (!rt_unlock(runtime))
     {
-        return false;
+        return ERR_RUNTIME_LOCK;
     }
-    return success;
+    return errno;
 }
 
 __declspec(noinline)
