@@ -66,7 +66,6 @@
       <CallingConvention>StdCall</CallingConvention>
       <Optimization>MinSpace</Optimization>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
-      <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -90,7 +89,6 @@
       <CallingConvention>StdCall</CallingConvention>
       <Optimization>MinSpace</Optimization>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
-      <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -108,20 +106,25 @@
     <ClCompile Include="..\src\list_md.c" />
     <ClCompile Include="..\src\random.c" />
     <ClCompile Include="..\src\crypto.c" />
+	<ClCompile Include="..\src\win_api.c" />
+    <ClCompile Include="..\src\library.c" />
     <ClCompile Include="..\src\memory.c" />
     <ClCompile Include="..\src\thread.c" />
     <ClCompile Include="..\src\epilogue.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\c_types.h" />
-    <ClInclude Include="..\include\lib_memory.h" />
-    <ClInclude Include="..\include\lib_string.h" />
     <ClInclude Include="..\include\windows_t.h" />
+    <ClInclude Include="..\include\lib_memory.h" />
+	<ClInclude Include="..\include\lib_string.h" />
     <ClInclude Include="..\include\hash_api.h" />
     <ClInclude Include="..\include\list_md.h" />
     <ClInclude Include="..\include\random.h" />
     <ClInclude Include="..\include\crypto.h" />
-    <ClInclude Include="..\include\context.h" />
+	<ClInclude Include="..\include\win_api.h" />
+	<ClInclude Include="..\include\context.h" />
+	<ClInclude Include="..\include\errno.h" />
+	<ClInclude Include="..\include\library.h" />
     <ClInclude Include="..\include\memory.h" />
     <ClInclude Include="..\include\thread.h" />
     <ClInclude Include="..\include\runtime.h" />
