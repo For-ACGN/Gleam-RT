@@ -95,7 +95,7 @@ static void  cleanRuntime(Runtime* runtime);
 static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName);
 static uintptr replaceToHook(Runtime* runtime, uintptr proc);
 
-static bool  sleep(Runtime* runtime, uint32 milliseconds);
+static errno sleep(Runtime* runtime, uint32 milliseconds);
 static errno hide(Runtime* runtime);
 static errno recover(Runtime* runtime);
 
@@ -594,18 +594,19 @@ errno RT_Sleep(uint32 milliseconds)
     errno errno = NO_ERROR;
     for (;;)
     {
-        if (!hide(runtime))
+        errno = hide(runtime);
+        if (errno != NO_ERROR)
         {
-            errno = false;
             break;
         }
-        if (!sleep(runtime, milliseconds))
+        errno = sleep(runtime, milliseconds);
+        if (errno != NO_ERROR)
         {
-            errno = false;
+            break;
         }
-        if (!recover(runtime))
+        errno = recover(runtime);
+        if (errno != NO_ERROR)
         {
-            errno = false;
             break;
         }
         break;
@@ -619,13 +620,17 @@ errno RT_Sleep(uint32 milliseconds)
 }
 
 __declspec(noinline)
-static bool sleep(Runtime* runtime, uint32 milliseconds)
+static errno sleep(Runtime* runtime, uint32 milliseconds)
 {
     if (milliseconds < 100)
     {
         milliseconds = 100;
     }
-    return runtime->WaitForSingleObject(runtime->hProcess, milliseconds);
+    if (!runtime->WaitForSingleObject(runtime->hProcess, milliseconds))
+    {
+        return ERR_RUNTIME_SLEEP;
+    }
+    return NO_ERROR;
 }
 
 __declspec(noinline)
@@ -635,14 +640,14 @@ errno RT_Hide()
 
     if (!rt_lock(runtime))
     {
-        return false;
+        return ERR_RUNTIME_LOCK;
     }
-    bool success = hide(runtime);
+    errno errno = hide(runtime);
     if (!rt_unlock(runtime))
     {
-        return false;
+        return ERR_RUNTIME_UNLOCK;
     }
-    return success;
+    return errno;
 }
 
 __declspec(noinline)
@@ -652,17 +657,17 @@ static errno hide(Runtime* runtime)
     for (;;)
     {
         errno = runtime->ThreadTracker->ThdSuspend();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
         errno = runtime->MemoryTracker->MemEncrypt();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
         errno = runtime->LibraryTracker->LibEncrypt();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
@@ -678,14 +683,14 @@ errno RT_Recover()
 
     if (!rt_lock(runtime))
     {
-        return false;
+        return ERR_RUNTIME_LOCK;
     }
-    bool success = recover(runtime);
+    errno errno = recover(runtime);
     if (!rt_unlock(runtime))
     {
-        return false;
+        return ERR_RUNTIME_UNLOCK;
     }
-    return success;
+    return errno;
 }
 
 __declspec(noinline)
@@ -695,17 +700,17 @@ static errno recover(Runtime* runtime)
     for (;;)
     {
         errno = runtime->LibraryTracker->LibDecrypt();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
         errno = runtime->MemoryTracker->MemDecrypt();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
         errno = runtime->ThreadTracker->ThdResume();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
