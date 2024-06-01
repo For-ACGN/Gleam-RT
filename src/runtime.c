@@ -648,27 +648,27 @@ errno RT_Hide()
 __declspec(noinline)
 static errno hide(Runtime* runtime)
 {
-    bool success = true;
+    errno errno = NO_ERROR;
     for (;;)
     {
-        if (!runtime->ThreadTracker->ThdSuspend())
+        errno = runtime->ThreadTracker->ThdSuspend();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
         {
-            success = false;
             break;
         }
-        if (!runtime->MemoryTracker->MemEncrypt())
+        errno = runtime->MemoryTracker->MemEncrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
         {
-            success = false;
             break;
         }
-        if (!runtime->LibraryTracker->LibEncrypt())
+        errno = runtime->LibraryTracker->LibEncrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
         {
-            success = false;
             break;
         }
         break;
     }
-    return success;
+    return errno;
 }
 
 __declspec(noinline)
@@ -691,27 +691,27 @@ errno RT_Recover()
 __declspec(noinline)
 static errno recover(Runtime* runtime)
 {
-    bool success = true;
+    errno errno = NO_ERROR;
     for (;;)
     {
-        if (!runtime->LibraryTracker->LibDecrypt())
+        errno = runtime->LibraryTracker->LibDecrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
         {
-            success = false;
             break;
         }
-        if (!runtime->MemoryTracker->MemDecrypt())
+        errno = runtime->MemoryTracker->MemDecrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
         {
-            success = false;
             break;
         }
-        if (!runtime->ThreadTracker->ThdResume())
+        errno = runtime->ThreadTracker->ThdResume();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_MASK) != ERR_FLAG_CAN_SKIP)
         {
-            success = false;
             break;
         }
         break;
     }
-    return success;
+    return errno;
 }
 
 __declspec(noinline)
