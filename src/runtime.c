@@ -114,6 +114,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     {
         return NULL;
     }
+    printf("main page: 0x%llX\n", address);
     // set structure address
     uintptr runtimeAddr = address + 100 + RandUint(address) % 128;
     uintptr moduleAddr  = address + 700 + RandUint(address) % 128;
@@ -627,6 +628,7 @@ errno RT_Sleep(uint32 milliseconds)
 __declspec(noinline)
 static errno sleep(Runtime* runtime, uint32 milliseconds)
 {
+    // build shield context
     uintptr runtimeAddr = (uintptr)(&InitRuntime);
     uintptr instAddress = runtime->InstAddress;
     if (instAddress == NULL || instAddress >= runtimeAddr)
@@ -643,10 +645,21 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         .hProcess            = runtime->hProcess,
         .WaitForSingleObject = runtime->WaitForSingleObject,
     };
+    // build crypto context
+    byte key[CRYPTO_KEY_SIZE];
+    byte iv [CRYPTO_IV_SIZE];
+    RandBuf(key, CRYPTO_KEY_SIZE);
+    RandBuf(iv, CRYPTO_IV_SIZE);
+    byte* buf = (byte*)(runtime->MainMemPage);
+    // encrypt main page
+    EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
+    // call shield!!!
     if (!DefenseRT(&ctx))
     {
         return ERR_RUNTIME_DEFENSE_RT;
     }
+    // decrypt main page
+    DecryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
     return NO_ERROR;
 }
 
