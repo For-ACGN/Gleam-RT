@@ -12,7 +12,7 @@ typedef bool  (*MemFree_t)(void* address);
 
 // GetProcAddress, GetProcAddressByName and GetProcAddressByHash
 // are use Hash API module for implement original GetProcAddress.
-// GetProcAddressOriginal is not recommend, usually use 
+// GetProcAddressOriginal is not recommend, usually use
 // GetProcAddressByName with hook OFF instead it.
 // These methods are used for IAT hooks or common shellcode.
 typedef uintptr (*GetProcAddress_t)(HMODULE hModule, LPCSTR lpProcName);
@@ -21,6 +21,9 @@ typedef uintptr (*GetProcAddressByHash_t)(uint hash, uint key, bool hook);
 typedef uintptr (*GetProcAddressOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
 
 // runtime core methods
+// it is NOT recommended use "Hide" and "Recover" these function
+// are used to test and research, if use them, runtime will loss
+// the shield protect and structure data encrypt.
 typedef errno (*Sleep_t)(uint32 milliseconds);
 typedef errno (*Hide_t)();
 typedef errno (*Recover_t)();
