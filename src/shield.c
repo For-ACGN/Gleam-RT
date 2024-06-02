@@ -27,17 +27,13 @@ void xorInst(Shield_Ctx* ctx, byte* key)
     uintptr beginAddr = ctx->InstAddress;
     uintptr endAddr   = (uintptr)(&DefenseRT);
     // hide runtime(or with shellcode) instructions
-    uint keyIdx = 0;
+    byte keyIdx = 0;
     for (uintptr addr = beginAddr; addr < endAddr; addr++)
     {
         byte* data = (byte*)addr;
-        byte k = *(byte*)(key + keyIdx);
+        byte k = key[keyIdx];
         *data ^= k;
-        // update key index
-        keyIdx++;
-        if (keyIdx >= XOR_KEY_SIZE)
-        {
-            keyIdx = 0;
-        }
+        // select key
+        keyIdx = k+1;
     }
 }
