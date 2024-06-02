@@ -27,7 +27,10 @@ typedef errno (*Recover_t)();
 typedef errno (*Stop_t)();
 
 typedef struct {
-    // not adjust current memory page protect for change runtime data.
+    // protect instructions like shellcode before runtime
+    uintptr InstAddress;
+
+    // not adjust current memory page protect for change runtime data
     bool NotAdjustProtect;
 
     // track current thread for some special executable file like Go
