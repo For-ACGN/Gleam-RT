@@ -183,9 +183,9 @@ func kernel32Sleep() {
 			// trigger Gleam-RT Sleep
 			fmt.Println("call kernel32.Sleep [hooked]")
 			now := time.Now()
-			ok, _, _ := procSleep.Call(100)
-			if ok != 1 {
-				log.Fatalln("occurred error when sleep")
+			errno, _, _ := procSleep.Call(100)
+			if errno != 0 {
+				log.Fatalf("occurred error when sleep: %X\n", errno)
 			}
 			counter++
 			fmt.Println("Sleep:", time.Since(now), "Times:", counter)
