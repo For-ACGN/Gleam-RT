@@ -13,6 +13,7 @@
 #include "memory.h"
 #include "thread.h"
 #include "runtime.h"
+#include "shield.h"
 #include "epilogue.h"
 
 #define MAIN_MEM_PAGE_SIZE 8192
@@ -25,6 +26,9 @@ typedef struct {
 
 typedef struct {
     Runtime_Opts* Options;
+
+    // store options
+    uintptr InstAddress;
 
     // store all structures
     uintptr MainMemPage;
@@ -116,6 +120,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     runtime->Options = opts;
+    runtime->InstAddress = opts->InstAddress;
     runtime->MainMemPage = address;
     // initialize runtime
     errno errno = NO_ERROR;
@@ -622,13 +627,25 @@ errno RT_Sleep(uint32 milliseconds)
 __declspec(noinline)
 static errno sleep(Runtime* runtime, uint32 milliseconds)
 {
+    uintptr runtimeAddr = (uintptr)(&InitRuntime);
+    uintptr instAddress = runtime->InstAddress;
+    if (instAddress == NULL || instAddress >= runtimeAddr)
+    {
+        instAddress = runtimeAddr;
+    }
     if (milliseconds < 100)
     {
         milliseconds = 100;
     }
-    if (!runtime->WaitForSingleObject(runtime->hProcess, milliseconds))
+    Shield_Ctx ctx = {
+        .InstAddress         = instAddress,
+        .milliseconds        = milliseconds,
+        .hProcess            = runtime->hProcess,
+        .WaitForSingleObject = runtime->WaitForSingleObject,
+    };
+    if (!DefenseRT(&ctx))
     {
-        return ERR_RUNTIME_SLEEP;
+        return ERR_RUNTIME_DEFENSE_RT;
     }
     return NO_ERROR;
 }
