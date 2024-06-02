@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "c_types.h"
+#include "errno.h"
 #include "runtime.h"
 #include "test.h"
 
@@ -11,7 +12,7 @@ bool TestRuntime()
         .NotAdjustProtect = false,
     };
     Runtime_M* runtime = InitRuntime(&opts);
-    if (runtime <= (Runtime_M*)(0xFF))
+    if (runtime <= (Runtime_M*)(MAX_ERROR))
     {
         printf("failed to initialize runtime");
         return false;
@@ -50,17 +51,23 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
     }
     *test3 = 0x1234567812345602;
 
-    if (!runtime->Hide())
+    errno errno;
+
+    errno = runtime->Hide();
+    if (errno != NO_ERROR)
     {
-        return -8;
+        printf("error: %X\n", errno);
+        return false;
     }
-    if (!runtime->Recover())
+    errno = runtime->Recover();
+    if (errno != NO_ERROR)
     {
-        return -9;
+        printf("error: %X\n", errno);
+        return false;
     }
 
     uint64* test4 = (uint64*)runtime->MemAlloc(sizeof(uint64));
-    if (test3 == NULL)
+    if (test4 == NULL)
     {
         return -1;
     }
@@ -74,6 +81,7 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
     {
         return -1;
     }
+
     uint64* test5 = (uint64*)runtime->MemAlloc(sizeof(uint64));
     if (test5 == NULL)
     {
@@ -81,19 +89,23 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
     }
     *test5 = 0x1234567812345600;
 
-
-    if (!runtime->Hide())
+    errno = runtime->Hide();
+    if (errno != NO_ERROR)
     {
-        return -3;
+        printf("error: %X\n", errno);
+        return false;
     }
-    if (!runtime->Recover())
+    errno = runtime->Recover();
+    if (errno != NO_ERROR)
     {
-        return -4;
+        printf("error: %X\n", errno);
+        return false;
     }
-
-    if (!runtime->Sleep(1000))
+    errno = runtime->Sleep(1000);
+    if (errno != NO_ERROR)
     {
-        return -100;
+        printf("error: %X\n", errno);
+        return false;
     }
 
     if (!runtime->MemFree(test2))
@@ -109,9 +121,11 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
         return -1;
     }
 
-    if (!runtime->Stop())
+    errno = runtime->Stop();
+    if (errno != NO_ERROR)
     {
-        return -5;
+        printf("error: %X\n", errno);
+        return false;
     }
 
     printf("======TestRuntimeAlloc passed======\n\n");

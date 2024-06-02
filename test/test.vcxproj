@@ -11,6 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\iat_hook.c" />
+    <ClCompile Include="..\src\library.c" />
     <ClCompile Include="..\src\lib_memory.c" />
     <ClCompile Include="..\src\lib_string.c" />
     <ClCompile Include="..\src\runtime.c" />
@@ -19,8 +21,10 @@
     <ClCompile Include="..\src\random.c" />
     <ClCompile Include="..\src\crypto.c" />
     <ClCompile Include="..\src\memory.c" />
+    <ClCompile Include="..\src\shield.c" />
     <ClCompile Include="..\src\thread.c" />
     <ClCompile Include="..\src\epilogue.c" />
+    <ClCompile Include="..\src\win_api.c" />
     <ClCompile Include="crypto_test.c" />
     <ClCompile Include="memory_test.c" />
     <ClCompile Include="random_test.c" />

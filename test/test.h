@@ -11,9 +11,9 @@ typedef bool (*test_t)();
 typedef struct { byte* Name; test_t Test; } unit;
 
 static unit tests[] = {
-    { "TestRandom",  TestRandom },
-    { "TestCrypto",  TestCrypto },
-    { "TestRuntime", TestRuntime },
+    { "Random",  TestRandom },
+    { "Crypto",  TestCrypto },
+    { "Runtime", TestRuntime },
 };
 
 #endif // TEST_H
