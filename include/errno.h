@@ -3,7 +3,7 @@
 
 #include "c_types.h"
 
-typedef uint32 errno;
+typedef uint errno;
 
 #define NO_ERROR  0x00000000
 #define MAX_ERROR 0x000FFFFF
