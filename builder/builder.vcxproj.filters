@@ -54,6 +54,12 @@
     <ClCompile Include="..\src\win_api.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\shield.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\resource.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\crypto.h">
@@ -96,12 +102,18 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\include\errno.h">
-	  <Filter>头文件</Filter>
-	</ClInclude>
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="..\include\library.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="..\include\win_api.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\shield.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\resource.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
