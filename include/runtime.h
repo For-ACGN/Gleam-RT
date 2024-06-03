@@ -7,9 +7,11 @@
 #include "errno.h"
 
 // for common shellcode development.
-typedef void* (*MemAlloc_t)(uint size);
-typedef void* (*MemRealloc_t)(void* address, uint size);
-typedef bool  (*MemFree_t)(void* address);
+typedef void*  (*MemAlloc_t)(uint size);
+typedef void*  (*MemRealloc_t)(void* address, uint size);
+typedef bool   (*MemFree_t)(void* address);
+typedef HANDLE (*ThdNew_t)(uintptr address, void* parameter);
+typedef void   (*ThdExit_t)();
 
 // GetProcAddress, GetProcAddressByName and GetProcAddressByHash
 // are use Hash API module for implement original GetProcAddress.
@@ -47,6 +49,8 @@ typedef struct {
     MemAlloc_t   MemAlloc;
     MemRealloc_t MemRealloc;
     MemFree_t    MemFree;
+    ThdNew_t     NewThread;
+    ThdExit_t    ExitThread;
 
     GetProcAddress_t         GetProcAddress;
     GetProcAddressByName_t   GetProcAddressByName;

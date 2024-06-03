@@ -18,9 +18,9 @@ typedef struct {
     SuspendThread_t   SuspendThread;
     ResumeThread_t    ResumeThread;
     TerminateThread_t TerminateThread;
-    ThdNew_t          ThdNew;
-    ThdExit_t         ThdExit;
 
+    ThdNew_t     ThdNew;
+    ThdExit_t    ThdExit;
     ThdSuspend_t ThdSuspend;
     ThdResume_t  ThdResume;
     ThdClean_t   ThdClean;
