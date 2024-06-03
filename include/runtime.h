@@ -3,6 +3,7 @@
 
 #include "c_types.h"
 #include "windows_t.h"
+#include "hash_api.h"
 #include "errno.h"
 
 // for common shellcode development.
@@ -42,6 +43,7 @@ typedef struct {
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
+    FindAPI_t    FindAPI;
     MemAlloc_t   MemAlloc;
     MemRealloc_t MemRealloc;
     MemFree_t    MemFree;
