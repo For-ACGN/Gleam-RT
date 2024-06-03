@@ -439,7 +439,7 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode)
 
     if (!lt_lock(tracker))
     {
-        return NULL;
+        return;
     }
 
     delModule(tracker, hLibModule);
@@ -447,7 +447,7 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode)
 
     if (!lt_unlock(tracker))
     {
-        return NULL;
+        return;
     }
 
     tracker->FreeLibraryAndExitThread(hLibModule, dwExitCode);

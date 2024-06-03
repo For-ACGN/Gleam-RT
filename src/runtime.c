@@ -290,8 +290,8 @@ static bool flushInstructionCache(Runtime* runtime)
         return false;
     }
     // clean useless API functions in runtime structure
-    RandBuf(&runtime->VirtualProtect,        sizeof(uintptr));
-    RandBuf(&runtime->FlushInstructionCache, sizeof(uintptr));
+    RandBuf((byte*)(&runtime->VirtualProtect), sizeof(uintptr));
+    RandBuf((byte*)(&runtime->FlushInstructionCache), sizeof(uintptr));
     return true;
 }
 
@@ -380,8 +380,8 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         return errno;
     }
     // clean useless API functions in runtime structure
-    RandBuf(&runtime->GetSystemInfo, sizeof(uintptr));
-    RandBuf(&runtime->CreateMutexA,  sizeof(uintptr));
+    RandBuf((byte*)(&runtime->GetSystemInfo), sizeof(uintptr));
+    RandBuf((byte*)(&runtime->CreateMutexA),  sizeof(uintptr));
     return NO_ERROR;
 }
 
