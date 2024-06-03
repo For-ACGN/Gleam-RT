@@ -172,6 +172,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->MemAlloc   = runtime->MemoryTracker->MemAlloc;
     module->MemRealloc = runtime->MemoryTracker->MemRealloc;
     module->MemFree    = runtime->MemoryTracker->MemFree;
+    module->NewThread  = runtime->ThreadTracker->ThdNew;
+    module->ExitThread = runtime->ThreadTracker->ThdExit;
     // for IAT hooks
     module->GetProcAddress         = &RT_GetProcAddress;
     module->GetProcAddressByName   = &RT_GetProcAddressByName;

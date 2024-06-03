@@ -111,6 +111,8 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     module->ResumeThread    = (ResumeThread_t   )(&TT_ResumeThread);
     module->TerminateThread = (TerminateThread_t)(&TT_TerminateThread);
     // methods for runtime
+    module->ThdNew     = &TT_ThdNew;
+    module->ThdExit    = &TT_ThdExit;
     module->ThdSuspend = &TT_Suspend;
     module->ThdResume  = &TT_Resume;
     module->ThdClean   = &TT_Clean;
