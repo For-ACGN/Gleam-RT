@@ -11,41 +11,47 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\iat_hook.c" />
-    <ClCompile Include="..\src\library.c" />
+    <ClCompile Include="..\src\resource.c" />
+    <ClCompile Include="test_main.c" />
+    <ClCompile Include="crypto_test.c" />
+    <ClCompile Include="random_test.c" />
+    <ClCompile Include="runtime_test.c" />
+    <ClCompile Include="memory_test.c" />
+    <ClCompile Include="thread_test.c" />
+    <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\lib_memory.c" />
     <ClCompile Include="..\src\lib_string.c" />
-    <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\hash_api.c" />
     <ClCompile Include="..\src\list_md.c" />
     <ClCompile Include="..\src\random.c" />
     <ClCompile Include="..\src\crypto.c" />
-    <ClCompile Include="..\src\memory.c" />
-    <ClCompile Include="..\src\shield.c" />
-    <ClCompile Include="..\src\thread.c" />
-    <ClCompile Include="..\src\epilogue.c" />
     <ClCompile Include="..\src\win_api.c" />
-    <ClCompile Include="crypto_test.c" />
-    <ClCompile Include="memory_test.c" />
-    <ClCompile Include="random_test.c" />
-    <ClCompile Include="runtime_test.c" />
-    <ClCompile Include="test_main.c" />
-    <ClCompile Include="thread_test.c" />
+    <ClCompile Include="..\src\library.c" />
+    <ClCompile Include="..\src\memory.c" />
+    <ClCompile Include="..\src\thread.c" />
+    <ClCompile Include="..\src\shield.c" />
+    <ClCompile Include="..\src\epilogue.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\resource.h" />
+    <ClInclude Include="test.h" />
+    <ClInclude Include="..\include\c_types.h" />
+    <ClInclude Include="..\include\windows_t.h" />
     <ClInclude Include="..\include\lib_memory.h" />
     <ClInclude Include="..\include\lib_string.h" />
-    <ClInclude Include="..\include\windows_t.h" />
     <ClInclude Include="..\include\hash_api.h" />
     <ClInclude Include="..\include\list_md.h" />
     <ClInclude Include="..\include\random.h" />
     <ClInclude Include="..\include\crypto.h" />
+    <ClInclude Include="..\include\win_api.h" />
     <ClInclude Include="..\include\context.h" />
+    <ClInclude Include="..\include\errno.h" />
+    <ClInclude Include="..\include\library.h" />
     <ClInclude Include="..\include\memory.h" />
     <ClInclude Include="..\include\thread.h" />
     <ClInclude Include="..\include\runtime.h" />
+    <ClInclude Include="..\include\shield.h" />
     <ClInclude Include="..\include\epilogue.h" />
-    <ClInclude Include="test.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

@@ -9,7 +9,9 @@ static bool TestRuntimeMemory(Runtime_M* runtime);
 bool TestRuntime()
 {
     Runtime_Opts opts = {
-        .NotAdjustProtect = false,
+        .InstAddress        = NULL,
+        .NotAdjustProtect   = false,
+        .TrackCurrentThread = false,
     };
     Runtime_M* runtime = InitRuntime(&opts);
     if (runtime <= (Runtime_M*)(MAX_ERROR))
