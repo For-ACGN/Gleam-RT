@@ -47,6 +47,8 @@ void   TT_ExitThread(uint32 dwExitCode);
 uint32 TT_SuspendThread(HANDLE hThread);
 uint32 TT_ResumeThread(HANDLE hThread);
 bool   TT_TerminateThread(HANDLE hThread, uint32 dwExitCode);
+HANDLE TT_ThdNew(uintptr address, void* parameter);
+void   TT_ThdExit();
 errno  TT_Suspend();
 errno  TT_Resume();
 errno  TT_Clean();
@@ -434,6 +436,18 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
         return false;
     }
     return tracker->TerminateThread(hThread, dwExitCode);
+}
+
+__declspec(noinline)
+HANDLE TT_ThdNew(uintptr address, void* parameter)
+{
+    return TT_CreateThread(0, 0, address, (uintptr)parameter, 0, NULL);
+}
+
+__declspec(noinline)
+void TT_ThdExit()
+{
+    TT_ExitThread(0);
 }
 
 __declspec(noinline)
