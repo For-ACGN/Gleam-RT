@@ -61,6 +61,7 @@ typedef struct {
 } Runtime;
 
 // export methods about Runtime
+uintptr RT_FindAPI(uint hash, uint key);
 uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
 uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook);
@@ -167,6 +168,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
+    module->FindAPI    = &RT_FindAPI;
     module->MemAlloc   = runtime->MemoryTracker->MemAlloc;
     module->MemRealloc = runtime->MemoryTracker->MemRealloc;
     module->MemFree    = runtime->MemoryTracker->MemFree;
@@ -488,6 +490,12 @@ static Runtime* getRuntimePointer()
 #pragma optimize("", on)
 
 __declspec(noinline)
+uintptr RT_FindAPI(uint hash, uint key)
+{
+    return RT_GetProcAddressByHash(hash, key, true);
+}
+
+__declspec(noinline)
 uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 {
     return RT_GetProcAddressByName(hModule, lpProcName, true);
@@ -532,6 +540,17 @@ uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
     return replaceToHook(runtime, proc);
 }
 
+// disable optimize for use call NOT jmp to runtime->GetProcAddress.
+#pragma optimize("", off)
+__declspec(noinline)
+uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
+{
+    Runtime* runtime = getRuntimePointer();
+
+    return runtime->GetProcAddress(hModule, lpProcName);
+}
+#pragma optimize("", on)
+
 static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName)
 {
     typedef struct {
@@ -575,17 +594,6 @@ static uintptr replaceToHook(Runtime* runtime, uintptr proc)
     }
     return proc;
 }
-
-// disable optimize for use call NOT jmp to runtime->GetProcAddress.
-#pragma optimize("", off)
-__declspec(noinline)
-uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
-{
-    Runtime* runtime = getRuntimePointer();
-
-    return runtime->GetProcAddress(hModule, lpProcName);
-}
-#pragma optimize("", on)
 
 __declspec(noinline)
 errno RT_Sleep(uint32 milliseconds)
