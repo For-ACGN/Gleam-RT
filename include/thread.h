@@ -6,9 +6,11 @@
 #include "context.h"
 #include "errno.h"
 
-typedef errno (*ThdSuspend_t)();
-typedef errno (*ThdResume_t)();
-typedef errno (*ThdClean_t)();
+typedef HANDLE (*ThdNew_t)(uintptr address, void* parameter);
+typedef void   (*ThdExit_t)();
+typedef errno  (*ThdSuspend_t)();
+typedef errno  (*ThdResume_t)();
+typedef errno  (*ThdClean_t)();
 
 typedef struct {
     CreateThread_t    CreateThread;
@@ -16,6 +18,8 @@ typedef struct {
     SuspendThread_t   SuspendThread;
     ResumeThread_t    ResumeThread;
     TerminateThread_t TerminateThread;
+    ThdNew_t          ThdNew;
+    ThdExit_t         ThdExit;
 
     ThdSuspend_t ThdSuspend;
     ThdResume_t  ThdResume;
