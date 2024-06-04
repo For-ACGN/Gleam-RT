@@ -30,6 +30,8 @@
 * https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
 * https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-duplicatehandle
 * https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
+* https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup
+* https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsacleanup
 */
 
 #ifndef _WINDOWS_
@@ -199,5 +201,12 @@ typedef bool (*CloseHandle_t)
 (
     HANDLE hObject
 );
+
+typedef int(*WSAStartup_t)
+(
+    uint16 wVersionRequired, void* lpWSAData
+);
+
+typedef int (*WSACleanup_t)();
 
 #endif // WINDOWS_T_H
