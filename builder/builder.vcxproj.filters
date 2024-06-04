@@ -60,6 +60,9 @@
     <ClCompile Include="..\src\resource.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\errno.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\crypto.h">
