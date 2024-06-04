@@ -12,6 +12,7 @@
 #include "library.h"
 #include "memory.h"
 #include "thread.h"
+#include "resource.h"
 #include "runtime.h"
 #include "shield.h"
 #include "epilogue.h"
@@ -163,7 +164,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     if (errno != NO_ERROR)
     {
         cleanRuntime(runtime);
-        return (Runtime_M*)errno;
+        SetLastErrno(errno);
+        return NULL;
     }
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
@@ -392,9 +394,9 @@ static errno initRuntimeEnvironment(Runtime* runtime)
 static errno initLibraryTracker(Runtime* runtime, Context* context)
 {
     LibraryTracker_M* tracker = InitLibraryTracker(context);
-    if (tracker < (LibraryTracker_M*)(MAX_ERROR))
+    if (tracker == NULL)
     {
-        return (errno)tracker;
+        return GetLastErrno();
     }
     runtime->LibraryTracker = tracker;
     return NO_ERROR;
@@ -403,9 +405,9 @@ static errno initLibraryTracker(Runtime* runtime, Context* context)
 static errno initMemoryTracker(Runtime* runtime, Context* context)
 {
     MemoryTracker_M* tracker = InitMemoryTracker(context);
-    if (tracker < (MemoryTracker_M*)(MAX_ERROR))
+    if (tracker == NULL)
     {
-        return (errno)tracker;
+        return GetLastErrno();
     }
     runtime->MemoryTracker = tracker;
     return NO_ERROR;
@@ -414,9 +416,9 @@ static errno initMemoryTracker(Runtime* runtime, Context* context)
 static errno initThreadTracker(Runtime* runtime, Context* context)
 {
     ThreadTracker_M* tracker = InitThreadTracker(context);
-    if (tracker < (ThreadTracker_M*)(MAX_ERROR))
+    if (tracker == NULL)
     {
-        return (errno)tracker;
+        return GetLastErrno();
     }
     runtime->ThreadTracker = tracker;
     return NO_ERROR;

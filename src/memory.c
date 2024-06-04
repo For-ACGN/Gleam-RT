@@ -123,7 +123,8 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     }
     if (errno != NO_ERROR)
     {
-        return (MemoryTracker_M*)errno;
+        SetLastErrno(errno);
+        return NULL;
     }
     // create methods for tracker
     MemoryTracker_M* module = (MemoryTracker_M*)moduleAddr;

@@ -100,7 +100,8 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     }
     if (errno != NO_ERROR)
     {
-        return (ThreadTracker_M*)errno;
+        SetLastErrno(errno);
+        return NULL;
     }
     // create methods for tracker
     ThreadTracker_M* module = (ThreadTracker_M*)moduleAddr;

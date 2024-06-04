@@ -94,7 +94,8 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     }
     if (errno != NO_ERROR)
     {
-        return (LibraryTracker_M*)errno;
+        SetLastErrno(errno);
+        return NULL;
     }
     // create methods for tracker
     LibraryTracker_M* module = (LibraryTracker_M*)moduleAddr;
