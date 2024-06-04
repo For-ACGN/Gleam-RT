@@ -5,7 +5,10 @@
 
 typedef uint32 errno;
 
-#define NO_ERROR  0x00000000
+void  SetLastErrno(errno errno);
+errno GetLastErrno();
+
+#define NO_ERROR 0x00000000
 
 // 00，，，，，， module id
 // ，，00，，，， error flags
