@@ -14,17 +14,15 @@ bool TestRuntime()
         .TrackCurrentThread = false,
     };
     Runtime_M* runtime = InitRuntime(&opts);
-    if (runtime <= (Runtime_M*)(MAX_ERROR))
+    if (runtime == NULL)
     {
-        printf("failed to initialize runtime");
+        printf("failed to initialize runtime: %lX\n", GetLastErrno());
         return false;
     }
-
     if (!TestRuntimeMemory(runtime))
     {
         return false;
     }
-
     return true;
 }
 
@@ -58,13 +56,13 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
     errno = runtime->Hide();
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf("error: %llX\n", errno);
         return false;
     }
     errno = runtime->Recover();
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf("error: %llX\n", errno);
         return false;
     }
 
@@ -94,19 +92,19 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
     errno = runtime->Hide();
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf("error: %llX\n", errno);
         return false;
     }
     errno = runtime->Recover();
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf("error: %llX\n", errno);
         return false;
     }
     errno = runtime->Sleep(1000);
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf("error: %llX\n", errno);
         return false;
     }
 
@@ -126,7 +124,7 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
     errno = runtime->Stop();
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf("error: %llX\n", errno);
         return false;
     }
 
