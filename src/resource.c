@@ -169,14 +169,32 @@ int RT_WSAStartup(uint16 wVersionRequired, void* lpWSAData)
     }
 
     // check API is found
-    // printf
+    if (tracker->WSAStartup == NULL)
+    {
+    #ifdef _WIN64
+        WSAStartup_t func = FindAPI(0x7830A1CDC2B96DC4, 0x6F9D11BABABEFA66);
+    #elif _WIN32
+        WSAStartup_t func = FindAPI(0x2BC97653, 0xFA546DF2);
+    #endif
+        if (func == NULL)
+        {
+            return WSASYSNOTREADY;
+        }
+        tracker->WSAStartup = func;
+    }
+    int ret = tracker->WSAStartup(wVersionRequired, lpWSAData);
+    if (ret == 0)
+    {
+        tracker->Counters[RES_WSA]++;
+    }
+
+    printf("WSAStartup\n");
 
     if (!rt_unlock(tracker))
     {
         return WSASYSNOTREADY;
     }
-    
-    return 0;
+    return ret;
 }
 
 __declspec(noinline)
@@ -190,13 +208,32 @@ int RT_WSACleanup()
     }
 
     // check API is found
+    if (tracker->WSACleanup == NULL)
+    {
+    #ifdef _WIN64
+        WSACleanup_t func = FindAPI(0x6256E6FE90DCA50E, 0xC1032D7B10171906);
+    #elif _WIN32
+        WSACleanup_t func = FindAPI(0x313E7E17, 0x5BAF5613);
+    #endif
+        if (func == NULL)
+        {
+            return WSAEINPROGRESS;
+        }
+        tracker->WSACleanup = func;
+    }
+    int ret = tracker->WSACleanup();
+    if (ret == 0)
+    {
+        tracker->Counters[RES_WSA]--;
+    }
 
+    printf("WSACleanup\n");
 
     if (!rt_unlock(tracker))
     {
         return WSAEINPROGRESS;
     }
-    return 0;
+    return ret;
 }
 
 __declspec(noinline)
