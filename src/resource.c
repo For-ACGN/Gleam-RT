@@ -25,7 +25,7 @@ typedef struct {
     WSACleanup_t WSACleanup;
 
     // store all resource counters
-    uint Counters[1];
+    int64 Counters[1];
 } ResourceTracker;
 
 // methods about resource tracker
@@ -257,5 +257,18 @@ errno RT_Clean()
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    return NO_ERROR;
+    errno errno   = NO_ERROR;
+    int64 counter = 0;
+
+    // WSACleanup
+    counter = tracker->Counters[RES_WSA];
+    for (int64 i = 0; i < counter; i++)
+    {
+        if (tracker->WSACleanup() != 0)
+        {
+            errno = ERR_RESOURCE_WSA_CLEANUP;
+        }
+    }
+
+    return errno;
 }
