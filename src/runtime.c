@@ -48,7 +48,7 @@ typedef struct {
     GetProcAddress_t        GetProcAddress;
 
     // IAT hooks about GetProcAddress
-    Hook Hooks[16];
+    Hook IAT_Hooks[16];
 
     // runtime data
     uint32 PageSize; // memory management
@@ -56,9 +56,10 @@ typedef struct {
     HANDLE Mutex;    // global mutex
 
     // submodules
-    LibraryTracker_M* LibraryTracker;
-    MemoryTracker_M*  MemoryTracker;
-    ThreadTracker_M*  ThreadTracker;
+    LibraryTracker_M*  LibraryTracker;
+    MemoryTracker_M*   MemoryTracker;
+    ThreadTracker_M*   ThreadTracker;
+    ResourceTracker_M* ResourceTracker;
 } Runtime;
 
 // export methods about Runtime
@@ -95,10 +96,12 @@ static errno initRuntimeEnvironment(Runtime* runtime);
 static errno initLibraryTracker(Runtime* runtime, Context* context);
 static errno initMemoryTracker(Runtime* runtime, Context* context);
 static errno initThreadTracker(Runtime* runtime, Context* context);
+static errno initResourceTracker(Runtime* runtime, Context* context);
 static bool  initIATHooks(Runtime* runtime);
 static void  cleanRuntime(Runtime* runtime);
 
 static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName);
+static uintptr getResTrackerHook(Runtime* runtime, uintptr proc);
 static uintptr replaceToHook(Runtime* runtime, uintptr proc);
 
 static errno sleep(Runtime* runtime, uint32 milliseconds);
@@ -385,6 +388,11 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     {
         return errno;
     }
+    errno = initResourceTracker(runtime, &context);
+    if (errno != NO_ERROR)
+    {
+        return errno;
+    }
     // clean useless API functions in runtime structure
     RandBuf((byte*)(&runtime->GetSystemInfo), sizeof(uintptr));
     RandBuf((byte*)(&runtime->CreateMutexA),  sizeof(uintptr));
@@ -421,6 +429,17 @@ static errno initThreadTracker(Runtime* runtime, Context* context)
         return GetLastErrno();
     }
     runtime->ThreadTracker = tracker;
+    return NO_ERROR;
+}
+
+static errno initResourceTracker(Runtime* runtime, Context* context)
+{
+    ResourceTracker_M* tracker = InitResourceTracker(context);
+    if (tracker == NULL)
+    {
+        return GetLastErrno();
+    }
+    runtime->ResourceTracker = tracker;
     return NO_ERROR;
 }
 
@@ -477,8 +496,8 @@ static bool initIATHooks(Runtime* runtime)
         {
             return false;
         }
-        runtime->Hooks[i].Func = func;
-        runtime->Hooks[i].Hook = (uintptr)items[i].hook;
+        runtime->IAT_Hooks[i].Func = func;
+        runtime->IAT_Hooks[i].Hook = (uintptr)items[i].hook;
     }
     return true;
 }
@@ -541,6 +560,11 @@ uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
     {
         return proc;
     }
+    uintptr rth = getResTrackerHook(runtime, proc);
+    if (rth != proc)
+    {
+        return rth;
+    }
     return replaceToHook(runtime, proc);
 }
 
@@ -586,15 +610,44 @@ static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName)
     return NULL;
 }
 
-static uintptr replaceToHook(Runtime* runtime, uintptr proc)
+static uintptr getResTrackerHook(Runtime* runtime, uintptr proc)
 {
-    for (int i = 0; i < arrlen(runtime->Hooks); i++)
+    typedef struct {
+        uint hash; uint key; void* method;
+    } hook;
+    hook hooks[] =
+#ifdef _WIN64
     {
-        if (proc != runtime->Hooks[i].Func)
+        { 0x80295EEE77B6320C, 0xB2F90CC741A374CF, runtime->ResourceTracker->WSAStartup },
+        { 0x6E59A4C9C7A836A0, 0x9CB21C02E0B16B1F, runtime->ResourceTracker->WSACleanup },
+    };
+#elif _WIN32
+    {
+        { 0x31DE9F57, 0x1B90EDA5, runtime->ResourceTracker->WSAStartup },
+        { 0x11F5CAC5, 0x4AD26B73, runtime->ResourceTracker->WSACleanup },
+    };
+#endif
+    for (int i = 0; i < arrlen(hooks); i++)
+    {
+        uintptr func = FindAPI(hooks[i].hash, hooks[i].key);
+        if (func != proc)
         {
             continue;
         }
-        return runtime->Hooks[i].Hook;
+        return (uintptr)(hooks[i].method);
+    }
+    return proc;
+}
+
+static uintptr replaceToHook(Runtime* runtime, uintptr proc)
+{
+    for (int i = 0; i < arrlen(runtime->IAT_Hooks); i++)
+    {
+        if (proc != runtime->IAT_Hooks[i].Func)
+        {
+            continue;
+        }
+        return runtime->IAT_Hooks[i].Hook;
     }
     return proc;
 }
