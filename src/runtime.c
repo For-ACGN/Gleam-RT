@@ -887,6 +887,7 @@ static void cleanRuntime(Runtime* runtime)
 
     // TODO Protect ASM self
     // TODO Remove self
+    // TODO check structure is empty
 
     // must copy api address before call RandBuf
     VirtualFree_t virtualFree = runtime->VirtualFree;

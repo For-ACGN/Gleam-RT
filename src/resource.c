@@ -17,12 +17,12 @@ typedef struct {
     ReleaseMutex_t        ReleaseMutex;
     WaitForSingleObject_t WaitForSingleObject;
 
-    // track API
-    WSAStartup_t WSAStartup;
-    WSACleanup_t WSACleanup;
-
     // runtime data
     HANDLE Mutex; // global mutex
+
+    // tracked API
+    WSAStartup_t WSAStartup;
+    WSACleanup_t WSACleanup;
 
     // store all resource counters
     uint Counters[1];
@@ -51,20 +51,108 @@ static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context);
 
 ResourceTracker_M* InitResourceTracker(Context* context)
 {
-
-
-
-
-
+    // set structure address
+    uintptr address = context->MainMemPage;
+    uintptr trackerAddr = address + 4000 + RandUint(address) % 128;
+    uintptr moduleAddr  = address + 4600 + RandUint(address) % 128;
+    // initialize tracker
+    ResourceTracker* tracker = (ResourceTracker*)trackerAddr;
+    errno errno = NO_ERROR;
+    for (;;)
+    {
+        if (!initTrackerAPI(tracker, context))
+        {
+            errno = ERR_THREAD_INIT_API;
+            break;
+        }
+        if (!updateTrackerPointer(tracker))
+        {
+            errno = ERR_THREAD_UPDATE_PTR;
+            break;
+        }
+        if (!initTrackerEnvironment(tracker, context))
+        {
+            errno = ERR_THREAD_INIT_ENV;
+            break;
+        }
+        break;
+    }
+    if (errno != NO_ERROR)
+    {
+        SetLastErrno(errno);
+        return NULL;
+    }
+    // create methods for tracker
+    ResourceTracker_M* module = (ResourceTracker_M*)moduleAddr;
+    // Windows API hooks
+    module->WSAStartup = (WSAStartup_t)(&RT_WSAStartup);
+    module->WSACleanup = (WSACleanup_t)(&RT_WSACleanup);
+    // methods for runtime
+    module->ResClean = &RT_Clean;
+    return module;
 }
 
 static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
 {
-    tracker->ReleaseMutex = context->ReleaseMutex;
+    tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
     return true;
 }
 
+static bool updateTrackerPointer(ResourceTracker* tracker)
+{
+    bool success = false;
+    uintptr target = (uintptr)(&getTrackerPointer);
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != TRACKER_POINTER)
+        {
+            target++;
+            continue;
+        }
+        *pointer = (uintptr)tracker;
+        success = true;
+        break;
+    }
+    return success;
+}
+
+static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context)
+{
+    // copy runtime context data
+    tracker->Mutex = context->Mutex;
+    // initialize structure fields
+    tracker->WSAStartup = NULL;
+    tracker->WSACleanup = NULL;
+    // initialize counters
+    for (int i = 0; i < arrlen(tracker->Counters); i++)
+    {
+        tracker->Counters[i] = 0;
+    }
+    return true;
+}
+
+// updateTrackerPointer will replace hard encode address to the actual address.
+// Must disable compiler optimize, otherwise updateTrackerPointer will fail.
+#pragma optimize("", off)
+static ResourceTracker* getTrackerPointer()
+{
+    uint pointer = TRACKER_POINTER;
+    return (ResourceTracker*)(pointer);
+}
+#pragma optimize("", on)
+
+static bool rt_lock(ResourceTracker* tracker)
+{
+    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+static bool rt_unlock(ResourceTracker* tracker)
+{
+    return tracker->ReleaseMutex(tracker->Mutex);
+}
 
 int RT_WSAStartup(uint16 wVersionRequired, void* lpWSAData)
 {
@@ -80,4 +168,3 @@ errno RT_Clean()
 {
 
 }
-
