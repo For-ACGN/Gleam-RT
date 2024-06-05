@@ -11,7 +11,8 @@ typedef errno (*ResDecrypt_t)();
 typedef errno (*ResClean_t)();
 
 typedef struct {
-
+    WSAStartup_t WSAStartup;
+    WSACleanup_t WSACleanup;
 
     ResEncrypt_t ResEncrypt;
     ResDecrypt_t ResDecrypt;
