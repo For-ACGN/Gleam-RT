@@ -32,6 +32,8 @@ typedef struct {
 int RT_WSAStartup(uint16 wVersionRequired, void* lpWSAData);
 int RT_WSACleanup();
 
+errno RT_Encrypt();
+errno RT_Decrypt();
 errno RT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
@@ -62,17 +64,17 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     {
         if (!initTrackerAPI(tracker, context))
         {
-            errno = ERR_THREAD_INIT_API;
+            errno = ERR_RESOURCE_INIT_API;
             break;
         }
         if (!updateTrackerPointer(tracker))
         {
-            errno = ERR_THREAD_UPDATE_PTR;
+            errno = ERR_RESOURCE_UPDATE_PTR;
             break;
         }
         if (!initTrackerEnvironment(tracker, context))
         {
-            errno = ERR_THREAD_INIT_ENV;
+            errno = ERR_RESOURCE_INIT_ENV;
             break;
         }
         break;
@@ -88,7 +90,9 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     module->WSAStartup = (WSAStartup_t)(&RT_WSAStartup);
     module->WSACleanup = (WSACleanup_t)(&RT_WSACleanup);
     // methods for runtime
-    module->ResClean = &RT_Clean;
+    module->ResEncrypt = &RT_Encrypt;
+    module->ResDecrypt = &RT_Decrypt;
+    module->ResClean   = &RT_Clean;
     return module;
 }
 
@@ -154,17 +158,67 @@ static bool rt_unlock(ResourceTracker* tracker)
     return tracker->ReleaseMutex(tracker->Mutex);
 }
 
+__declspec(noinline)
 int RT_WSAStartup(uint16 wVersionRequired, void* lpWSAData)
 {
+    ResourceTracker* tracker = getTrackerPointer();
 
+    if (!rt_lock(tracker))
+    {
+        return WSASYSNOTREADY;
+    }
+
+    // check API is found
+    // printf
+
+    if (!rt_unlock(tracker))
+    {
+        return WSASYSNOTREADY;
+    }
+    
+    return 0;
 }
 
+__declspec(noinline)
 int RT_WSACleanup()
 {
+    ResourceTracker* tracker = getTrackerPointer();
 
+    if (!rt_lock(tracker))
+    {
+        return WSAEINPROGRESS;
+    }
+
+    // check API is found
+
+
+    if (!rt_unlock(tracker))
+    {
+        return WSAEINPROGRESS;
+    }
+    return 0;
 }
 
+__declspec(noinline)
+errno RT_Encrypt()
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
+    return NO_ERROR;
+}
+
+__declspec(noinline)
+errno RT_Decrypt()
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
+    return NO_ERROR;
+}
+
+__declspec(noinline)
 errno RT_Clean()
 {
+    ResourceTracker* tracker = getTrackerPointer();
 
+    return NO_ERROR;
 }
