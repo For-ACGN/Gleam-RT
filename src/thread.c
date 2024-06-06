@@ -70,6 +70,8 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
 static void delThread(ThreadTracker* tracker, uint32 threadID);
 
+static void eraseTrackerMethods();
+
 ThreadTracker_M* InitThreadTracker(Context* context)
 {
     // set structure address
@@ -98,6 +100,7 @@ ThreadTracker_M* InitThreadTracker(Context* context)
         }
         break;
     }
+    eraseTrackerMethods();
     if (errno != NO_ERROR)
     {
         SetLastErrno(errno);
@@ -220,6 +223,15 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
         }
     }
     return true;
+}
+
+__declspec(noinline)
+static void eraseTrackerMethods()
+{
+    uintptr begin = (uintptr)(&initTrackerAPI);
+    uintptr end   = (uintptr)(&eraseTrackerMethods);
+    int64   size  = end - begin;
+    RandBuf((byte*)begin, size);
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.
