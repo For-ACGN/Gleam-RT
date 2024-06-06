@@ -65,6 +65,7 @@ static bool delModule(LibraryTracker* tracker, HMODULE hModule);
 static bool cleanModule(LibraryTracker* tracker, module* module);
 
 static void eraseTrackerMethods();
+static void cleanTracker(LibraryTracker* tracker);
 
 LibraryTracker_M* InitLibraryTracker(Context* context)
 {
@@ -97,6 +98,7 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     eraseTrackerMethods();
     if (errno != NO_ERROR)
     {
+        cleanTracker(tracker);
         SetLastErrno(errno);
         return NULL;
     }
@@ -210,6 +212,12 @@ static void eraseTrackerMethods()
     uintptr end   = (uintptr)(&eraseTrackerMethods);
     int64   size  = end - begin;
     RandBuf((byte*)begin, size);
+}
+
+__declspec(noinline)
+static void cleanTracker(LibraryTracker* tracker)
+{
+    List_Free(&tracker->Modules);
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.
