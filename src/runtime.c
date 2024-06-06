@@ -789,6 +789,11 @@ static errno hide(Runtime* runtime)
         {
             break;
         }
+        errno = runtime->ResourceTracker->ResEncrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
         errno = runtime->LibraryTracker->LibEncrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
@@ -827,6 +832,11 @@ static errno recover(Runtime* runtime)
         {
             break;
         }
+        errno = runtime->ResourceTracker->ResDecrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
         errno = runtime->MemoryTracker->MemDecrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
@@ -856,6 +866,11 @@ errno RT_Stop()
     for (;;)
     {
         errno = runtime->ThreadTracker->ThdClean();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->ResourceTracker->ResClean();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
