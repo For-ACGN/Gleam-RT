@@ -51,6 +51,8 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context);
 static bool updateTrackerPointer(ResourceTracker* tracker);
 static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context);
 
+static void eraseTrackerMethods();
+
 ResourceTracker_M* InitResourceTracker(Context* context)
 {
     // set structure address
@@ -79,6 +81,7 @@ ResourceTracker_M* InitResourceTracker(Context* context)
         }
         break;
     }
+    eraseTrackerMethods();
     if (errno != NO_ERROR)
     {
         SetLastErrno(errno);
@@ -135,6 +138,15 @@ static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context)
         tracker->Counters[i] = 0;
     }
     return true;
+}
+
+__declspec(noinline)
+static void eraseTrackerMethods()
+{
+    uintptr begin = (uintptr)(&initTrackerAPI);
+    uintptr end   = (uintptr)(&eraseTrackerMethods);
+    int64   size  = end - begin;
+    RandBuf((byte*)begin, size);
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.
