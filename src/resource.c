@@ -172,9 +172,9 @@ int RT_WSAStartup(uint16 wVersionRequired, void* lpWSAData)
     if (tracker->WSAStartup == NULL)
     {
     #ifdef _WIN64
-        WSAStartup_t func = FindAPI(0x7830A1CDC2B96DC4, 0x6F9D11BABABEFA66);
+        WSAStartup_t func = FindAPI(0x21A84954D72D9F93, 0xD549133F33DA137E);
     #elif _WIN32
-        WSAStartup_t func = FindAPI(0x2BC97653, 0xFA546DF2);
+        WSAStartup_t func = FindAPI(0x8CD788B9, 0xA349D8A2);
     #endif
         if (func == NULL)
         {
@@ -186,9 +186,8 @@ int RT_WSAStartup(uint16 wVersionRequired, void* lpWSAData)
     if (ret == 0)
     {
         tracker->Counters[RES_WSA]++;
+        printf("ResourceTracker: WSAStartup\n");
     }
-
-    printf("WSAStartup\n");
 
     if (!rt_unlock(tracker))
     {
@@ -211,9 +210,9 @@ int RT_WSACleanup()
     if (tracker->WSACleanup == NULL)
     {
     #ifdef _WIN64
-        WSACleanup_t func = FindAPI(0x6256E6FE90DCA50E, 0xC1032D7B10171906);
+        WSACleanup_t func = FindAPI(0x324EEA09CB7B262C, 0xE64CBAD3BBD4F522);
     #elif _WIN32
-        WSACleanup_t func = FindAPI(0x313E7E17, 0x5BAF5613);
+        WSACleanup_t func = FindAPI(0xBD997AF1, 0x88F10695);
     #endif
         if (func == NULL)
         {
@@ -225,9 +224,8 @@ int RT_WSACleanup()
     if (ret == 0)
     {
         tracker->Counters[RES_WSA]--;
+        printf("ResourceTracker: WSACleanup\n");
     }
-
-    printf("WSACleanup\n");
 
     if (!rt_unlock(tracker))
     {

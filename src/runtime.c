@@ -618,13 +618,13 @@ static uintptr getResTrackerHook(Runtime* runtime, uintptr proc)
     hook hooks[] =
 #ifdef _WIN64
     {
-        { 0x80295EEE77B6320C, 0xB2F90CC741A374CF, runtime->ResourceTracker->WSAStartup },
-        { 0x6E59A4C9C7A836A0, 0x9CB21C02E0B16B1F, runtime->ResourceTracker->WSACleanup },
+        { 0x7749934E33C18703, 0xCFB41E32B03DC637, runtime->ResourceTracker->WSAStartup },
+        { 0x46C76E87C13DF670, 0x37B6B54E4B2FBECC, runtime->ResourceTracker->WSACleanup },
     };
 #elif _WIN32
     {
-        { 0x31DE9F57, 0x1B90EDA5, runtime->ResourceTracker->WSAStartup },
-        { 0x11F5CAC5, 0x4AD26B73, runtime->ResourceTracker->WSACleanup },
+        { 0xE487BC0B, 0x283C1684, runtime->ResourceTracker->WSAStartup },
+        { 0x175B553E, 0x541A996E, runtime->ResourceTracker->WSACleanup },
     };
 #endif
     for (int i = 0; i < arrlen(hooks); i++)
