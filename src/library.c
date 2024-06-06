@@ -116,6 +116,7 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     return module;
 }
 
+__declspec(noinline)
 static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
 {
     typedef struct { 
@@ -164,6 +165,7 @@ static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
     return true;
 }
 
+__declspec(noinline)
 static bool updateTrackerPointer(LibraryTracker* tracker)
 {
     bool success = false;
@@ -183,6 +185,7 @@ static bool updateTrackerPointer(LibraryTracker* tracker)
     return success;
 }
 
+__declspec(noinline)
 static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context)
 {
     // copy runtime context data

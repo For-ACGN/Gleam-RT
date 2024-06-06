@@ -145,6 +145,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     return module;
 }
 
+__declspec(noinline)
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 {
     tracker->VirtualAlloc        = context->VirtualAlloc;
@@ -155,6 +156,7 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
     return true;
 }
 
+__declspec(noinline)
 static bool updateTrackerPointer(MemoryTracker* tracker)
 {
     bool success = false;
@@ -174,6 +176,7 @@ static bool updateTrackerPointer(MemoryTracker* tracker)
     return success;
 }
 
+__declspec(noinline)
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 {
     // copy runtime context data

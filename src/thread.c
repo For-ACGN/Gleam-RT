@@ -123,6 +123,7 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     return module;
 }
 
+__declspec(noinline)
 static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
 {
     typedef struct { 
@@ -176,6 +177,7 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
     return true;
 }
 
+__declspec(noinline)
 static bool updateTrackerPointer(ThreadTracker* tracker)
 {
     bool success = false;
@@ -195,6 +197,7 @@ static bool updateTrackerPointer(ThreadTracker* tracker)
     return success;
 }
 
+__declspec(noinline)
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
 {
     // copy runtime context data

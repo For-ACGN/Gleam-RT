@@ -99,6 +99,7 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     return module;
 }
 
+__declspec(noinline)
 static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
 {
     tracker->ReleaseMutex        = context->ReleaseMutex;
@@ -106,6 +107,7 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
     return true;
 }
 
+__declspec(noinline)
 static bool updateTrackerPointer(ResourceTracker* tracker)
 {
     bool success = false;
@@ -125,6 +127,7 @@ static bool updateTrackerPointer(ResourceTracker* tracker)
     return success;
 }
 
+__declspec(noinline)
 static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context)
 {
     // copy runtime context data
