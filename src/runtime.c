@@ -166,17 +166,16 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         }
         break;
     }
+    if (errno == NO_ERROR || errno > ERR_RUNTIME_ADJUST_PROTECT)
+    {
+        eraseRuntimeMethods();
+    }
     if (errno != NO_ERROR)
     {
-        if (errno > ERR_RUNTIME_ADJUST_PROTECT)
-        {
-            eraseRuntimeMethods();
-        }
         cleanRuntime(runtime);
         SetLastErrno(errno);
         return NULL;
     }
-    eraseRuntimeMethods();
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
@@ -509,6 +508,15 @@ static bool initIATHooks(Runtime* runtime)
         runtime->IAT_Hooks[i].Hook = (uintptr)items[i].hook;
     }
     return true;
+}
+
+__declspec(noinline)
+static void eraseRuntimeMethods()
+{
+    uintptr begin = (uintptr)(&allocateRuntimeMemory);
+    uintptr end   = (uintptr)(&eraseRuntimeMethods);
+    int64   size  = end - begin;
+    RandBuf((byte*)begin, size);
 }
 
 // updateRuntimePointer will replace hard encode address to the actual address.
@@ -939,19 +947,11 @@ bool RT_free(void* address)
     return runtime->VirtualFree(addr, 0, MEM_RELEASE);
 }
 
-__declspec(noinline)
-static void eraseRuntimeMethods()
-{
-    uintptr begin = (uintptr)(&allocateRuntimeMemory);
-    uintptr end   = (uintptr)(&getRuntimePointer);
-    int64   size  = end - begin;
-    RandBuf((byte*)begin, size);
-}
-
 static void cleanRuntime(Runtime* runtime)
 {
     // TODO Protect ASM self
     // TODO Remove self runtime
+    // TODO Remove Init runtime
     // TODO check structure is empty
 
     // release resource and handle
