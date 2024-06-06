@@ -87,6 +87,9 @@ bool  RT_free(void* address);
 #endif
 static Runtime* getRuntimePointer();
 
+static bool rt_lock(Runtime* runtime);
+static bool rt_unlock(Runtime* runtime);
+
 static uintptr allocateRuntimeMemory();
 static bool  initRuntimeAPI(Runtime* runtime);
 static bool  adjustPageProtect(Runtime* runtime);
@@ -98,7 +101,6 @@ static errno initMemoryTracker(Runtime* runtime, Context* context);
 static errno initThreadTracker(Runtime* runtime, Context* context);
 static errno initResourceTracker(Runtime* runtime, Context* context);
 static bool  initIATHooks(Runtime* runtime);
-static void  cleanRuntime(Runtime* runtime);
 
 static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName);
 static uintptr getResTrackerHook(Runtime* runtime, uintptr proc);
@@ -108,8 +110,8 @@ static errno sleep(Runtime* runtime, uint32 milliseconds);
 static errno hide(Runtime* runtime);
 static errno recover(Runtime* runtime);
 
-static bool rt_lock(Runtime* runtime);
-static bool rt_unlock(Runtime* runtime);
+static void eraseRuntimeMethods();
+static void cleanRuntime(Runtime* runtime);
 
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Opts* opts)
@@ -166,10 +168,15 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     }
     if (errno != NO_ERROR)
     {
+        if (errno > ERR_RUNTIME_ADJUST_PROTECT)
+        {
+            eraseRuntimeMethods();
+        }
         cleanRuntime(runtime);
         SetLastErrno(errno);
         return NULL;
     }
+    eraseRuntimeMethods();
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
@@ -284,7 +291,7 @@ static bool adjustPageProtect(Runtime* runtime)
     }
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
-    uint    size  = end - begin;
+    int64   size  = end - begin;
     uint32  old;
     return runtime->VirtualProtect(begin, size, PAGE_EXECUTE_READWRITE, &old);
 }
@@ -293,7 +300,7 @@ static bool flushInstructionCache(Runtime* runtime)
 {
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
-    uint    size  = end - begin;
+    int64   size  = end - begin;
     if (!runtime->FlushInstructionCache(CURRENT_PROCESS, begin, size))
     {
         return false;
@@ -328,8 +335,10 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     // initialize structure fields
     runtime->hProcess = NULL;
     runtime->Mutex    = NULL;
-    runtime->MemoryTracker = NULL;
-    runtime->ThreadTracker = NULL;
+    runtime->LibraryTracker  = NULL;
+    runtime->MemoryTracker   = NULL;
+    runtime->ThreadTracker   = NULL;
+    runtime->ResourceTracker = NULL;
     // get memory page size
     SYSTEM_INFO sys_info;
     runtime->GetSystemInfo(&sys_info);
@@ -511,6 +520,17 @@ static Runtime* getRuntimePointer()
     return (Runtime*)(pointer);
 }
 #pragma optimize("", on)
+
+static bool rt_lock(Runtime* runtime)
+{
+    uint32 event = runtime->WaitForSingleObject(runtime->Mutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+static bool rt_unlock(Runtime* runtime)
+{
+    return runtime->ReleaseMutex(runtime->Mutex);
+}
 
 __declspec(noinline)
 uintptr RT_FindAPI(uint hash, uint key)
@@ -919,29 +939,34 @@ bool RT_free(void* address)
     return runtime->VirtualFree(addr, 0, MEM_RELEASE);
 }
 
-static bool rt_lock(Runtime* runtime)
+__declspec(noinline)
+static void eraseRuntimeMethods()
 {
-    uint32 event = runtime->WaitForSingleObject(runtime->Mutex, INFINITE);
-    return event == WAIT_OBJECT_0;
-}
-
-static bool rt_unlock(Runtime* runtime)
-{
-    return runtime->ReleaseMutex(runtime->Mutex);
+    uintptr begin = (uintptr)(&allocateRuntimeMemory);
+    uintptr end   = (uintptr)(&getRuntimePointer);
+    int64   size  = end - begin;
+    RandBuf((byte*)begin, size);
 }
 
 static void cleanRuntime(Runtime* runtime)
 {
-    CloseHandle_t closeHandle = runtime->CloseHandle;
-    if (closeHandle != NULL && runtime->Mutex != NULL)
-    {
-        closeHandle(runtime->Mutex);
-    }
-
     // TODO Protect ASM self
-    // TODO Remove self
+    // TODO Remove self runtime
     // TODO check structure is empty
 
+    // release resource and handle
+    CloseHandle_t closeHandle = runtime->CloseHandle;
+    if (closeHandle != NULL)
+    {
+        if (runtime->hProcess != NULL)
+        {
+            closeHandle(runtime->hProcess);
+        }
+        if (runtime->Mutex != NULL)
+        {
+            closeHandle(runtime->Mutex);
+        }
+    }
     // must copy api address before call RandBuf
     VirtualFree_t virtualFree = runtime->VirtualFree;
     RandBuf((byte*)runtime->MainMemPage, MAIN_MEM_PAGE_SIZE);
