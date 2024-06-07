@@ -36,6 +36,9 @@ typedef struct {
     // protect instructions like shellcode before runtime
     uintptr InstAddress;
 
+    // not erase runtime instruction after call Stop
+    bool NotEraseInst;
+
     // not adjust current memory page protect for change runtime data
     bool NotAdjustProtect;
 
