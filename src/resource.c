@@ -2,6 +2,7 @@
 
 #include "c_types.h"
 #include "windows_t.h"
+#include "lib_memory.h"
 #include "hash_api.h"
 #include "list_md.h"
 #include "context.h"
@@ -52,6 +53,7 @@ static bool updateTrackerPointer(ResourceTracker* tracker);
 static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context);
 
 static void eraseTrackerMethods();
+static void cleanTracker(ResourceTracker* tracker);
 
 ResourceTracker_M* InitResourceTracker(Context* context)
 {
@@ -61,6 +63,7 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     uintptr moduleAddr  = address + 4600 + RandUint(address) % 128;
     // initialize tracker
     ResourceTracker* tracker = (ResourceTracker*)trackerAddr;
+    mem_clean(tracker, sizeof(ResourceTracker));
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -84,6 +87,7 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     eraseTrackerMethods();
     if (errno != NO_ERROR)
     {
+        cleanTracker(tracker);
         SetLastErrno(errno);
         return NULL;
     }
@@ -150,6 +154,15 @@ static void eraseTrackerMethods()
     uintptr end   = (uintptr)(&eraseTrackerMethods);
     int64   size  = end - begin;
     RandBuf((byte*)begin, size);
+}
+
+__declspec(noinline)
+static void cleanTracker(ResourceTracker* tracker)
+{
+    for (int i = 0; i < arrlen(tracker->Counters); i++)
+    {
+        tracker->Counters[i] = 0;
+    }
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.
