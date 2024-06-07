@@ -30,6 +30,7 @@ typedef struct {
 
     // store options
     uintptr InstAddress;
+    bool    NotEraseInst;
 
     // store all structures
     uintptr MainMemPage;
@@ -129,8 +130,9 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     Runtime* runtime = (Runtime*)runtimeAddr;
     mem_clean(runtime, sizeof(Runtime));
     runtime->Options = opts;
-    runtime->InstAddress = opts->InstAddress;
-    runtime->MainMemPage = address;
+    runtime->InstAddress  = opts->InstAddress;
+    runtime->NotEraseInst = opts->NotEraseInst;
+    runtime->MainMemPage  = address;
     // initialize runtime
     errno errno = NO_ERROR;
     for (;;)
@@ -880,35 +882,26 @@ errno RT_Stop()
         return ERR_RUNTIME_LOCK;
     }
 
-    errno errno = NO_ERROR;
-    for (;;)
-    {
-        errno = runtime->ThreadTracker->ThdClean();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        {
-            break;
-        }
-        errno = runtime->ResourceTracker->ResClean();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        {
-            break;
-        }
-        errno = runtime->MemoryTracker->MemClean();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        {
-            break;
-        }
-        errno = runtime->LibraryTracker->LibClean();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        {
-            break;
-        }
-        break;
-    }
+    bool notEraseInst = runtime->NotEraseInst;
 
-    if (!rt_unlock(runtime))
+    errno errno = NO_ERROR;
+    errno = runtime->ThreadTracker->ThdClean();
+    errno = runtime->ResourceTracker->ResClean();
+    errno = runtime->MemoryTracker->MemClean();
+    errno = runtime->LibraryTracker->LibClean();
+    cleanRuntime(runtime);
+
+    // erase runtime instructions except this function
+    if (!notEraseInst)
     {
-        return ERR_RUNTIME_LOCK;
+        uintptr begin = (uintptr)(&InitRuntime);
+        uintptr end   = (uintptr)(&RT_Stop);
+        int64   size  = end - begin;
+        RandBuf((byte*)begin, size);
+        begin = (uintptr)(&RT_malloc);
+        end   = (uintptr)(&Epilogue);
+        size  = end - begin;
+        RandBuf((byte*)begin, size);
     }
     return errno;
 }
