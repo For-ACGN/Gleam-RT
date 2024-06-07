@@ -75,6 +75,7 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     uintptr moduleAddr  = address + 1600 + RandUint(address) % 128;
     // initialize tracker
     LibraryTracker* tracker = (LibraryTracker*)trackerAddr;
+    mem_clean(tracker, sizeof(LibraryTracker));
     errno errno = NO_ERROR;
     for (;;)
     {

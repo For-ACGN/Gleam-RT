@@ -104,6 +104,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     uintptr moduleAddr  = address + 2600 + RandUint(address) % 128;
     // initialize tracker
     MemoryTracker* tracker = (MemoryTracker*)trackerAddr;
+    mem_clean(tracker, sizeof(MemoryTracker));
     errno errno = NO_ERROR;
     for (;;)
     {

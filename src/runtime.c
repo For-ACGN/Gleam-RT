@@ -127,6 +127,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     uintptr moduleAddr  = address + 700 + RandUint(address) % 128;
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
+    mem_clean(runtime, sizeof(Runtime));
     runtime->Options = opts;
     runtime->InstAddress = opts->InstAddress;
     runtime->MainMemPage = address;
