@@ -332,24 +332,16 @@ static bool updateRuntimePointer(Runtime* runtime)
 
 static errno initRuntimeEnvironment(Runtime* runtime)
 {
-    // initialize structure fields
-    runtime->hProcess = NULL;
-    runtime->Mutex    = NULL;
-    runtime->LibraryTracker  = NULL;
-    runtime->MemoryTracker   = NULL;
-    runtime->ThreadTracker   = NULL;
-    runtime->ResourceTracker = NULL;
     // get memory page size
-    SYSTEM_INFO sys_info;
-    runtime->GetSystemInfo(&sys_info);
-    runtime->PageSize = sys_info.dwPageSize;
+    SYSTEM_INFO sysInfo;
+    runtime->GetSystemInfo(&sysInfo);
+    runtime->PageSize = sysInfo.dwPageSize;
     // duplicate current process handle
     HANDLE dupHandle;
     if (!runtime->DuplicateHandle(
         CURRENT_PROCESS, CURRENT_PROCESS, CURRENT_PROCESS, &dupHandle,
         0, false, DUPLICATE_SAME_ACCESS
-    ))
-    {
+    )){
         return ERR_RUNTIME_DUP_HANDLE;
     }
     runtime->hProcess = dupHandle;
@@ -518,6 +510,31 @@ static void eraseRuntimeMethods()
     uintptr end   = (uintptr)(&eraseRuntimeMethods);
     int64   size  = end - begin;
     RandBuf((byte*)begin, size);
+}
+
+static void cleanRuntime(Runtime* runtime)
+{
+    // must copy api address before call RandBuf
+    CloseHandle_t closeHandle = runtime->CloseHandle;
+    VirtualFree_t virtualFree = runtime->VirtualFree;
+    // close handles
+    if (closeHandle != NULL)
+    {
+        if (runtime->hProcess != NULL)
+        {
+            closeHandle(runtime->hProcess);
+        }
+        if (runtime->Mutex != NULL)
+        {
+            closeHandle(runtime->Mutex);
+        }
+    }
+    // release main memory page
+    RandBuf((byte*)runtime->MainMemPage, MAIN_MEM_PAGE_SIZE);
+    if (virtualFree != NULL)
+    {
+        virtualFree(runtime->MainMemPage, 0, MEM_RELEASE);
+    }
 }
 
 // updateRuntimePointer will replace hard encode address to the actual address.
@@ -961,33 +978,4 @@ bool RT_free(void* address)
     uint    size = *(uint*)addr;
     mem_clean((byte*)addr, size);
     return runtime->VirtualFree(addr, 0, MEM_RELEASE);
-}
-
-static void cleanRuntime(Runtime* runtime)
-{
-    // TODO Protect ASM self
-    // TODO Remove self runtime
-    // TODO Remove Init runtime
-    // TODO check structure is empty
-
-    // release resource and handle
-    CloseHandle_t closeHandle = runtime->CloseHandle;
-    if (closeHandle != NULL)
-    {
-        if (runtime->hProcess != NULL)
-        {
-            closeHandle(runtime->hProcess);
-        }
-        if (runtime->Mutex != NULL)
-        {
-            closeHandle(runtime->Mutex);
-        }
-    }
-    // must copy api address before call RandBuf
-    VirtualFree_t virtualFree = runtime->VirtualFree;
-    RandBuf((byte*)runtime->MainMemPage, MAIN_MEM_PAGE_SIZE);
-    if (virtualFree != NULL)
-    {
-        virtualFree(runtime->MainMemPage, 0, MEM_RELEASE);
-    }
 }
