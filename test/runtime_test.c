@@ -10,6 +10,7 @@ bool TestRuntime()
 {
     Runtime_Opts opts = {
         .InstAddress        = NULL,
+        .NotEraseInst       = true,
         .NotAdjustProtect   = false,
         .TrackCurrentThread = false,
     };
