@@ -2,6 +2,7 @@
 
 #include "c_types.h"
 #include "windows_t.h"
+#include "lib_memory.h"
 #include "hash_api.h"
 #include "list_md.h"
 #include "context.h"
@@ -71,6 +72,7 @@ static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
 static void delThread(ThreadTracker* tracker, uint32 threadID);
 
 static void eraseTrackerMethods();
+static void cleanTracker(ThreadTracker* tracker);
 
 ThreadTracker_M* InitThreadTracker(Context* context)
 {
@@ -80,6 +82,7 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     uintptr moduleAddr  = address + 3600 + RandUint(address) % 128;
     // initialize tracker
     ThreadTracker* tracker = (ThreadTracker*)trackerAddr;
+    mem_clean(tracker, sizeof(ThreadTracker));
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -103,6 +106,7 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     eraseTrackerMethods();
     if (errno != NO_ERROR)
     {
+        cleanTracker(tracker);
         SetLastErrno(errno);
         return NULL;
     }
@@ -235,6 +239,12 @@ static void eraseTrackerMethods()
     uintptr end   = (uintptr)(&eraseTrackerMethods);
     int64   size  = end - begin;
     RandBuf((byte*)begin, size);
+}
+
+__declspec(noinline)
+static void cleanTracker(ThreadTracker* tracker)
+{
+    List_Free(&tracker->Threads);
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.

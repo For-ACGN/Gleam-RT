@@ -2,6 +2,7 @@
 
 #include "c_types.h"
 #include "windows_t.h"
+#include "lib_memory.h"
 #include "hash_api.h"
 #include "list_md.h"
 #include "context.h"
