@@ -244,7 +244,25 @@ static void eraseTrackerMethods()
 __declspec(noinline)
 static void cleanTracker(ThreadTracker* tracker)
 {
-    List_Free(&tracker->Threads);
+    List* threads = &tracker->Threads;
+
+    // close already tracked handles
+    uint index = 0;
+    for (uint num = 0; num < threads->Len; index++)
+    {
+        thread* thread = List_Get(threads, index);
+        if (thread->threadID == 0)
+        {
+            continue;
+        }
+        if (tracker->CloseHandle != NULL)
+        {
+            tracker->CloseHandle(thread->hThread);
+        }
+        num++;
+    }
+
+    List_Free(threads);
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.
