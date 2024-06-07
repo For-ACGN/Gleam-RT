@@ -94,6 +94,7 @@ static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
 static bool cleanPage(MemoryTracker* tracker, memPage* page);
 
 static void eraseTrackerMethods();
+static void cleanTracker(MemoryTracker* tracker);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
 {
@@ -126,6 +127,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     eraseTrackerMethods();
     if (errno != NO_ERROR)
     {
+        cleanTracker(tracker);
         SetLastErrno(errno);
         return NULL;
     }
@@ -205,6 +207,13 @@ static void eraseTrackerMethods()
     uintptr end   = (uintptr)(&eraseTrackerMethods);
     int64   size  = end - begin;
     RandBuf((byte*)begin, size);
+}
+
+__declspec(noinline)
+static void cleanTracker(MemoryTracker* tracker)
+{
+    List_Free(&tracker->Regions);
+    List_Free(&tracker->Pages);
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.
