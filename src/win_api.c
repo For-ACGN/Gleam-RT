@@ -1,6 +1,7 @@
 #include "c_types.h"
 #include "windows_t.h"
 #include "lib_memory.h"
+#include "win_api.h"
 
 uint32 GetModuleFileName(HMODULE hModule, byte* name, uint32 size)
 {
@@ -46,4 +47,22 @@ uint32 GetModuleFileName(HMODULE hModule, byte* name, uint32 size)
         return nameLen;
     }
     return 0;
+}
+
+void ParsePEImage(void* address, PE_Info* info)
+{
+    uintptr imageAddr = (uintptr)address;
+    uint32  peOffset  = *(uint32*)(imageAddr + 60);
+
+    uint32  entryPoint = *(uint32*)(imageAddr + peOffset + 40);
+#ifdef _WIN64
+    uintptr imageBase = *(uintptr*)(imageAddr + peOffset + 48);
+#elif _WIN32
+    uintptr imageBase = *(uintptr*)(imageAddr + peOffset + 52);
+#endif
+    uint32 imageSize = *(uint32*)(imageAddr + peOffset + 80);
+
+    info->EntryPoint = imageAddr + entryPoint;
+    info->ImageBase  = imageBase;
+    info->ImageSize  = imageSize;
 }
