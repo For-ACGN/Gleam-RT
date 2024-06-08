@@ -5,6 +5,7 @@
 #include "lib_memory.h"
 #include "hash_api.h"
 #include "list_md.h"
+#include "win_api.h"
 #include "context.h"
 #include "random.h"
 #include "crypto.h"
@@ -65,11 +66,12 @@ static ThreadTracker* getTrackerPointer();
 static bool tt_lock(ThreadTracker* tracker);
 static bool tt_unlock(ThreadTracker* tracker);
 
-static bool initTrackerAPI(ThreadTracker* tracker, Context* context);
-static bool updateTrackerPointer(ThreadTracker* tracker);
-static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context);
-static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
-static void delThread(ThreadTracker* tracker, uint32 threadID);
+static bool  initTrackerAPI(ThreadTracker* tracker, Context* context);
+static bool  updateTrackerPointer(ThreadTracker* tracker);
+static bool  initTrackerEnvironment(ThreadTracker* tracker, Context* context);
+static void* camouflageStartAddress(uintptr seed);
+static bool  addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
+static void  delThread(ThreadTracker* tracker, uint32 threadID);
 
 static void eraseTrackerMethods();
 static void cleanTracker(ThreadTracker* tracker);
@@ -305,8 +307,17 @@ HANDLE TT_CreateThread(
     bool success = true;
     for (;;)
     {
+        uintptr fakeAddr = camouflageStartAddress(lpStartAddress);
+
+
+        // add windows_t
+        // hijack flags, &pause
+        //  
+        // dwCreationFlags
+
+
         hThread = tracker->CreateThread(
-            lpThreadAttributes, dwStackSize, lpStartAddress,
+            lpThreadAttributes, dwStackSize, fakeAddr,
             lpParameter, dwCreationFlags, &threadID
         );
         if (hThread == NULL)
@@ -314,6 +325,12 @@ HANDLE TT_CreateThread(
             success = false;
             break;
         }
+
+        // fakeAddr;
+
+
+
+
         if (!addThread(tracker, threadID, hThread))
         {
             success = false;
@@ -338,6 +355,39 @@ HANDLE TT_CreateThread(
         *lpThreadId = threadID;
     }
     return hThread;
+}
+
+static void* camouflageStartAddress(uintptr seed)
+{
+    // get current process module from PEB
+#ifdef _WIN64
+    uintptr peb = __readgsqword(96);
+    uintptr ldr = *(uintptr*)(peb + 24);
+    uintptr mod = *(uintptr*)(ldr + 32);
+#elif _WIN32
+    uintptr peb = __readfsdword(48);
+    uintptr ldr = *(uintptr*)(peb + 12);
+    uintptr mod = *(uintptr*)(ldr + 20);
+#endif
+    // get current process module address
+#ifdef _WIN64
+    uintptr modAddr = *(uintptr*)(mod + 32);
+#elif _WIN32
+    uintptr modAddr = *(uintptr*)(mod + 16);
+#endif
+    // parse module information
+    PE_Info info;
+    ParsePEImage(mod, &info);
+    // select a random start address
+
+    uintptr range = (info.ImageSize - (info.EntryPoint - mod)) % 4;
+
+    uintptr begin = info.EntryPoint;
+    uintptr end   = info.EntryPoint + range;
+
+    uintptr address = RandUint((uint64)seed) % (12);
+    address += modAddr;
+    return address;
 }
 
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
