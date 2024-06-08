@@ -10,16 +10,16 @@ typedef uint    HANDLE;
 typedef HANDLE* LPHANDLE;
 
 typedef struct {
-    uint32  dwOEMID;
-    uint32  dwPageSize;
-    uintptr lpMinimumApplicationAddress;
-    uintptr lpMaximumApplicationAddress;
-    uintptr dwActiveProcessorMask;
-    uint32  dwNumberOfProcessors;
-    uint32  dwProcessorType;
-    uint32  dwAllocationGranularity;
-    uint16  wProcessorLevel;
-    uint16  wProcessorRevision;
+    uint32  OEMID;
+    uint32  PageSize;
+    uintptr MinimumApplicationAddress;
+    uintptr MaximumApplicationAddress;
+    uintptr ActiveProcessorMask;
+    uint32  NumberOfProcessors;
+    uint32  ProcessorType;
+    uint32  AllocationGranularity;
+    uint16  ProcessorLevel;
+    uint16  ProcessorRevision;
 } SYSTEM_INFO;
 
 #ifdef _WIN64
