@@ -24,6 +24,11 @@ typedef struct {
 
 #ifdef _WIN64
 typedef struct {
+    uint64 Low; 
+    int64  High;
+} M128A;
+
+typedef struct {
     uint64 P1Home;
     uint64 P2Home;
     uint64 P3Home;
@@ -63,7 +68,7 @@ typedef struct {
     uint64 R15;
     uint64 Rip;
     byte   Anon0[512];
-    byte   VectorRegister[26*16];
+    M128A  VectorRegister[26];
     uint64 VectorControl;
     uint64 DebugControl;
     uint64 LastBranchToRIP;
@@ -73,8 +78,43 @@ typedef struct {
 } CONTEXT;
 #elif _WIN32
 typedef struct {
+    uint32 ControlWord;
+    uint32 StatusWord;
+	uint32 TagWord;
+	uint32 ErrorOffset;
+	uint32 ErrorSelector;
+	uint32 DataOffset;
+    uint32 DataSelector;
+    uint8  RegisterArea[80];
+    uint32 CR0NPXState;
+} FSArea;
 
-
+typedef struct {
+    uint32 ContextFlags;
+    uint32 DR0;
+    uint32 DR1;
+    uint32 DR2;
+    uint32 DR3;
+    uint32 DR6;
+    uint32 DR7;
+    FSArea FloatSave;
+    uint32 SegGS;
+    uint32 SegFS;
+    uint32 SegES;
+    uint32 SegDS;
+    uint32 EDI;
+    uint32 ESI;
+    uint32 EBX;
+    uint32 EDX;
+    uint32 ECX;
+    uint32 EAX;
+    uint32 EBP;
+    uint32 EIP;
+    uint32 SegCS;
+    uint32 EFlags;
+    uint32 ESP;
+    uint32 SegSS;
+    uint8  ExtRegs[512];
 } CONTEXT;
 #endif
 
