@@ -317,7 +317,7 @@ HANDLE TT_CreateThread(
 
 
         hThread = tracker->CreateThread(
-            lpThreadAttributes, dwStackSize, fakeAddr,
+            lpThreadAttributes, dwStackSize, lpStartAddress,
             lpParameter, dwCreationFlags, &threadID
         );
         if (hThread == NULL)
@@ -327,9 +327,6 @@ HANDLE TT_CreateThread(
         }
 
         // fakeAddr;
-
-
-
 
         if (!addThread(tracker, threadID, hThread))
         {

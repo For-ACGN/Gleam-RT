@@ -338,7 +338,7 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     // get memory page size
     SYSTEM_INFO sysInfo;
     runtime->GetSystemInfo(&sysInfo);
-    runtime->PageSize = sysInfo.dwPageSize;
+    runtime->PageSize = sysInfo.PageSize;
     // duplicate current process handle
     HANDLE dupHandle;
     if (!runtime->DuplicateHandle(
