@@ -22,9 +22,61 @@ typedef struct {
     uint16  wProcessorRevision;
 } SYSTEM_INFO;
 
+#ifdef _WIN64
+typedef struct {
+    uint64 P1Home;
+    uint64 P2Home;
+    uint64 P3Home;
+    uint64 P4Home;
+    uint64 P5Home;
+    uint64 P6Home;
+    uint32 ContextFlags;
+    uint32 MxCSR;
+    uint16 SegCS;
+    uint16 SegDS;
+    uint16 SegES;
+    uint16 SegFS;
+    uint16 SegGS;
+    uint16 SegSS;
+    uint32 EFlags;
+    uint64 DR0;
+    uint64 DR1;
+    uint64 DR2;
+    uint64 DR3;
+    uint64 DR6;
+    uint64 DR7;
+    uint64 RAX;
+    uint64 RCX;
+    uint64 RDX;
+    uint64 RBX;
+    uint64 RSP;
+    uint64 RBP;
+    uint64 RSI;
+    uint64 RDI;
+    uint64 R8;
+    uint64 R9;
+    uint64 R10;
+    uint64 R11;
+    uint64 R12;
+    uint64 R13;
+    uint64 R14;
+    uint64 R15;
+    uint64 Rip;
+    byte   Anon0[512];
+    byte   VectorRegister[26*16];
+    uint64 VectorControl;
+    uint64 DebugControl;
+    uint64 LastBranchToRIP;
+    uint64 LastBranchFromRIP;
+    uint64 LastExceptionToRIP;
+    uint64 LastExceptionFromRIP;
+} CONTEXT;
+#elif _WIN32
 typedef struct {
 
+
 } CONTEXT;
+#endif
 
 #define CURRENT_PROCESS (HANDLE)(-1)
 #define CURRENT_THREAD  (HANDLE)(-2)
