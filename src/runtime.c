@@ -113,6 +113,7 @@ static errno recover(Runtime* runtime);
 
 static void eraseRuntimeMethods();
 static void cleanRuntime(Runtime* runtime);
+static void eraseMemory(uintptr address, int64 size);
 
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Opts* opts)
@@ -882,8 +883,10 @@ errno RT_Stop()
         return ERR_RUNTIME_LOCK;
     }
 
+    // must record options before clean runtime
     bool notEraseInst = runtime->NotEraseInst;
 
+    // clean runtime modules
     errno errno = NO_ERROR;
     errno = runtime->ThreadTracker->ThdClean();
     errno = runtime->ResourceTracker->ResClean();
@@ -897,14 +900,28 @@ errno RT_Stop()
         uintptr begin = (uintptr)(&InitRuntime);
         uintptr end   = (uintptr)(&RT_Stop);
         int64   size  = end - begin;
-        RandBuf((byte*)begin, size);
+        eraseMemory(begin, size);
         begin = (uintptr)(&RT_malloc);
         end   = (uintptr)(&Epilogue);
         size  = end - begin;
-        RandBuf((byte*)begin, size);
+        eraseMemory(begin, size);
     }
     return errno;
 }
+
+// must disable compiler optimize, otherwise eraseMemory()
+// will be replaced to the mem_set() in lib_memory.c.
+#pragma optimize("", off)
+static void eraseMemory(uintptr address, int64 size)
+{
+    byte* addr = (byte*)address;
+    for (int64 i = 0; i < size; i++)
+    {
+        *addr = 0xFF;
+        addr++;
+    }
+}
+#pragma optimize("", on)
 
 __declspec(noinline)
 void* RT_malloc(uint size)
