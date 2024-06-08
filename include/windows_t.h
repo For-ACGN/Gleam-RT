@@ -21,6 +21,9 @@
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitthread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-suspendthread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-resumethread
+* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getthreadcontext
+* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-setthreadcontext
+* https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-switchtothread
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getthreadid
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthreadid
 * https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminatethread
@@ -34,9 +37,6 @@
 * https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsacleanup
 * https://learn.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2
 */
-
-#ifndef _WINDOWS_
-#define _WINDOWS_
 
 typedef byte*   LPCSTR;
 typedef uint16* LPCWSTR;
@@ -56,6 +56,10 @@ typedef struct {
     uint16  wProcessorLevel;
     uint16  wProcessorRevision;
 } SYSTEM_INFO;
+
+typedef struct {
+
+} CONTEXT;
 
 #define CURRENT_PROCESS (HANDLE)(-1)
 #define CURRENT_THREAD  (HANDLE)(-2)
@@ -83,8 +87,6 @@ typedef struct {
 
 #define WSASYSNOTREADY 10091
 #define WSAEINPROGRESS 10036
-
-#endif // _WINDOWS_
 
 typedef void (*GetSystemInfo_t)
 (
@@ -161,6 +163,18 @@ typedef uint32 (*ResumeThread_t)
 (
     HANDLE hThread
 );
+
+typedef bool (*GetThreadContext_t)
+(
+    HANDLE hThread, CONTEXT* lpContext
+);
+
+typedef bool (*SetThreadContext_t)
+(
+    HANDLE hThread, CONTEXT* lpContext
+);
+
+typedef bool (*SwitchToThread_t)();
 
 typedef uint32 (*GetThreadID_t)
 (
