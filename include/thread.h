@@ -13,11 +13,14 @@ typedef errno  (*ThdResume_t)();
 typedef errno  (*ThdClean_t)();
 
 typedef struct {
-    CreateThread_t    CreateThread;
-    ExitThread_t      ExitThread;
-    SuspendThread_t   SuspendThread;
-    ResumeThread_t    ResumeThread;
-    TerminateThread_t TerminateThread;
+    CreateThread_t     CreateThread;
+    ExitThread_t       ExitThread;
+    SuspendThread_t    SuspendThread;
+    ResumeThread_t     ResumeThread;
+    GetThreadContext_t GetThreadContext;
+    SetThreadContext_t SetThreadContext;
+    SwitchToThread_t   SwitchToThread;
+    TerminateThread_t  TerminateThread;
 
     ThdNew_t     ThdNew;
     ThdExit_t    ThdExit;
