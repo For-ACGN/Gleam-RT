@@ -320,16 +320,20 @@ HANDLE TT_CreateThread(
     }
 
     uint32 threadID;
-    HANDLE hThread;
+    HANDLE hThread = NULL;
 
     bool success = true;
     for (;;)
     {
+        // create thread from camouflaged start address and pause it
+        bool    resume   = (dwCreationFlags & 0xF) != CREATE_SUSPENDED;
         uintptr fakeAddr = camouflageStartAddress(lpStartAddress);
-        dwCreationFlags |= CREATE_SUSPENDED;
+        dwCreationFlags  |= CREATE_SUSPENDED;
+
+ 
 
         hThread = tracker->CreateThread(
-            lpThreadAttributes, dwStackSize, fakeAddr,
+            lpThreadAttributes, dwStackSize, lpStartAddress,
             lpParameter, dwCreationFlags, &threadID
         );
         if (hThread == NULL)
@@ -339,18 +343,54 @@ HANDLE TT_CreateThread(
         }
 
 
-        
+        // set the RIP/EIP to the actual start address
+        // tracker->WaitForSingleObject(hThread, 1000);
 
 
-        if (!addThread(tracker, threadID, hThread))
+        CONTEXT ctx;
+        if (!tracker->GetThreadContext(hThread, &ctx))
         {
             success = false;
             break;
         }
-        break;
+    #ifdef _WIN64
+        printf("rsp: 0x%X\n", dwCreationFlags);
 
+        printf("rsp: 0x%llX\n", ctx.RSP);
+
+        if (ctx.RSP > 16)
+        {
+            // ctx.RSP -= sizeof(uintptr);
+            // mem_copy((void*)(ctx.RSP), &fakeAddr, sizeof(uintptr));
+        }
+
+        
+
+
+        ctx.RIP = lpStartAddress;
+    #elif _WIN32
+        ctx.EIP = lpStartAddress;
+    #endif
+        if (!tracker->SetThreadContext(hThread, &ctx))
+        {
+            success = false;
+            break;
+        }
+        // resume the thread
+        if (resume && !tracker->ResumeThread(hThread))
+        {
+            success = false;
+            break;
+        }
+        if (!addThread(tracker, threadID, hThread))
+        {
+            tracker->TerminateThread(hThread, 0);
+            success = false;
+            break;
+        }
         printf("fake start: %llX\n", fakeAddr);
         printf("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
+        break;
     }
 
     if (!tt_unlock(tracker))
@@ -360,6 +400,10 @@ HANDLE TT_CreateThread(
 
     if (!success)
     {
+        if (hThread != NULL)
+        {
+            tracker->CloseHandle(hThread);
+        }
         return NULL;
     }
     if (lpThreadId != NULL)
@@ -393,6 +437,15 @@ static void* camouflageStartAddress(uintptr seed)
     // select a random start address
     uintptr begin = modAddr + info.TextVirtualAddress;
     uintptr range = RandUint((uint64)seed) % info.TextSizeOfRawData;
+
+
+    // TODO change it
+    begin += 7;
+    return begin;
+
+
+
+
     return begin+range;
 }
 
@@ -403,9 +456,7 @@ static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
     if (!tracker->DuplicateHandle(
         CURRENT_PROCESS, hThread, CURRENT_PROCESS, &dupHandle,
         0, false, DUPLICATE_SAME_ACCESS
-    ))
-    {
-        tracker->CloseHandle(hThread);
+    )){
         return false;
     }
     thread thread = {
@@ -414,7 +465,6 @@ static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
     };
     if (!List_Insert(&tracker->Threads, &thread))
     {
-        tracker->CloseHandle(hThread);
         tracker->CloseHandle(dupHandle);
         return false;
     }
