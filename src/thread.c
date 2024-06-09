@@ -23,6 +23,9 @@ typedef struct {
     ExitThread_t          ExitThread;
     SuspendThread_t       SuspendThread;
     ResumeThread_t        ResumeThread;
+    GetThreadContext_t    GetThreadContext;
+    SetThreadContext_t    SetThreadContext;
+    SwitchToThread_t      SwitchToThread;
     GetThreadID_t         GetThreadID;
     GetCurrentThreadID_t  GetCurrentThreadID;
     TerminateThread_t     TerminateThread;
@@ -48,6 +51,9 @@ HANDLE TT_CreateThread(
 void   TT_ExitThread(uint32 dwExitCode);
 uint32 TT_SuspendThread(HANDLE hThread);
 uint32 TT_ResumeThread(HANDLE hThread);
+bool   TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext);
+bool   TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext);
+bool   TT_SwitchToThread();
 bool   TT_TerminateThread(HANDLE hThread, uint32 dwExitCode);
 HANDLE TT_ThdNew(uintptr address, void* parameter);
 void   TT_ThdExit();
@@ -142,6 +148,9 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0x91238A1B4E365AB0, 0x6C621931AE641330 }, // ExitThread
         { 0x3A4D5132CF0D20D8, 0x89E05A81B86A26AE }, // SuspendThread
         { 0xB1917786CE5B5A94, 0x6BC3328C112C6DDA }, // ResumeThread
+        { 0x59361F47711B4B27, 0xB97411CC715D4940 }, // GetThreadContext
+        { 0xFB9A4AF393D77518, 0xA0CA2E8823A27560 }, // SetThreadContext
+        { 0x57E7340503265A2F, 0x0318A4D79F9670AC }, // SwitchToThread
         { 0x5133BE509803E44E, 0x20498B6AFFAED91B }, // GetThreadId
         { 0x9AF119F551D952CF, 0x5A1B9D61A26B22D7 }, // GetCurrentThreadId
         { 0xFB891A810F1ABF9A, 0x253BBD721EBD81F0 }, // TerminateThread
@@ -152,6 +161,9 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0x1D1F85DD, 0x41A9BD17 }, // ExitThread
         { 0x26C71141, 0xF3C390BD }, // SuspendThread
         { 0x20FFDC31, 0x1D4EA347 }, // ResumeThread
+        { 0x25EF3A63, 0xAFA67C4F }, // GetThreadContext
+        { 0x2729A1C9, 0x3A57FF5D }, // SetThreadContext
+        { 0xAA143570, 0x2398ADFB }, // SwitchToThread
         { 0xFE77EB3E, 0x81CB68B1 }, // GetThreadId
         { 0x2884E5D9, 0xA933632C }, // GetCurrentThreadId
         { 0xBA134972, 0x295F9DD2 }, // TerminateThread
@@ -172,9 +184,12 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
     tracker->ExitThread         = (ExitThread_t        )(list[1].address);
     tracker->SuspendThread      = (SuspendThread_t     )(list[2].address);
     tracker->ResumeThread       = (ResumeThread_t      )(list[3].address);
-    tracker->GetThreadID        = (GetThreadID_t       )(list[4].address);
-    tracker->GetCurrentThreadID = (GetCurrentThreadID_t)(list[5].address);
-    tracker->TerminateThread    = (TerminateThread_t   )(list[6].address);
+    tracker->GetThreadContext   = (GetThreadContext_t  )(list[4].address);
+    tracker->SetThreadContext   = (SetThreadContext_t  )(list[5].address);
+    tracker->SwitchToThread     = (SwitchToThread_t    )(list[6].address);
+    tracker->GetThreadID        = (GetThreadID_t       )(list[7].address);
+    tracker->GetCurrentThreadID = (GetCurrentThreadID_t)(list[8].address);
+    tracker->TerminateThread    = (TerminateThread_t   )(list[9].address);
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
@@ -308,16 +323,10 @@ HANDLE TT_CreateThread(
     for (;;)
     {
         uintptr fakeAddr = camouflageStartAddress(lpStartAddress);
-        printf("fake start: %llX\n", fakeAddr);
-
-        // add windows_t
-        // hijack flags, &pause
-        //  
-        // dwCreationFlags
-
+        dwCreationFlags |= CREATE_SUSPENDED;
 
         hThread = tracker->CreateThread(
-            lpThreadAttributes, dwStackSize, lpStartAddress,
+            lpThreadAttributes, dwStackSize, fakeAddr,
             lpParameter, dwCreationFlags, &threadID
         );
         if (hThread == NULL)
@@ -326,7 +335,9 @@ HANDLE TT_CreateThread(
             break;
         }
 
-        // fakeAddr;
+
+        
+
 
         if (!addThread(tracker, threadID, hThread))
         {
@@ -335,6 +346,7 @@ HANDLE TT_CreateThread(
         }
         break;
 
+        printf("fake start: %llX\n", fakeAddr);
         printf("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
     }
 
@@ -498,6 +510,24 @@ uint32 TT_ResumeThread(HANDLE hThread)
         return -1;
     }
     return count;
+}
+
+__declspec(noinline)
+bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
+{
+
+}
+
+__declspec(noinline)
+bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
+{
+
+}
+
+__declspec(noinline)
+bool TT_SwitchToThread()
+{
+
 }
 
 __declspec(noinline)
