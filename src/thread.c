@@ -308,7 +308,7 @@ HANDLE TT_CreateThread(
     for (;;)
     {
         uintptr fakeAddr = camouflageStartAddress(lpStartAddress);
-
+        printf("fake start: %llX\n", fakeAddr);
 
         // add windows_t
         // hijack flags, &pause
@@ -374,17 +374,11 @@ static void* camouflageStartAddress(uintptr seed)
 #endif
     // parse module information
     PE_Info info;
-    ParsePEImage(mod, &info);
+    ParsePEImage(modAddr, &info);
     // select a random start address
-
-    uintptr range = (info.ImageSize - (info.EntryPoint - mod)) % 4;
-
-    uintptr begin = info.EntryPoint;
-    uintptr end   = info.EntryPoint + range;
-
-    uintptr address = RandUint((uint64)seed) % (12);
-    address += modAddr;
-    return address;
+    uintptr begin = modAddr + info.TextVirtualAddress;
+    uintptr range = RandUint((uint64)seed) % info.TextSizeOfRawData;
+    return begin+range;
 }
 
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
