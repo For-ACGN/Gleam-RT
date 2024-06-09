@@ -121,11 +121,14 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     // create methods for tracker
     ThreadTracker_M* module = (ThreadTracker_M*)moduleAddr;
     // Windows API hooks
-    module->CreateThread    = (CreateThread_t   )(&TT_CreateThread);
-    module->ExitThread      = (ExitThread_t     )(&TT_ExitThread);
-    module->SuspendThread   = (SuspendThread_t  )(&TT_SuspendThread);
-    module->ResumeThread    = (ResumeThread_t   )(&TT_ResumeThread);
-    module->TerminateThread = (TerminateThread_t)(&TT_TerminateThread);
+    module->CreateThread     = (CreateThread_t    )(&TT_CreateThread);
+    module->ExitThread       = (ExitThread_t      )(&TT_ExitThread);
+    module->SuspendThread    = (SuspendThread_t   )(&TT_SuspendThread);
+    module->ResumeThread     = (ResumeThread_t    )(&TT_ResumeThread);
+    module->GetThreadContext = (GetThreadContext_t)(&TT_GetThreadContext);
+    module->SetThreadContext = (SetThreadContext_t)(&TT_SetThreadContext);
+    module->SwitchToThread   = (SwitchToThread_t  )(&TT_SwitchToThread);
+    module->TerminateThread  = (TerminateThread_t )(&TT_TerminateThread);
     // methods for runtime
     module->ThdNew     = &TT_ThdNew;
     module->ThdExit    = &TT_ThdExit;
@@ -515,19 +518,64 @@ uint32 TT_ResumeThread(HANDLE hThread)
 __declspec(noinline)
 bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 {
+    ThreadTracker* tracker = getTrackerPointer();
 
+    if (!tt_lock(tracker))
+    {
+        return false;
+    }
+
+    bool success = tracker->GetThreadContext(hThread, lpContext);
+
+    printf("GetThreadContext: %llu\n", hThread);
+
+    if (!tt_unlock(tracker))
+    {
+        return false;
+    }
+    return success;
 }
 
 __declspec(noinline)
 bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 {
+    ThreadTracker* tracker = getTrackerPointer();
 
+    if (!tt_lock(tracker))
+    {
+        return false;
+    }
+
+    bool success = tracker->SetThreadContext(hThread, lpContext);
+
+    printf("SetThreadContext: %llu\n", hThread);
+
+    if (!tt_unlock(tracker))
+    {
+        return false;
+    }
+    return success;
 }
 
 __declspec(noinline)
 bool TT_SwitchToThread()
 {
+    ThreadTracker* tracker = getTrackerPointer();
 
+    if (!tt_lock(tracker))
+    {
+        return false;
+    }
+
+    bool success = tracker->SwitchToThread();
+
+    printf("SwitchToThread\n");
+
+    if (!tt_unlock(tracker))
+    {
+        return false;
+    }
+    return success;
 }
 
 __declspec(noinline)
