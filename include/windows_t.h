@@ -66,7 +66,7 @@ typedef struct {
     uint64 R13;
     uint64 R14;
     uint64 R15;
-    uint64 Rip;
+    uint64 RIP;
     byte   Anon0[512];
     M128A  VectorRegister[26];
     uint64 VectorControl;
