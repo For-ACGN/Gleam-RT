@@ -351,13 +351,8 @@ HANDLE TT_CreateThread(
             success = false;
             break;
         }
-        printf("RAX: 0x%llX\n", ctx.ContextFlags);
     #ifdef _WIN64
-         // RDX;
-         // RBX;
-         // RSP;
-         // RBP;
-         // RSI;
+
         printf("RAX: 0x%llX\n", ctx.RAX);
         printf("RCX: 0x%llX\n", ctx.RCX);
         printf("RDX: 0x%llX\n", ctx.RDX);
@@ -368,21 +363,15 @@ HANDLE TT_CreateThread(
         printf("RIP: 0x%llX\n", ctx.RIP);
 
         // tracker->WaitForSingleObject(hThread, INFINITE);
-
-        if (ctx.RSP > 16)
-        {
-            // ctx.RSP -= sizeof(uintptr);
-            // mem_copy((void*)(ctx.RSP), &lpStartAddress, sizeof(uintptr));
-        }
+        // ctx.RSP -= sizeof(uintptr);
+        // mem_copy((void*)(ctx.RSP), &lpStartAddress, sizeof(uintptr));
        
         ctx.RCX = lpParameter;
         ctx.RIP = lpStartAddress;
     #elif _WIN32
-        // ctx.EIP = lpStartAddress;
+        ctx.ECX = lpParameter;
+        ctx.EIP = lpStartAddress;
     #endif
-        ctx.ContextFlags = 1 | 2;
-
-
         if (!tracker->SetThreadContext(hThread, &ctx))
         {
             success = false;
@@ -447,14 +436,48 @@ static void* camouflageStartAddress(uintptr seed)
     PE_Info info;
     ParsePEImage(modAddr, &info);
     // select a random start address
-    uintptr begin = modAddr + info.TextVirtualAddress;
-    uintptr range = RandUint((uint64)seed) % info.TextSizeOfRawData;
-
-    // TODO change it
-    // begin += 7;
-    // return begin;
-
-    return begin+range;
+    uintptr base  = modAddr + info.TextVirtualAddress;
+    uintptr begin = base + RandUint((uint64)seed) % info.TextSizeOfRawData;
+    uintptr end   = base + info.TextSizeOfRawData;
+    for (uintptr addr = begin; addr < end; addr++)
+    {
+        byte b = *(byte*)addr; 
+        // skip special instructions
+        switch (b)
+        {
+        case 0x00: // NULL
+            continue;
+        case 0xCC: // int3
+            continue;
+        case 0xC3: // ret
+            continue;
+        case 0xC2: // ret n
+            continue;
+        default:
+            break;
+        }
+        // push 
+        if (b >= 0x50 && b <= 0x57)
+        {
+            return addr;
+        }
+        // mov
+        if (b >= 0x88 && b <= 0x8B)
+        {
+            return addr;
+        }
+        // mov register
+        if (b >= 0xB0 && b <= 0xBF)
+        {
+            return addr;
+        }
+        // maybe mov
+        if (b == 0x48)
+        {
+            return addr;
+        }
+    }
+    return begin;
 }
 
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
