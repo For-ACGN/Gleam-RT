@@ -75,7 +75,7 @@ uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 errno RT_SleepHR(uint32 milliseconds);
 errno RT_Hide();
 errno RT_Recover();
-errno RT_Stop();
+errno RT_Exit();
 
 // internal methods for Runtime submodules
 void* RT_malloc(uint size);
@@ -201,7 +201,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->SleepHR = &RT_SleepHR;
     module->Hide    = &RT_Hide;
     module->Recover = &RT_Recover;
-    module->Stop    = &RT_Stop;
+    module->Exit    = &RT_Exit;
     return module;
 }
 
@@ -905,7 +905,7 @@ static errno recover(Runtime* runtime)
 }
 
 __declspec(noinline)
-errno RT_Stop()
+errno RT_Exit()
 {
     Runtime* runtime = getRuntimePointer();
 
@@ -929,7 +929,7 @@ errno RT_Stop()
     if (!notEraseInst)
     {
         uintptr begin = (uintptr)(&InitRuntime);
-        uintptr end   = (uintptr)(&RT_Stop);
+        uintptr end   = (uintptr)(&RT_Exit);
         int64   size  = end - begin;
         eraseMemory(begin, size);
         begin = (uintptr)(&RT_malloc);

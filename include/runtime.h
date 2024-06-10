@@ -31,7 +31,7 @@ typedef uintptr (*GetProcAddressOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
 typedef errno (*SleepHR_t)(uint32 milliseconds);
 typedef errno (*Hide_t)();
 typedef errno (*Recover_t)();
-typedef errno (*Stop_t)();
+typedef errno (*Exit_t)();
 
 typedef struct {
     // protect instructions like shellcode before runtime
@@ -65,7 +65,7 @@ typedef struct {
     SleepHR_t SleepHR;
     Hide_t    Hide;
     Recover_t Recover;
-    Stop_t    Stop;
+    Exit_t    Exit;
 } Runtime_M;
 
 // InitRuntime is used to initialize runtime and return module methods.
