@@ -49,13 +49,13 @@ typedef struct {
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
-    FindAPI_t    FindAPI;
-    Sleep_t      Sleep;
     MemAlloc_t   MemAlloc;
     MemRealloc_t MemRealloc;
     MemFree_t    MemFree;
     ThdNew_t     NewThread;
     ThdExit_t    ExitThread;
+    FindAPI_t    FindAPI;
+    Sleep_t      Sleep;
 
     GetProcAddress_t         GetProcAddress;
     GetProcAddressByName_t   GetProcAddressByName;

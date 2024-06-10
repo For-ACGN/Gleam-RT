@@ -185,13 +185,13 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
-    module->FindAPI    = &RT_FindAPI;
-    module->Sleep      = &RT_Sleep;
     module->MemAlloc   = runtime->MemoryTracker->MemAlloc;
     module->MemRealloc = runtime->MemoryTracker->MemRealloc;
     module->MemFree    = runtime->MemoryTracker->MemFree;
     module->NewThread  = runtime->ThreadTracker->ThdNew;
     module->ExitThread = runtime->ThreadTracker->ThdExit;
+    module->FindAPI    = &RT_FindAPI;
+    module->Sleep      = &RT_Sleep;
     // for IAT hooks
     module->GetProcAddress         = &RT_GetProcAddress;
     module->GetProcAddressByName   = &RT_GetProcAddressByName;
