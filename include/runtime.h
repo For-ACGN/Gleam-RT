@@ -12,6 +12,7 @@ typedef void*  (*MemRealloc_t)(void* address, uint size);
 typedef bool   (*MemFree_t)(void* address);
 typedef HANDLE (*ThdNew_t)(uintptr address, void* parameter);
 typedef void   (*ThdExit_t)();
+typedef void   (*Sleep_t)(uint32 milliseconds);
 
 // GetProcAddress, GetProcAddressByName and GetProcAddressByHash
 // are use Hash API module for implement original GetProcAddress.
@@ -27,7 +28,7 @@ typedef uintptr (*GetProcAddressOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
 // it is NOT recommended use "Hide" and "Recover" these function
 // are used to test and research, if use them, runtime will loss
 // the shield protect and structure data encrypt.
-typedef errno (*Sleep_t)(uint32 milliseconds);
+typedef errno (*SleepHR_t)(uint32 milliseconds);
 typedef errno (*Hide_t)();
 typedef errno (*Recover_t)();
 typedef errno (*Stop_t)();
@@ -49,6 +50,7 @@ typedef struct {
 // Runtime_M contains exported runtime methods.
 typedef struct {
     FindAPI_t    FindAPI;
+    Sleep_t      Sleep;
     MemAlloc_t   MemAlloc;
     MemRealloc_t MemRealloc;
     MemFree_t    MemFree;
@@ -60,7 +62,7 @@ typedef struct {
     GetProcAddressByHash_t   GetProcAddressByHash;
     GetProcAddressOriginal_t GetProcAddressOriginal;
     
-    Sleep_t   Sleep;
+    SleepHR_t SleepHR;
     Hide_t    Hide;
     Recover_t Recover;
     Stop_t    Stop;
