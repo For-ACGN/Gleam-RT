@@ -328,12 +328,10 @@ HANDLE TT_CreateThread(
         // create thread from camouflaged start address and pause it
         bool    resume   = (dwCreationFlags & 0xF) != CREATE_SUSPENDED;
         uintptr fakeAddr = camouflageStartAddress(lpStartAddress);
-        dwCreationFlags  |= CREATE_SUSPENDED;
-
- 
+        dwCreationFlags |= CREATE_SUSPENDED;
 
         hThread = tracker->CreateThread(
-            lpThreadAttributes, dwStackSize, lpStartAddress,
+            lpThreadAttributes, dwStackSize, fakeAddr,
             lpParameter, dwCreationFlags, &threadID
         );
         if (hThread == NULL)
@@ -342,35 +340,49 @@ HANDLE TT_CreateThread(
             break;
         }
 
+        printf("fake start: %llX\n", fakeAddr);
 
         // set the RIP/EIP to the actual start address
-        // tracker->WaitForSingleObject(hThread, 1000);
-
-
-        CONTEXT ctx;
+        CONTEXT ctx = {
+            .ContextFlags = CONTEXT_CONTROL|CONTEXT_INTEGER,
+        };
         if (!tracker->GetThreadContext(hThread, &ctx))
         {
             success = false;
             break;
         }
+        printf("RAX: 0x%llX\n", ctx.ContextFlags);
     #ifdef _WIN64
-        printf("rsp: 0x%X\n", dwCreationFlags);
+         // RDX;
+         // RBX;
+         // RSP;
+         // RBP;
+         // RSI;
+        printf("RAX: 0x%llX\n", ctx.RAX);
+        printf("RCX: 0x%llX\n", ctx.RCX);
+        printf("RDX: 0x%llX\n", ctx.RDX);
+        printf("RBX: 0x%llX\n", ctx.RBX);
+        printf("RSP: 0x%llX\n", ctx.RSP);
+        printf("RBP: 0x%llX\n", ctx.RBP);
+        printf("RSI: 0x%llX\n", ctx.RSI);
+        printf("RIP: 0x%llX\n", ctx.RIP);
 
-        printf("rsp: 0x%llX\n", ctx.RSP);
+        // tracker->WaitForSingleObject(hThread, INFINITE);
 
         if (ctx.RSP > 16)
         {
             // ctx.RSP -= sizeof(uintptr);
-            // mem_copy((void*)(ctx.RSP), &fakeAddr, sizeof(uintptr));
+            // mem_copy((void*)(ctx.RSP), &lpStartAddress, sizeof(uintptr));
         }
-
-        
-
-
+       
+        ctx.RCX = lpParameter;
         ctx.RIP = lpStartAddress;
     #elif _WIN32
-        ctx.EIP = lpStartAddress;
+        // ctx.EIP = lpStartAddress;
     #endif
+        ctx.ContextFlags = 1 | 2;
+
+
         if (!tracker->SetThreadContext(hThread, &ctx))
         {
             success = false;
@@ -438,13 +450,9 @@ static void* camouflageStartAddress(uintptr seed)
     uintptr begin = modAddr + info.TextVirtualAddress;
     uintptr range = RandUint((uint64)seed) % info.TextSizeOfRawData;
 
-
     // TODO change it
-    begin += 7;
-    return begin;
-
-
-
+    // begin += 7;
+    // return begin;
 
     return begin+range;
 }
