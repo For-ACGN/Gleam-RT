@@ -340,9 +340,9 @@ HANDLE TT_CreateThread(
             break;
         }
 
-        printf("fake start: %llX\n", fakeAddr);
-
-        // set the RIP/EIP to the actual start address
+        // hijack RCX/ECX for set the actual thread start address
+        // When use CREATE_SUSPENDED, the RIP/EIP will be set to
+        // the RtlUserThreadStart(StartAddress, Parameter)
         CONTEXT ctx = {
             .ContextFlags = CONTEXT_CONTROL|CONTEXT_INTEGER,
         };
@@ -352,31 +352,16 @@ HANDLE TT_CreateThread(
             break;
         }
     #ifdef _WIN64
-
-        printf("RAX: 0x%llX\n", ctx.RAX);
-        printf("RCX: 0x%llX\n", ctx.RCX);
-        printf("RDX: 0x%llX\n", ctx.RDX);
-        printf("RBX: 0x%llX\n", ctx.RBX);
-        printf("RSP: 0x%llX\n", ctx.RSP);
-        printf("RBP: 0x%llX\n", ctx.RBP);
-        printf("RSI: 0x%llX\n", ctx.RSI);
-        printf("RIP: 0x%llX\n", ctx.RIP);
-
-        // tracker->WaitForSingleObject(hThread, INFINITE);
-        // ctx.RSP -= sizeof(uintptr);
-        // mem_copy((void*)(ctx.RSP), &lpStartAddress, sizeof(uintptr));
-       
-        ctx.RCX = lpParameter;
-        ctx.RIP = lpStartAddress;
+        ctx.RCX = lpStartAddress;
     #elif _WIN32
-        ctx.ECX = lpParameter;
-        ctx.EIP = lpStartAddress;
+        ctx.ECX = lpStartAddress;
     #endif
         if (!tracker->SetThreadContext(hThread, &ctx))
         {
             success = false;
             break;
         }
+
         // resume the thread
         if (resume && !tracker->ResumeThread(hThread))
         {
@@ -468,11 +453,6 @@ static void* camouflageStartAddress(uintptr seed)
         }
         // mov register
         if (b >= 0xB0 && b <= 0xBF)
-        {
-            return addr;
-        }
-        // maybe mov
-        if (b == 0x48)
         {
             return addr;
         }
