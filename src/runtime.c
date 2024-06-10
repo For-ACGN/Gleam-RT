@@ -116,6 +116,7 @@ static errno recover(Runtime* runtime);
 static void eraseRuntimeMethods();
 static void cleanRuntime(Runtime* runtime);
 static void eraseMemory(uintptr address, int64 size);
+static void rt_epilogue();
 
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Opts* opts)
@@ -571,6 +572,73 @@ static bool rt_unlock(Runtime* runtime)
 }
 
 __declspec(noinline)
+void* RT_malloc(uint size)
+{
+    Runtime* runtime = getRuntimePointer();
+
+    // ensure the size is a multiple of memory page size.
+    // it also for prevent track the special page size.
+    uint pageSize = ((size / runtime->PageSize) + 1) * runtime->PageSize;
+    uintptr addr = runtime->VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    if (addr == NULL)
+    {
+        return NULL;
+    }
+
+    printf("rt_malloc: 0x%llX, %llu\n", addr, size);
+
+    // store the size at the head of the memory page
+    // ensure the memory address is 16 bytes aligned
+    byte* address = (byte*)addr;
+    RandBuf(address, 16);
+    mem_copy(address, &size, sizeof(uint));
+    return (void*)(addr+16);
+}
+
+__declspec(noinline)
+void* RT_realloc(void* address, uint size)
+{
+    if (address == NULL)
+    {
+        return RT_malloc(size);
+    }
+    // allocate new memory
+    void* newAddr = RT_malloc(size);
+    if (newAddr == NULL)
+    {
+        return NULL;
+    }
+    // copy data to new memory
+    uint oldSize = *(uint*)((uintptr)(address)-16);
+    mem_copy(newAddr, address, oldSize);
+    // free old memory
+    if (!RT_free(address))
+    {
+        return NULL;
+    }
+    return newAddr;
+}
+
+__declspec(noinline)
+bool RT_free(void* address)
+{
+    Runtime* runtime = getRuntimePointer();
+
+    if (address == NULL)
+    {
+        return true;
+    }
+
+    printf("rt_free: 0x%llX\n", (uintptr)address);
+
+    // clean the buffer data before call VirtualFree.
+    uintptr addr = (uintptr)(address)-16;
+    uint    size = *(uint*)addr;
+    mem_clean((byte*)addr, size);
+    return runtime->VirtualFree(addr, 0, MEM_RELEASE);
+}
+
+__declspec(noinline)
 uintptr RT_FindAPI(uint hash, uint key)
 {
     return RT_GetProcAddressByHash(hash, key, true);
@@ -932,7 +1000,7 @@ errno RT_Exit()
         uintptr end   = (uintptr)(&RT_Exit);
         int64   size  = end - begin;
         eraseMemory(begin, size);
-        begin = (uintptr)(&RT_malloc);
+        begin = (uintptr)(&rt_epilogue);
         end   = (uintptr)(&Epilogue);
         size  = end - begin;
         eraseMemory(begin, size);
@@ -954,69 +1022,11 @@ static void eraseMemory(uintptr address, int64 size)
 }
 #pragma optimize("", on)
 
-__declspec(noinline)
-void* RT_malloc(uint size)
+// prevent be linked to Epilogue.
+#pragma optimize("", off)
+static void rt_epilogue()
 {
-    Runtime* runtime = getRuntimePointer();
-
-    // ensure the size is a multiple of memory page size.
-    // it also for prevent track the special page size.
-    uint pageSize = ((size / runtime->PageSize) + 1) * runtime->PageSize;
-    uintptr addr = runtime->VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
-    if (addr == NULL)
-    {
-        return NULL;
-    }
-
-    printf("rt_malloc: 0x%llX, %llu\n", addr, size);
-
-    // store the size at the head of the memory page
-    // ensure the memory address is 16 bytes aligned
-    byte* address = (byte*)addr;
-    RandBuf(address, 16);
-    mem_copy(address, &size, sizeof(uint));
-    return (void*)(addr+16);
+    byte a = 1;
+    return;
 }
-
-__declspec(noinline)
-void* RT_realloc(void* address, uint size)
-{
-    if (address == NULL)
-    {
-        return RT_malloc(size);
-    }
-    // allocate new memory
-    void* newAddr = RT_malloc(size);
-    if (newAddr == NULL)
-    {
-        return NULL;
-    }
-    // copy data to new memory
-    uint oldSize = *(uint*)((uintptr)(address)-16);
-    mem_copy(newAddr, address, oldSize);
-    // free old memory
-    if (!RT_free(address))
-    {
-        return NULL;
-    }
-    return newAddr;
-}
-
-__declspec(noinline)
-bool RT_free(void* address)
-{
-    Runtime* runtime = getRuntimePointer();
-
-    if (address == NULL)
-    {
-        return true;
-    }
-
-    printf("rt_free: 0x%llX\n", (uintptr)address);
-
-    // clean the buffer data before call VirtualFree.
-    uintptr addr = (uintptr)(address)-16;
-    uint    size = *(uint*)addr;
-    mem_clean((byte*)addr, size);
-    return runtime->VirtualFree(addr, 0, MEM_RELEASE);
-}
+#pragma optimize("", on)
