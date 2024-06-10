@@ -65,12 +65,14 @@ typedef struct {
 
 // export methods about Runtime
 uintptr RT_FindAPI(uint hash, uint key);
+void    RT_Sleep(uint32 milliseconds);
+
 uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
 uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook);
 uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 
-errno RT_Sleep(uint32 milliseconds);
+errno RT_SleepHR(uint32 milliseconds);
 errno RT_Hide();
 errno RT_Recover();
 errno RT_Stop();
@@ -184,6 +186,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
     module->FindAPI    = &RT_FindAPI;
+    module->Sleep      = &RT_Sleep;
     module->MemAlloc   = runtime->MemoryTracker->MemAlloc;
     module->MemRealloc = runtime->MemoryTracker->MemRealloc;
     module->MemFree    = runtime->MemoryTracker->MemFree;
@@ -195,7 +198,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->GetProcAddressByHash   = &RT_GetProcAddressByHash;
     module->GetProcAddressOriginal = &RT_GetProcAddressOriginal;
     // runtime core methods
-    module->Sleep   = &RT_Sleep;
+    module->SleepHR = &RT_SleepHR;
     module->Hide    = &RT_Hide;
     module->Recover = &RT_Recover;
     module->Stop    = &RT_Stop;
@@ -456,7 +459,7 @@ static bool initIATHooks(Runtime* runtime)
 #ifdef _WIN64
     {
         { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, &RT_GetProcAddress },
-        { 0xCED5CC955152CD43, 0xAA22C83C068CB037, &RT_Sleep },
+        { 0xCED5CC955152CD43, 0xAA22C83C068CB037, &RT_SleepHR },
         { 0xAF5FD54749244397, 0xA063C6DB28B3D3B2, runtime->LibraryTracker->LoadLibraryA },
         { 0xAA82C4918E0EC8EC, 0x939364E42EB5C6DC, runtime->LibraryTracker->LoadLibraryW },
         { 0xB5B6D8C97CA99911, 0xD38714745DA33718, runtime->LibraryTracker->LoadLibraryExA },
@@ -478,7 +481,7 @@ static bool initIATHooks(Runtime* runtime)
 #elif _WIN32
     {
         { 0x5E5065D4, 0x63CDAD01, &RT_GetProcAddress },
-        { 0x705D4FAD, 0x94CF33BF, &RT_Sleep },
+        { 0x705D4FAD, 0x94CF33BF, &RT_SleepHR },
         { 0x17319CC6, 0x39074882, runtime->LibraryTracker->LoadLibraryA },
         { 0x6854E21B, 0xE5A72C07, runtime->LibraryTracker->LoadLibraryW },
         { 0x90509B56, 0x722D720C, runtime->LibraryTracker->LoadLibraryExA },
@@ -571,6 +574,28 @@ __declspec(noinline)
 uintptr RT_FindAPI(uint hash, uint key)
 {
     return RT_GetProcAddressByHash(hash, key, true);
+}
+
+__declspec(noinline)
+void RT_Sleep(uint32 milliseconds)
+{
+    Runtime* runtime = getRuntimePointer();
+
+    if (!rt_lock(runtime))
+    {
+        return;
+    }
+
+    // copy resource before unlock
+    WaitForSingleObject_t wait = runtime->WaitForSingleObject;
+    HANDLE hProcess = runtime->hProcess;
+
+    if (!rt_unlock(runtime))
+    {
+        return;
+    }
+
+    wait(hProcess, milliseconds);
 }
 
 __declspec(noinline)
@@ -708,7 +733,7 @@ static uintptr replaceToHook(Runtime* runtime, uintptr proc)
 }
 
 __declspec(noinline)
-errno RT_Sleep(uint32 milliseconds)
+errno RT_SleepHR(uint32 milliseconds)
 {
     Runtime* runtime = getRuntimePointer();
 
