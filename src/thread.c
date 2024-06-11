@@ -354,7 +354,37 @@ HANDLE TT_CreateThread(
     #ifdef _WIN64
         ctx.RCX = lpStartAddress;
     #elif _WIN32
-        ctx.ECX = lpStartAddress;
+        // TODO x86
+        // skip return address and the second parameter
+        // uintptr esp = ctx.ESP + 2*sizeof(uintptr);
+        // *(uintptr*)esp = lpStartAddress;
+        printf("ctx: 0x%X\n", (uintptr)(&ctx));
+
+        printf("start: 0x%X\n", lpStartAddress);
+        printf("para: 0x%X\n", lpParameter);
+
+        printf("EDX: 0x%X\n", ctx.EDX);
+        printf("ECX: 0x%X\n", ctx.ECX);
+        printf("EAX: 0x%X\n", ctx.EAX);
+        printf("ESP: 0x%X\n", ctx.ESP);
+        printf("EIP: 0x%X\n", ctx.EIP);
+        
+
+
+        // the context data is ???????
+        ctx.EAX = lpStartAddress;
+        // uintptr addr = (uintptr)(&ctx);
+        // addr += 11 * 16;
+        // *(uint32*)addr = lpStartAddress;
+
+        printf("EDX: 0x%X\n", ctx.EDX);
+        printf("ECX: 0x%X\n", ctx.ECX);
+        printf("EAX: 0x%X\n", ctx.EAX);
+        printf("ESP: 0x%X\n", ctx.ESP);
+        printf("EIP: 0x%X\n", ctx.EIP);
+
+
+        tracker->WaitForSingleObject(-1, INFINITE);
     #endif
         if (!tracker->SetThreadContext(hThread, &ctx))
         {
@@ -422,7 +452,7 @@ static void* camouflageStartAddress(uintptr seed)
     ParsePEImage(modAddr, &info);
     // select a random start address
     uintptr base  = modAddr + info.TextVirtualAddress;
-    uintptr begin = base + RandUint((uint64)seed) % info.TextSizeOfRawData;
+    uintptr begin = base + (RandUint((uint64)seed)%info.TextSizeOfRawData);
     uintptr end   = base + info.TextSizeOfRawData;
     for (uintptr addr = begin; addr < end; addr++)
     {
@@ -537,7 +567,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
    
     uint32 count;
     uint32 threadID = tracker->GetThreadID(hThread);
-    printf("SuspendThread: %lu\n", threadID);
+    // printf("SuspendThread: %lu\n", threadID);
     if (threadID == tracker->GetCurrentThreadID() || threadID == 0)
     {
         if (!tt_unlock(tracker))
@@ -567,7 +597,7 @@ uint32 TT_ResumeThread(HANDLE hThread)
 
     uint32 count = tracker->ResumeThread(hThread);
 
-    printf("ResumeThread: %llu\n", hThread);
+    // printf("ResumeThread: %llu\n", hThread);
 
     if (!tt_unlock(tracker))
     {
@@ -588,7 +618,7 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 
     bool success = tracker->GetThreadContext(hThread, lpContext);
 
-    printf("GetThreadContext: %llu\n", hThread);
+    // printf("GetThreadContext: %llu\n", hThread);
 
     if (!tt_unlock(tracker))
     {
@@ -609,7 +639,7 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 
     bool success = tracker->SetThreadContext(hThread, lpContext);
 
-    printf("SetThreadContext: %llu\n", hThread);
+    // printf("SetThreadContext: %llu\n", hThread);
 
     if (!tt_unlock(tracker))
     {
@@ -630,7 +660,7 @@ bool TT_SwitchToThread()
 
     bool success = tracker->SwitchToThread();
 
-    printf("SwitchToThread\n");
+    // printf("SwitchToThread\n");
 
     if (!tt_unlock(tracker))
     {
