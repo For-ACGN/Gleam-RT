@@ -848,9 +848,9 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     {
         instAddress = runtimeAddr;
     }
-    if (milliseconds < 100)
+    if (milliseconds < 10)
     {
-        milliseconds = 100;
+        milliseconds = 10;
     }
     Shield_Ctx ctx = {
         .InstAddress         = instAddress,
