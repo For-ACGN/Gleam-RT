@@ -26,7 +26,7 @@ bool TestRuntime()
         return false;
     }
 
-    errno errno = runtime->Stop();
+    errno errno = runtime->Exit();
     if (errno != NO_ERROR)
     {
         printf("error: %X\n", errno);

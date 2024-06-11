@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"math/rand"
@@ -131,7 +132,7 @@ func testGoRoutine() {
 				return
 			}
 			i++
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 		}
 	}()
 	go func() {
@@ -149,7 +150,7 @@ func testGoRoutine() {
 }
 
 func testLargeBuffer() {
-	alloc := func(min, max int) {
+	alloc := func(period time.Duration, min, max int) {
 		for {
 			buf := make([]byte, min+rand.Intn(max))
 			init := byte(rand.Int())
@@ -158,29 +159,37 @@ func testLargeBuffer() {
 				init++
 			}
 			fmt.Println("alloc buffer:", len(buf))
+
+			// check memory data after trigger sleep
+			raw := sha256.Sum256(buf)
 			time.Sleep(250 * time.Millisecond)
+			now := sha256.Sum256(buf)
+			if raw != now {
+				log.Fatalf("memory data is incorrect")
+			}
+			time.Sleep(period)
 		}
 	}
-	go alloc(1, 128)
-	go alloc(1, 512)
-	go alloc(256, 1024)
-	go alloc(512, 1024)
-	go alloc(1024, 16*1024)
-	go alloc(4096, 16*1024)
-	go alloc(16*1024, 512*1024)
-	go alloc(64*1024, 512*1024)
-	go alloc(1*1024*1024, 8*1024*1024)
-	go alloc(2*1024*1024, 8*1024*1024)
+	go alloc(100*time.Millisecond, 1, 128)
+	go alloc(100*time.Millisecond, 1, 512)
+	go alloc(100*time.Millisecond, 256, 1024)
+	go alloc(100*time.Millisecond, 512, 1024)
+	go alloc(150*time.Millisecond, 1024, 16*1024)
+	go alloc(150*time.Millisecond, 4096, 16*1024)
+	go alloc(250*time.Millisecond, 16*1024, 512*1024)
+	go alloc(250*time.Millisecond, 64*1024, 512*1024)
+	go alloc(500*time.Millisecond, 1*1024*1024, 4*1024*1024)
+	go alloc(500*time.Millisecond, 2*1024*1024, 4*1024*1024)
 }
 
 func kernel32Sleep() {
 	go func() {
 		var counter int
 		for {
-			// wait go routine run test
-			time.Sleep(5 * time.Second)
+			// wait go routine run other test
+			time.Sleep(time.Second)
 
-			// trigger Gleam-RT Sleep
+			// trigger Gleam-RT SleepHR
 			fmt.Println("call kernel32.Sleep [hooked]")
 			now := time.Now()
 			errno, _, _ := procSleep.Call(100)
@@ -193,6 +202,8 @@ func kernel32Sleep() {
 		}
 	}()
 }
+
+// TODO network accept read and write
 
 func checkError(err error) {
 	if err != nil {
