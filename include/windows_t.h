@@ -23,12 +23,12 @@ typedef struct {
 } SYSTEM_INFO;
 
 #ifdef _WIN64
-typedef struct {
+typedef struct __declspec(align(16)) {
     uint64 Low; 
     int64  High;
 } M128A;
 
-typedef struct {
+typedef struct __declspec(align(16)) {
     uint64 P1Home;
     uint64 P2Home;
     uint64 P3Home;
@@ -77,7 +77,7 @@ typedef struct {
     uint64 LastExceptionFromRIP;
 } CONTEXT;
 #elif _WIN32
-typedef struct {
+typedef struct __declspec(align(16)) {
     uint32 ControlWord;
     uint32 StatusWord;
 	uint32 TagWord;
@@ -89,7 +89,7 @@ typedef struct {
     uint32 CR0NPXState;
 } FSArea;
 
-typedef struct {
+typedef struct __declspec(align(16)) {
     uint32 ContextFlags;
     uint32 DR0;
     uint32 DR1;
