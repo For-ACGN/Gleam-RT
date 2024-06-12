@@ -13,11 +13,11 @@ bool DefenseRT(Shield_Ctx* ctx)
     byte key[XOR_KEY_SIZE];
     RandBuf(&key[0], XOR_KEY_SIZE);
     // hide runtime(or with shellcode) instructions
-    xorInst(ctx, &key[0]);
+    // xorInst(ctx, &key[0]);
     // simulate kernel32.Sleep()
     bool success = ctx->WaitForSingleObject(ctx->hProcess, ctx->milliseconds);
     // recover runtime(or with shellcode) instructions
-    xorInst(ctx, &key[0]);
+    // xorInst(ctx, &key[0]);
     return success;
 }
 
