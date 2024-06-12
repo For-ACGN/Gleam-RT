@@ -4,7 +4,7 @@
 
 #define XOR_KEY_SIZE 256
 
-void xorInst(Shield_Ctx* ctx, byte* key);
+void xorInstructions(Shield_Ctx* ctx, byte* key);
 
 __declspec(noinline)
 bool DefenseRT(Shield_Ctx* ctx)
@@ -13,15 +13,22 @@ bool DefenseRT(Shield_Ctx* ctx)
     byte key[XOR_KEY_SIZE];
     RandBuf(&key[0], XOR_KEY_SIZE);
     // hide runtime(or with shellcode) instructions
-    // xorInst(ctx, &key[0]);
+    xorInstructions(ctx, &key[0]);
     // simulate kernel32.Sleep()
     bool success = ctx->WaitForSingleObject(ctx->hProcess, ctx->milliseconds);
     // recover runtime(or with shellcode) instructions
-    // xorInst(ctx, &key[0]);
+    xorInstructions(ctx, &key[0]);
+    // must flush instruction cache
+    uintptr baseAddr = ctx->InstAddress;
+    uint    instSize = (uintptr)(&DefenseRT) - baseAddr;
+    if (!ctx->FlushInstructionCache(CURRENT_PROCESS, baseAddr, instSize))
+    {
+        return false;
+    }
     return success;
 }
 
-void xorInst(Shield_Ctx* ctx, byte* key)
+void xorInstructions(Shield_Ctx* ctx, byte* key)
 {
     // calculate shellcode position
     uintptr beginAddr = ctx->InstAddress;
