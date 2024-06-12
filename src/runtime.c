@@ -349,13 +349,14 @@ static errno initRuntimeEnvironment(Runtime* runtime)
 
         .TrackCurrentThread = runtime->Options->TrackCurrentThread,
 
-        .VirtualAlloc        = runtime->VirtualAlloc,
-        .VirtualFree         = runtime->VirtualFree,
-        .VirtualProtect      = runtime->VirtualProtect,
-        .ReleaseMutex        = runtime->ReleaseMutex,
-        .WaitForSingleObject = runtime->WaitForSingleObject,
-        .DuplicateHandle     = runtime->DuplicateHandle,
-        .CloseHandle         = runtime->CloseHandle,
+        .VirtualAlloc          = runtime->VirtualAlloc,
+        .VirtualFree           = runtime->VirtualFree,
+        .VirtualProtect        = runtime->VirtualProtect,
+        .ReleaseMutex          = runtime->ReleaseMutex,
+        .WaitForSingleObject   = runtime->WaitForSingleObject,
+        .FlushInstructionCache = runtime->FlushInstructionCache,
+        .DuplicateHandle       = runtime->DuplicateHandle,
+        .CloseHandle           = runtime->CloseHandle,
 
         .malloc  = &RT_malloc,
         .realloc = &RT_realloc,
@@ -866,7 +867,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     RandBuf(iv, CRYPTO_IV_SIZE);
     byte* buf = (byte*)(runtime->MainMemPage);
     // encrypt main page
-    EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);  // TODO remove it 
+    EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
     // call shield!!!
     if (!DefenseRT(&ctx))
     {
