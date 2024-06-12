@@ -9,7 +9,8 @@ typedef struct {
     uint32  milliseconds;
 	HANDLE  hProcess;
 	
-	WaitForSingleObject_t WaitForSingleObject;
+	WaitForSingleObject_t   WaitForSingleObject;
+    FlushInstructionCache_t FlushInstructionCache;
 } Shield_Ctx;
 
 bool DefenseRT(Shield_Ctx* ctx);
