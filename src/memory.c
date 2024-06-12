@@ -26,11 +26,12 @@ typedef struct {
 
 typedef struct {
     // API addresses
-    VirtualAlloc_t        VirtualAlloc;
-    VirtualFree_t         VirtualFree;
-    VirtualProtect_t      VirtualProtect;
-    ReleaseMutex_t        ReleaseMutex;
-    WaitForSingleObject_t WaitForSingleObject;
+    VirtualAlloc_t          VirtualAlloc;
+    VirtualFree_t           VirtualFree;
+    VirtualProtect_t        VirtualProtect;
+    ReleaseMutex_t          ReleaseMutex;
+    WaitForSingleObject_t   WaitForSingleObject;
+    FlushInstructionCache_t FlushInstructionCache;
 
     // runtime data
     uint32 PageSize; // memory page size
@@ -84,6 +85,7 @@ static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
 static bool   isPageProtectWriteable(uint32 protect);
+static bool   isPageProtectExecutable(uint32 protect);
 static bool   adjustPageProtect(MemoryTracker* tracker, memPage* page);
 static bool   recoverPageProtect(MemoryTracker* tracker, memPage* page);
 
@@ -151,11 +153,12 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
 __declspec(noinline)
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 {
-    tracker->VirtualAlloc        = context->VirtualAlloc;
-    tracker->VirtualFree         = context->VirtualFree;
-    tracker->VirtualProtect      = context->VirtualProtect;
-    tracker->ReleaseMutex        = context->ReleaseMutex;
-    tracker->WaitForSingleObject = context->WaitForSingleObject;
+    tracker->VirtualAlloc          = context->VirtualAlloc;
+    tracker->VirtualFree           = context->VirtualFree;
+    tracker->VirtualProtect        = context->VirtualProtect;
+    tracker->ReleaseMutex          = context->ReleaseMutex;
+    tracker->WaitForSingleObject   = context->WaitForSingleObject;
+    tracker->FlushInstructionCache = context->FlushInstructionCache;
     return true;
 }
 
@@ -602,6 +605,24 @@ static bool isPageProtectWriteable(uint32 protect)
     return true;
 }
 
+static bool isPageProtectExecutable(uint32 protect)
+{
+    switch (protect&0xFF)
+    {
+    case PAGE_EXECUTE:
+        break;
+    case PAGE_EXECUTE_READ:
+        break;
+    case PAGE_EXECUTE_READWRITE:
+        break;
+    case PAGE_EXECUTE_WRITECOPY:
+        break;
+    default:
+        return false;
+    }
+    return true;
+}
+
 // adjustPageProtect is used to make sure this page is writeable.
 static bool adjustPageProtect(MemoryTracker* tracker, memPage* page)
 {
@@ -790,7 +811,20 @@ static bool decryptPage(MemoryTracker* tracker, memPage* page)
     byte key[CRYPTO_KEY_SIZE];
     deriveKey(tracker, page, &key[0]);
     DecryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
-    return recoverPageProtect(tracker, page);
+    if (!recoverPageProtect(tracker, page))
+    {
+        return false;
+    }
+    if (isPageProtectExecutable(page->protect))
+    {
+        uintptr baseAddr = page->address;
+        uint    instSize = tracker->PageSize;
+        if (!tracker->FlushInstructionCache(CURRENT_PROCESS, baseAddr, instSize))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 static bool isEmptyPage(MemoryTracker* tracker, memPage* page)
