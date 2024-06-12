@@ -320,6 +320,59 @@ HANDLE TT_CreateThread(
     }
 
     uint32 threadID;
+    HANDLE hThread;
+
+    bool success = true;
+    for (;;)
+    {
+        hThread = tracker->CreateThread(
+            lpThreadAttributes, dwStackSize, lpStartAddress,
+            lpParameter, dwCreationFlags, &threadID
+        );
+        if (hThread == NULL)
+        {
+            success = false;
+            break;
+        }
+        if (!addThread(tracker, threadID, hThread))
+        {
+            success = false;
+            break;
+        }
+        printf("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
+        break;
+    }
+
+    if (!tt_unlock(tracker))
+    {
+        return NULL;
+    }
+
+    if (!success)
+    {
+        return NULL;
+    }
+    if (lpThreadId != NULL)
+    {
+        *lpThreadId = threadID;
+    }
+    return hThread;
+}
+
+__declspec(noinline)
+HANDLE TT_CreateThread_fake(
+    uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
+    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
+)
+{
+    ThreadTracker* tracker = getTrackerPointer();
+
+    if (!tt_lock(tracker))
+    {
+        return NULL;
+    }
+
+    uint32 threadID;
     HANDLE hThread = NULL;
 
     bool success = true;
@@ -331,7 +384,7 @@ HANDLE TT_CreateThread(
         dwCreationFlags |= CREATE_SUSPENDED;
 
         hThread = tracker->CreateThread(
-            lpThreadAttributes, dwStackSize, fakeAddr,
+            lpThreadAttributes, dwStackSize, lpStartAddress,
             lpParameter, dwCreationFlags, &threadID
         );
         if (hThread == NULL)
@@ -352,7 +405,7 @@ HANDLE TT_CreateThread(
             break;
         }
     #ifdef _WIN64
-        ctx.RCX = lpStartAddress;
+        // ctx.RCX = lpStartAddress;
     #elif _WIN32
         // TODO x86
         // skip return address and the second parameter
