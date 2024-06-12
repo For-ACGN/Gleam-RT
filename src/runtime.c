@@ -454,14 +454,14 @@ static bool initIATHooks(Runtime* runtime)
         { 0x18A3895F35B741C8, 0x96C9890F48D55E7E, runtime->MemoryTracker->VirtualAlloc },
         { 0xDB54AA6683574A8B, 0x3137DE2D71D3FF3E, runtime->MemoryTracker->VirtualFree },
         { 0xF5469C21B43D23E5, 0xF80028997F625A05, runtime->MemoryTracker->VirtualProtect },
-        // { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, runtime->ThreadTracker->CreateThread },
-        // { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, runtime->ThreadTracker->ExitThread },
-        // { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, runtime->ThreadTracker->SuspendThread },
-        // { 0x226860209E13A99A, 0xE1BD9D8C64FAF97D, runtime->ThreadTracker->ResumeThread },
-        // { 0x374E149C710B1006, 0xE5D0E3FA417FA6CF, runtime->ThreadTracker->GetThreadContext },
-        // { 0xCFE3FFD5F0023AE3, 0x9044E42F1C020CF5, runtime->ThreadTracker->SetThreadContext },
-        // { 0xF0587A11F433BC0C, 0x9AB5CF006BC5744A, runtime->ThreadTracker->SwitchToThread },
-        // { 0x248E1CDD11AB444F, 0x195932EA70030929, runtime->ThreadTracker->TerminateThread },
+        { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, runtime->ThreadTracker->CreateThread },
+        { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, runtime->ThreadTracker->ExitThread },
+        { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, runtime->ThreadTracker->SuspendThread },
+        { 0x226860209E13A99A, 0xE1BD9D8C64FAF97D, runtime->ThreadTracker->ResumeThread },
+        { 0x374E149C710B1006, 0xE5D0E3FA417FA6CF, runtime->ThreadTracker->GetThreadContext },
+        { 0xCFE3FFD5F0023AE3, 0x9044E42F1C020CF5, runtime->ThreadTracker->SetThreadContext },
+        { 0xF0587A11F433BC0C, 0x9AB5CF006BC5744A, runtime->ThreadTracker->SwitchToThread },
+        { 0x248E1CDD11AB444F, 0x195932EA70030929, runtime->ThreadTracker->TerminateThread },
     };
 #elif _WIN32
     {
@@ -840,7 +840,6 @@ errno RT_SleepHR(uint32 milliseconds)
 __declspec(noinline)
 static errno sleep(Runtime* runtime, uint32 milliseconds)
 {
-    // return NO_ERROR;
     // build shield context
     uintptr runtimeAddr = (uintptr)(&InitRuntime);
     uintptr instAddress = runtime->InstAddress;
@@ -853,10 +852,12 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         milliseconds = 1;
     }
     Shield_Ctx ctx = {
-        .InstAddress         = instAddress,
-        .milliseconds        = milliseconds,
-        .hProcess            = runtime->hProcess,
-        .WaitForSingleObject = runtime->WaitForSingleObject,
+        .InstAddress  = instAddress,
+        .milliseconds = milliseconds,
+        .hProcess     = runtime->hProcess,
+
+        .WaitForSingleObject   = runtime->WaitForSingleObject,
+        .FlushInstructionCache = runtime->FlushInstructionCache,
     };
     // build crypto context
     byte key[CRYPTO_KEY_SIZE];
@@ -865,14 +866,14 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     RandBuf(iv, CRYPTO_IV_SIZE);
     byte* buf = (byte*)(runtime->MainMemPage);
     // encrypt main page
-    // EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
+    EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);  // TODO remove it 
     // call shield!!!
     if (!DefenseRT(&ctx))
     {
         return ERR_RUNTIME_DEFENSE_RT;
     }
     // decrypt main page
-    // DecryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
+    DecryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
     return NO_ERROR;
 }
 
@@ -909,16 +910,16 @@ static errno hide(Runtime* runtime)
         // {
         //     break;
         // }
-        // errno = runtime->ResourceTracker->ResEncrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
-        // errno = runtime->LibraryTracker->LibEncrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
+        errno = runtime->ResourceTracker->ResEncrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->LibraryTracker->LibEncrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
         break;
     }
     return errno;
@@ -947,16 +948,16 @@ static errno recover(Runtime* runtime)
     errno errno = NO_ERROR;
     for (;;)
     {
-        // errno = runtime->LibraryTracker->LibDecrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
-        // errno = runtime->ResourceTracker->ResDecrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
+        errno = runtime->LibraryTracker->LibDecrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->ResourceTracker->ResDecrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
         // errno = runtime->MemoryTracker->MemDecrypt();
         // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         // {
