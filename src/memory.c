@@ -706,7 +706,7 @@ errno MT_Encrypt()
         num++;
     }
 
-    printf("num pages: %llu\n", pages->Len);
+    printf_s("num pages: %llu\n", pages->Len);
 
     // encrypt region and page list
     List* list = &tracker->Regions;
