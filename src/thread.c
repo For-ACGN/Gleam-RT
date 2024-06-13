@@ -295,12 +295,14 @@ static ThreadTracker* getTrackerPointer()
 }
 #pragma optimize("", on)
 
+__declspec(noinline)
 static bool tt_lock(ThreadTracker* tracker)
 {
     uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
+__declspec(noinline)
 static bool tt_unlock(ThreadTracker* tracker)
 {
     return tracker->ReleaseMutex(tracker->Mutex);

@@ -175,12 +175,14 @@ static ResourceTracker* getTrackerPointer()
 }
 #pragma optimize("", on)
 
+__declspec(noinline)
 static bool rt_lock(ResourceTracker* tracker)
 {
     uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
+__declspec(noinline)
 static bool rt_unlock(ResourceTracker* tracker)
 {
     return tracker->ReleaseMutex(tracker->Mutex);

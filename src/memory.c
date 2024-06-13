@@ -230,12 +230,14 @@ static MemoryTracker* getTrackerPointer()
 }
 #pragma optimize("", on)
 
+__declspec(noinline)
 static bool mt_lock(MemoryTracker* tracker)
 {
     uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
+__declspec(noinline)
 static bool mt_unlock(MemoryTracker* tracker)
 {
     return tracker->ReleaseMutex(tracker->Mutex);

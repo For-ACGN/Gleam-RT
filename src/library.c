@@ -232,12 +232,14 @@ static LibraryTracker* getTrackerPointer()
 }
 #pragma optimize("", on)
 
+__declspec(noinline)
 static bool lt_lock(LibraryTracker* tracker)
 {
     uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
+__declspec(noinline)
 static bool lt_unlock(LibraryTracker* tracker)
 {
     return tracker->ReleaseMutex(tracker->Mutex);
