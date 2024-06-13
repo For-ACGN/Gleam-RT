@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#include <intrin.h>
 #include "c_types.h"
 #include "windows_t.h"
 #include "lib_memory.h"
@@ -461,7 +461,7 @@ static bool initIATHooks(Runtime* runtime)
         { 0x226860209E13A99A, 0xE1BD9D8C64FAF97D, runtime->ThreadTracker->ResumeThread },
         { 0x374E149C710B1006, 0xE5D0E3FA417FA6CF, runtime->ThreadTracker->GetThreadContext },
         { 0xCFE3FFD5F0023AE3, 0x9044E42F1C020CF5, runtime->ThreadTracker->SetThreadContext },
-        { 0xF0587A11F433BC0C, 0x9AB5CF006BC5744A, runtime->ThreadTracker->SwitchToThread },
+        // { 0xF0587A11F433BC0C, 0x9AB5CF006BC5744A, runtime->ThreadTracker->SwitchToThread },
         { 0x248E1CDD11AB444F, 0x195932EA70030929, runtime->ThreadTracker->TerminateThread },
     };
 #elif _WIN32
@@ -560,12 +560,14 @@ static Runtime* getRuntimePointer()
 }
 #pragma optimize("", on)
 
+__declspec(noinline)
 static bool rt_lock(Runtime* runtime)
 {
     uint32 event = runtime->WaitForSingleObject(runtime->Mutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
+__declspec(noinline)
 static bool rt_unlock(Runtime* runtime)
 {
     return runtime->ReleaseMutex(runtime->Mutex);
@@ -585,7 +587,7 @@ void* RT_malloc(uint size)
         return NULL;
     }
 
-    printf("rt_malloc: 0x%llX, %llu\n", addr, size);
+    // printf_s("rt_malloc: 0x%llX, %llu\n", addr, size);
 
     // store the size at the head of the memory page
     // ensure the memory address is 16 bytes aligned
@@ -629,7 +631,7 @@ bool RT_free(void* address)
         return true;
     }
 
-    printf("rt_free: 0x%llX\n", (uintptr)address);
+    // printf_s("rt_free: 0x%llX\n", (uintptr)address);
 
     // clean the buffer data before call VirtualFree.
     uintptr addr = (uintptr)(address)-16;
@@ -657,6 +659,7 @@ void RT_Sleep(uint32 milliseconds)
     // copy resource before unlock
     WaitForSingleObject_t wait = runtime->WaitForSingleObject;
     HANDLE hProcess = runtime->hProcess;
+    _mm_mfence();
 
     if (!rt_unlock(runtime))
     {
@@ -830,6 +833,7 @@ errno RT_SleepHR(uint32 milliseconds)
         }
         break;
     }
+    _mm_mfence();
 
     if (!rt_unlock(runtime))
     {
@@ -866,6 +870,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     byte* buf = (byte*)(runtime->MainMemPage);
+    _mm_mfence();
     // encrypt main page
     EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
     // call shield!!!
@@ -887,7 +892,10 @@ errno RT_Hide()
     {
         return ERR_RUNTIME_LOCK;
     }
+
     errno errno = hide(runtime);
+    _mm_mfence();
+
     if (!rt_unlock(runtime))
     {
         return ERR_RUNTIME_UNLOCK;
@@ -935,7 +943,10 @@ errno RT_Recover()
     {
         return ERR_RUNTIME_LOCK;
     }
+
     errno errno = recover(runtime);
+    _mm_mfence();
+
     if (!rt_unlock(runtime))
     {
         return ERR_RUNTIME_UNLOCK;
@@ -986,6 +997,7 @@ errno RT_Exit()
 
     // must record options before clean runtime
     bool notEraseInst = runtime->NotEraseInst;
+    _mm_mfence();
 
     // clean runtime modules
     errno errno = NO_ERROR;
@@ -1028,7 +1040,7 @@ static void eraseMemory(uintptr address, int64 size)
 #pragma optimize("", off)
 static void rt_epilogue()
 {
-    byte a = 1;
+    byte var = 1;
     return;
 }
 #pragma optimize("", on)
