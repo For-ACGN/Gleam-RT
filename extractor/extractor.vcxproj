@@ -16,7 +16,7 @@
     <ProjectGuid>{f6f189c8-eb91-4470-855b-5c1e53e78359}</ProjectGuid>
     <RootNamespace>builder</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>builder</ProjectName>
+    <ProjectName>extractor</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -98,7 +98,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="builder.c" />
+	<ClCompile Include="extractor.c" />
     <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\lib_memory.c" />
     <ClCompile Include="..\src\lib_string.c" />
@@ -107,7 +107,7 @@
     <ClCompile Include="..\src\random.c" />
     <ClCompile Include="..\src\crypto.c" />
     <ClCompile Include="..\src\win_api.c" />
-	<ClCompile Include="..\src\errno.c" />
+    <ClCompile Include="..\src\errno.c" />
     <ClCompile Include="..\src\library.c" />
     <ClCompile Include="..\src\memory.c" />
     <ClCompile Include="..\src\thread.c" />

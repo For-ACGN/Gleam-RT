@@ -33,9 +33,6 @@
     <ClCompile Include="..\src\thread.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="builder.c">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\epilogue.c">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -61,6 +58,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\src\errno.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="extractor.c">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
