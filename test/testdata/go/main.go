@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -25,10 +27,12 @@ func main() {
 	testGoRoutine()
 	testLargeBuffer()
 	testHTTPServer()
+	testHTTPClient()
 	kernel32Sleep()
-	
+
 	for {
-		time.Sleep(time.Second)
+		fmt.Println("keep alive")
+		time.Sleep(250 * time.Millisecond)
 	}
 }
 
@@ -37,7 +41,7 @@ func testRuntimeAPI() {
 	hModule := syscall.Handle(dll.Handle())
 	GetProcAddress := dll.NewProc("GetProcAddress").Addr()
 	fmt.Printf("GetProcAddress: 0x%X\n", GetProcAddress)
-	
+
 	for _, proc := range []string{
 		"RT_GetProcAddressByName",
 		"RT_GetProcAddressByHash",
@@ -57,10 +61,10 @@ func testRuntimeAPI() {
 		fmt.Printf("%s: 0x%X\n", proc, dllProcAddr)
 	}
 	fmt.Println()
-	
+
 	GetProcAddressOriginal, err := syscall.GetProcAddress(hModule, "RT_GetProcAddressOriginal")
 	checkError(err)
-	
+
 	// get original GetProcAddress
 	proc, err := syscall.BytePtrFromString("GetProcAddress")
 	checkError(err)
@@ -73,7 +77,7 @@ func testRuntimeAPI() {
 	}
 	fmt.Printf("Original GetProcAddress: 0x%X\n", ret)
 	fmt.Printf("Hooked   GetProcAddress: 0x%X\n", GetProcAddress)
-	
+
 	// get original VirtualAlloc
 	proc, err = syscall.BytePtrFromString("VirtualAlloc")
 	checkError(err)
@@ -84,10 +88,10 @@ func testRuntimeAPI() {
 	if ret == 0 {
 		log.Fatalln("failed to get GetProcAddress address")
 	}
-	
+
 	VirtualAlloc, err := syscall.GetProcAddress(hModule, "VirtualAlloc")
 	checkError(err)
-	
+
 	fmt.Printf("Original VirtualAlloc: 0x%X\n", ret)
 	fmt.Printf("Hooked   VirtualAlloc: 0x%X\n", VirtualAlloc)
 }
@@ -98,23 +102,23 @@ func testMemoryData() {
 	go func() {
 		localVar := 12121212
 		localStr := "hello GleamRT"
-		
+
 		for {
 			tid, _, _ := procGetCurrentThreadID.Call()
 			fmt.Println("Thread ID:", tid)
-			
+
 			fmt.Printf("global variable pointer: 0x%X\n", &globalVar)
 			fmt.Println("global variable value:  ", globalVar)
-			
+
 			fmt.Printf("local variable pointer:  0x%X\n", &localVar)
 			fmt.Println("local variable value:   ", localVar)
-			
+
 			funcAddr := reflect.ValueOf(testRuntimeAPI).Pointer()
 			fmt.Printf("instruction:             0x%X\n", funcAddr)
-			
+
 			inst := unsafe.Slice((*byte)(unsafe.Pointer(funcAddr)), 8)
 			fmt.Printf("instruction data:        %v\n", inst)
-			
+
 			time.Sleep(time.Second)
 			fmt.Println(localStr, "finish!")
 			fmt.Println()
@@ -161,7 +165,7 @@ func testLargeBuffer() {
 				init++
 			}
 			fmt.Println("alloc buffer:", len(buf))
-			
+
 			// check memory data after trigger sleep
 			raw := sha256.Sum256(buf)
 			time.Sleep(250 * time.Millisecond)
@@ -184,10 +188,12 @@ func testLargeBuffer() {
 	go alloc(500*time.Millisecond, 2*1024*1024, 4*1024*1024)
 }
 
+var webPage = []byte("hello browser!")
+
 func testHTTPServer() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("hello browser!"))
+		_, _ = w.Write(webPage)
 	})
 	server := http.Server{
 		Addr:    "127.0.0.1:8090",
@@ -199,13 +205,34 @@ func testHTTPServer() {
 	}()
 }
 
+func testHTTPClient() {
+	go func() {
+		client := http.Client{}
+		for {
+			func() {
+				resp, err := client.Get("http://127.0.0.1:8090/")
+				checkError(err)
+				defer func() { _ = resp.Body.Close() }()
+				data, err := io.ReadAll(resp.Body)
+				checkError(err)
+				if !bytes.Equal(webPage, data) {
+					log.Fatalln("incorrect web page data")
+				}
+				fmt.Println("http client keep alive")
+				client.CloseIdleConnections()
+			}()
+			time.Sleep(1 + time.Duration(rand.Intn(250))*time.Millisecond)
+		}
+	}()
+}
+
 func kernel32Sleep() {
 	go func() {
 		var counter int
 		for {
 			// wait go routine run other test
-			time.Sleep(1 + time.Duration(rand.Intn(10)))
-			
+			time.Sleep(1 + time.Duration(rand.Intn(10))*time.Millisecond)
+
 			// trigger Gleam-RT SleepHR
 			fmt.Println("call kernel32.Sleep [hooked]")
 			now := time.Now()
