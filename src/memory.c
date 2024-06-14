@@ -29,6 +29,7 @@ typedef struct {
     VirtualAlloc_t          VirtualAlloc;
     VirtualFree_t           VirtualFree;
     VirtualProtect_t        VirtualProtect;
+    VirtualQuery_t          VirtualQuery;
     ReleaseMutex_t          ReleaseMutex;
     WaitForSingleObject_t   WaitForSingleObject;
     FlushInstructionCache_t FlushInstructionCache;
@@ -52,6 +53,7 @@ typedef struct {
 uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect);
 bool    MT_VirtualFree(uintptr address, uint size, uint32 type);
 bool    MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old);
+uint    MT_VirtualQuery(uintptr lpAddress, uintptr lpBuffer, uint dwLength);
 void*   MT_MemAlloc(uint size);
 void*   MT_MemRealloc(void* address, uint size);
 bool    MT_MemFree(void* address);
@@ -153,6 +155,31 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
 __declspec(noinline)
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 {
+    typedef struct { 
+        uint hash; uint key; uintptr address;
+    } winapi;
+    winapi list[] =
+#ifdef _WIN64
+    {
+        { 0x69E4CD5EB08400FD, 0x648D50E649F8C06E }, // VirtualQuery
+    };
+#elif _WIN32
+    {
+        { 0x79D75104, 0x92F1D233 }, // VirtualQuery
+    };
+#endif
+    for (int i = 0; i < arrlen(list); i++)
+    {
+        uintptr address = FindAPI(list[i].hash, list[i].key);
+        if (address == NULL)
+        {
+            return false;
+        }
+        list[i].address = address;
+    }
+
+    tracker->VirtualQuery = (VirtualQuery_t)(list[0].address);
+
     tracker->VirtualAlloc          = context->VirtualAlloc;
     tracker->VirtualFree           = context->VirtualFree;
     tracker->VirtualProtect        = context->VirtualProtect;
@@ -556,6 +583,25 @@ static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint
         num++;
     }
     return found;
+}
+
+__declspec(noinline)
+uint MT_VirtualQuery(uintptr lpAddress, uintptr lpBuffer, uint dwLength)
+{
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!mt_lock(tracker))
+    {
+        return 0;
+    }
+
+    uint size = tracker->VirtualQuery(lpAddress, lpBuffer, dwLength);
+
+    if (!mt_unlock(tracker))
+    {
+        return 0;
+    }
+    return size;
 }
 
 // replacePageProtect is used to make sure all the page are readable.
