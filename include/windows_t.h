@@ -213,6 +213,11 @@ typedef bool (*VirtualProtect_t)
     uintptr lpAddress, uint dwSize, uint32 flNewProtect, uint32* lpflOldProtect
 );
 
+typedef uint (*VirtualQuery_t)
+(
+    uintptr lpAddress, uintptr lpBuffer, uint dwLength
+);
+
 typedef HANDLE (*CreateThread_t)
 (
     uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
