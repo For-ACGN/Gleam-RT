@@ -397,6 +397,6 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
-# output binary files
+# Ignore utility executables for scripts
 *.exe
 *.dll
