@@ -1,11 +1,11 @@
 @echo off
 
-echo =======================================================
-echo Get Hash Tool from https://github.com/For-ACGN/hash_api
-echo =======================================================
+echo ============================================================
+echo Build HashAPI Tool from https://github.com/For-ACGN/hash_api
+echo ============================================================
 echo.
 
-echo Runtime core
+echo Runtime Core
 hash -fmt 64 -conc -func GetSystemInfo
 hash -fmt 64 -conc -func FlushInstructionCache
 hash -fmt 64 -conc -func CreateMutexA
