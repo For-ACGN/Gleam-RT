@@ -10,6 +10,9 @@ hash -fmt 64 -conc -func GetSystemInfo
 hash -fmt 64 -conc -func FlushInstructionCache
 hash -fmt 64 -conc -func CreateMutexA
 hash -fmt 64 -conc -func ReleaseMutex
+hash -fmt 64 -conc -func CreateEventA
+hash -fmt 64 -conc -func SetEvent
+hash -fmt 64 -conc -func ResetEvent
 hash -fmt 64 -conc -func WaitForSingleObject
 hash -fmt 64 -conc -func DuplicateHandle
 hash -fmt 64 -conc -func CloseHandle
@@ -64,6 +67,9 @@ hash -fmt 32 -conc -func GetSystemInfo
 hash -fmt 32 -conc -func FlushInstructionCache
 hash -fmt 32 -conc -func CreateMutexA
 hash -fmt 32 -conc -func ReleaseMutex
+hash -fmt 32 -conc -func CreateEventA
+hash -fmt 32 -conc -func SetEvent
+hash -fmt 32 -conc -func ResetEvent
 hash -fmt 32 -conc -func WaitForSingleObject
 hash -fmt 32 -conc -func DuplicateHandle
 hash -fmt 32 -conc -func CloseHandle
