@@ -49,7 +49,7 @@ typedef struct {
     GetProcAddress_t        GetProcAddress;
 
     // IAT hooks about GetProcAddress
-    Hook IAT_Hooks[19];
+    Hook IAT_Hooks[20];
 
     // runtime data
     uint32 PageSize; // memory management
@@ -446,15 +446,16 @@ static bool initIATHooks(Runtime* runtime)
     {
         { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, &RT_GetProcAddress },
         { 0xCED5CC955152CD43, 0xAA22C83C068CB037, &RT_SleepHR },
-        { 0xAF5FD54749244397, 0xA063C6DB28B3D3B2, runtime->LibraryTracker->LoadLibraryA },
-        { 0xAA82C4918E0EC8EC, 0x939364E42EB5C6DC, runtime->LibraryTracker->LoadLibraryW },
-        { 0xB5B6D8C97CA99911, 0xD38714745DA33718, runtime->LibraryTracker->LoadLibraryExA },
-        { 0xADAA836A259BB790, 0x243E8C036C91259F, runtime->LibraryTracker->LoadLibraryExW },
-        { 0xB1EA6C78485E0EBC, 0x4DB3B65B36C2C324, runtime->LibraryTracker->FreeLibrary },
-        { 0xB3DDECBCA4D8369A, 0x9063BC5C04308424, runtime->LibraryTracker->FreeLibraryAndExitThread },
+        { 0xD823D640CA9D87C3, 0x15821AE3463EFBE8, runtime->LibraryTracker->LoadLibraryA },
+        { 0xDE75B0371B7500C0, 0x2A1CF678FC737D0F, runtime->LibraryTracker->LoadLibraryW },
+        { 0x448751B1385751E8, 0x3AE522A4E9435111, runtime->LibraryTracker->LoadLibraryExA },
+        { 0x7539E619D8B4166E, 0xE52EE8B2C2D15D9B, runtime->LibraryTracker->LoadLibraryExW },
+        { 0x80B0A97C97E9FE79, 0x675B0BA55C1758F9, runtime->LibraryTracker->FreeLibrary },
+        { 0x66F288FB8CF6CADD, 0xC48D2119FF3ADC6A, runtime->LibraryTracker->FreeLibraryAndExitThread },
         { 0x18A3895F35B741C8, 0x96C9890F48D55E7E, runtime->MemoryTracker->VirtualAlloc },
         { 0xDB54AA6683574A8B, 0x3137DE2D71D3FF3E, runtime->MemoryTracker->VirtualFree },
         { 0xF5469C21B43D23E5, 0xF80028997F625A05, runtime->MemoryTracker->VirtualProtect },
+        { 0xE9ECDC63F6D3DC53, 0x815C2FDFE640307E, runtime->MemoryTracker->VirtualQuery },
         { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, runtime->ThreadTracker->CreateThread },
         { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, runtime->ThreadTracker->ExitThread },
         { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, runtime->ThreadTracker->SuspendThread },
@@ -468,15 +469,16 @@ static bool initIATHooks(Runtime* runtime)
     {
         { 0x5E5065D4, 0x63CDAD01, &RT_GetProcAddress },
         { 0x705D4FAD, 0x94CF33BF, &RT_SleepHR },
-        { 0x17319CC6, 0x39074882, runtime->LibraryTracker->LoadLibraryA },
-        { 0x6854E21B, 0xE5A72C07, runtime->LibraryTracker->LoadLibraryW },
-        { 0x90509B56, 0x722D720C, runtime->LibraryTracker->LoadLibraryExA },
-        { 0x0F3D82D4, 0xCF884A7E, runtime->LibraryTracker->LoadLibraryExW },
-        { 0xB3C29256, 0x60CBB933, runtime->LibraryTracker->FreeLibrary },
-        { 0x95A74E81, 0x4A567F10, runtime->LibraryTracker->FreeLibraryAndExitThread },
+        { 0x0149E478, 0x86A603D3, runtime->LibraryTracker->LoadLibraryA },
+        { 0x90E21596, 0xEBEA7D19, runtime->LibraryTracker->LoadLibraryW },
+        { 0xD6C482CE, 0xC6063014, runtime->LibraryTracker->LoadLibraryExA },
+        { 0x158D5700, 0x24540418, runtime->LibraryTracker->LoadLibraryExW },
+        { 0x5CDBC79F, 0xA1B99CF2, runtime->LibraryTracker->FreeLibrary },
+        { 0x929869F4, 0x7D668185, runtime->LibraryTracker->FreeLibraryAndExitThread },
         { 0xD5B65767, 0xF3A27766, runtime->MemoryTracker->VirtualAlloc },
         { 0x4F0FC063, 0x182F3CC6, runtime->MemoryTracker->VirtualFree },
         { 0xEBD60441, 0x280A4A9F, runtime->MemoryTracker->VirtualProtect },
+        { 0xD17B0461, 0xFB4E5DB5, runtime->MemoryTracker->VirtualQuery },
         { 0x20744CA1, 0x4FA1647D, runtime->ThreadTracker->CreateThread },
         { 0xED42C0F0, 0xC59EBA39, runtime->ThreadTracker->ExitThread },
         { 0x133B00D5, 0x48E02627, runtime->ThreadTracker->SuspendThread },

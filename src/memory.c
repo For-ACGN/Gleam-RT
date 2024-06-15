@@ -142,6 +142,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->VirtualAlloc   = (VirtualAlloc_t  )(&MT_VirtualAlloc);
     module->VirtualFree    = (VirtualFree_t   )(&MT_VirtualFree);
     module->VirtualProtect = (VirtualProtect_t)(&MT_VirtualProtect);
+    module->VirtualQuery   = (VirtualQuery_t  )(&MT_VirtualQuery);
     // methods for runtime
     module->MemAlloc   = &MT_MemAlloc;
     module->MemRealloc = &MT_MemRealloc;
