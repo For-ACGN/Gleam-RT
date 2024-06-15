@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"reflect"
 	"syscall"
@@ -188,19 +189,27 @@ func testLargeBuffer() {
 	go alloc(500*time.Millisecond, 2*1024*1024, 4*1024*1024)
 }
 
-var webPage = []byte("hello browser!")
+var (
+	webAddr = "127.0.0.1:0"
+	webPage = []byte("hello browser!")
+)
 
 func testHTTPServer() {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	checkError(err)
+	webAddr = listener.Addr().String()
+	fmt.Println("web server:", webAddr)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(webPage)
 	})
+
 	server := http.Server{
-		Addr:    "127.0.0.1:8090",
 		Handler: mux,
 	}
 	go func() {
-		err := server.ListenAndServe()
+		err := server.Serve(listener)
 		checkError(err)
 	}()
 }
@@ -210,7 +219,7 @@ func testHTTPClient() {
 		client := http.Client{}
 		for {
 			func() {
-				resp, err := client.Get("http://127.0.0.1:8090/")
+				resp, err := client.Get(fmt.Sprintf("http://%s/", webAddr))
 				checkError(err)
 				defer func() { _ = resp.Body.Close() }()
 				data, err := io.ReadAll(resp.Body)
