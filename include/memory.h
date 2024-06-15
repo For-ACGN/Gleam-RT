@@ -17,6 +17,7 @@ typedef struct {
     VirtualAlloc_t   VirtualAlloc;
     VirtualFree_t    VirtualFree;
     VirtualProtect_t VirtualProtect;
+    VirtualQuery_t   VirtualQuery;
 
     MemAlloc_t   MemAlloc;
     MemRealloc_t MemRealloc;
