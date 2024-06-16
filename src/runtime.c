@@ -43,13 +43,16 @@ typedef struct {
     FlushInstructionCache_t FlushInstructionCache;
     CreateMutexA_t          CreateMutexA;
     ReleaseMutex_t          ReleaseMutex;
+    CreateEventA_t          CreateEventA;
+    SetEvent_t              SetEvent;
+    ResetEvent_t            ResetEvent;
     WaitForSingleObject_t   WaitForSingleObject;
     DuplicateHandle_t       DuplicateHandle;
     CloseHandle_t           CloseHandle;
     GetProcAddress_t        GetProcAddress;
 
     // IAT hooks about GetProcAddress
-    Hook IAT_Hooks[20];
+    Hook IAT_Hooks[23];
 
     // runtime data
     uint32 PageSize; // memory management
@@ -244,6 +247,9 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0x8172B49F66E495BA, 0x8F0D0796223B56C2 }, // FlushInstructionCache
         { 0x31FE697F93D7510C, 0x77C8F05FE04ED22D }, // CreateMutexA
         { 0xEEFDEA7C0785B561, 0xA7B72CC8CD55C1D4 }, // ReleaseMutex
+        { 0xDDB64F7D0952649B, 0x7F49C6179CD1D05C }, // CreateEventA
+        { 0x4A7C9AD08B398C90, 0x4DA8D0C65ECE8AB5 }, // SetEvent
+        { 0xDCC7DDE90F8EF5E5, 0x779EBCBF154A323E }, // ResetEvent
         { 0xA524CD56CF8DFF7F, 0x5519595458CD47C8 }, // WaitForSingleObject
         { 0xF7A5A49D19409FFC, 0x6F23FAA4C20FF4D3 }, // DuplicateHandle
         { 0xA25F7449D6939A01, 0x85D37F1D89B30D2E }, // CloseHandle
@@ -258,6 +264,9 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0x87A2CEE8, 0x42A3C1AF }, // FlushInstructionCache
         { 0x8F5BAED2, 0x43487DC7 }, // CreateMutexA
         { 0xFA42E55C, 0xEA9F1081 }, // ReleaseMutex
+        { 0x013C9D2B, 0x5A4D045A }, // CreateEventA
+        { 0x1F65B288, 0x8502DDE2 }, // SetEvent
+        { 0xCB15B6B4, 0x6D95B453 }, // ResetEvent
         { 0xC21AB03D, 0xED3AAF22 }, // WaitForSingleObject
         { 0x0E7ED8B9, 0x025067E9 }, // DuplicateHandle
         { 0x60E108B2, 0x3C2DFF52 }, // CloseHandle
@@ -281,10 +290,13 @@ static bool initRuntimeAPI(Runtime* runtime)
     runtime->FlushInstructionCache = (FlushInstructionCache_t)(list[0x04].address);
     runtime->CreateMutexA          = (CreateMutexA_t         )(list[0x05].address);
     runtime->ReleaseMutex          = (ReleaseMutex_t         )(list[0x06].address);
-    runtime->WaitForSingleObject   = (WaitForSingleObject_t  )(list[0x07].address);
-    runtime->DuplicateHandle       = (DuplicateHandle_t      )(list[0x08].address);
-    runtime->CloseHandle           = (CloseHandle_t          )(list[0x09].address);
-    runtime->GetProcAddress        = (GetProcAddress_t       )(list[0x0A].address);
+    runtime->CreateEventA          = (CreateEventA_t         )(list[0x07].address);
+    runtime->SetEvent              = (SetEvent_t             )(list[0x08].address);
+    runtime->ResetEvent            = (ResetEvent_t           )(list[0x09].address);
+    runtime->WaitForSingleObject   = (WaitForSingleObject_t  )(list[0x0A].address);
+    runtime->DuplicateHandle       = (DuplicateHandle_t      )(list[0x0B].address);
+    runtime->CloseHandle           = (CloseHandle_t          )(list[0x0C].address);
+    runtime->GetProcAddress        = (GetProcAddress_t       )(list[0x0D].address);
     return true;
 }
 
@@ -854,6 +866,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     {
         instAddress = runtimeAddr;
     }
+    // TODO check sleep
     if (milliseconds < 1)
     {
         milliseconds = 1;
