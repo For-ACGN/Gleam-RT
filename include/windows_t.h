@@ -150,6 +150,8 @@ typedef struct __declspec(align(16)) {
 
 #define INFINITE      0xFFFFFFFF
 #define WAIT_OBJECT_0 0x00000000
+#define WAIT_TIMEOUT  0x00000102
+#define WAIT_FAILED   0xFFFFFFFF
 
 #define DUPLICATE_SAME_ACCESS 0x00000002
 
