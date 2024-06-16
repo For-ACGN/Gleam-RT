@@ -278,6 +278,21 @@ typedef bool (*ReleaseMutex_t)
     HANDLE hMutex
 );
 
+typedef HANDLE (*CreateEventA_t)
+(
+    uintptr lpEventAttributes, bool bManualReset, bool bInitialState, LPCSTR lpName
+);
+
+typedef bool (*SetEvent_t)
+(
+    HANDLE hEvent
+);
+
+typedef bool (*ResetEvent_t)
+(
+    HANDLE hEvent
+);
+
 typedef uint32 (*WaitForSingleObject_t)
 (
     HANDLE hHandle, uint32 dwMilliseconds
