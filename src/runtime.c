@@ -55,11 +55,12 @@ typedef struct {
     Hook IAT_Hooks[23];
 
     // runtime data
-    uint32 PageSize;   // memory management
-    HANDLE hProcess;   // for simulate Sleep
-    HANDLE Mutex;      // global mutex
-    HANDLE EventSleep; // trigger sleep event
-    HANDLE EventDone;  // finish sleep event
+    uint32 PageSize;    // for memory management
+    HANDLE hProcess;    // for simulate kernel32.Sleep
+    HANDLE Mutex;       // global mutex
+    HANDLE hEventSleep; // trigger sleep event
+    HANDLE hEventDone;  // finish sleep event
+    HANDLE hThread;     // sleep event trigger
 
     // submodules
     LibraryTracker_M*  LibraryTracker;
@@ -117,6 +118,7 @@ static uintptr replaceToHook(Runtime* runtime, uintptr proc);
 static errno sleep(Runtime* runtime, uint32 milliseconds);
 static errno hide(Runtime* runtime);
 static errno recover(Runtime* runtime);
+static void  trigger();
 
 static void eraseRuntimeMethods();
 static void cleanRuntime(Runtime* runtime);
@@ -180,6 +182,15 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     if (errno == NO_ERROR && !flushInstructionCache(runtime))
     {
         errno = ERR_RUNTIME_FLUSH_INST;
+    }
+    // start sleep event trigger
+    if (errno == NO_ERROR)
+    {
+        runtime->hThread = runtime->ThreadTracker->ThdNew(&trigger, NULL, false);
+        if (runtime->hThread == NULL)
+        {
+            errno = ERR_RUNTIME_START_TRIGGER;
+        }
     }
     if (errno != NO_ERROR)
     {
@@ -363,13 +374,13 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     {
         return ERR_RUNTIME_CREATE_EVENT_SLEEP;
     }
-    runtime->EventSleep = hEventSleep;
+    runtime->hEventSleep = hEventSleep;
     HANDLE hEventDone = runtime->CreateEventA(NULL, true, false, NULL);
     if (hEventDone == NULL)
     {
         return ERR_RUNTIME_CREATE_EVENT_DONE;
     }
-    runtime->EventDone = hEventDone;
+    runtime->hEventDone = hEventDone;
     // create context data for initialize other modules
     Context context = {
         .MainMemPage = runtime->MainMemPage,
@@ -571,13 +582,17 @@ static void cleanRuntime(Runtime* runtime)
         {
             closeHandle(runtime->Mutex);
         }
-        if (runtime->EventSleep != NULL)
+        if (runtime->hEventSleep != NULL)
         {
-            closeHandle(runtime->EventSleep);
+            closeHandle(runtime->hEventSleep);
         }
-        if (runtime->EventDone != NULL)
+        if (runtime->hEventDone != NULL)
         {
-            closeHandle(runtime->EventDone);
+            closeHandle(runtime->hEventDone);
+        }
+        if (runtime->hThread != NULL)
+        {
+            closeHandle(runtime->hThread);
         }
     }
     // release main memory page
@@ -1025,6 +1040,24 @@ static errno recover(Runtime* runtime)
         break;
     }
     return errno;
+}
+
+__declspec(noinline)
+static void trigger()
+{
+    Runtime* runtime = getRuntimePointer();
+
+    uint64 maxSleep = RandUint((uint64)runtime);
+
+    for (;;)
+    {
+        // select random maximum sleep event triggrr time.
+        maxSleep = RandUint(maxSleep);
+        uint32 sleepMS = (300 + maxSleep % 300) * 1000;
+        runtime->WaitForSingleObject(runtime->hEventSleep, sleepMS);
+
+
+    }
 }
 
 __declspec(noinline)
