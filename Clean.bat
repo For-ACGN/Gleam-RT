@@ -1,5 +1,5 @@
 del /S /Q ".vs\Gleam-RT\v17\Browse.VC.db"
-rd  /S /Q ".vs\Gleam-RT\v17\ipch\AutoPCH"
+rd  /S /Q ".vs\Gleam-RT\v17\ipch"
 
 rd /S /Q "Debug"
 rd /S /Q "Release"
