@@ -55,9 +55,11 @@ typedef struct {
     Hook IAT_Hooks[23];
 
     // runtime data
-    uint32 PageSize; // memory management
-    HANDLE hProcess; // for simulate Sleep
-    HANDLE Mutex;    // global mutex
+    uint32 PageSize;   // memory management
+    HANDLE hProcess;   // for simulate Sleep
+    HANDLE Mutex;      // global mutex
+    HANDLE EventSleep; // trigger sleep event
+    HANDLE EventDone;  // finish sleep event
 
     // submodules
     LibraryTracker_M*  LibraryTracker;
@@ -355,6 +357,19 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         return ERR_RUNTIME_CREATE_MUTEX;
     }
     runtime->Mutex = hMutex;
+    // create sleep and done events
+    HANDLE hEventSleep = runtime->CreateEventA(NULL, true, false, NULL);
+    if (hEventSleep == NULL)
+    {
+        return ERR_RUNTIME_CREATE_EVENT_SLEEP;
+    }
+    runtime->EventSleep = hEventSleep;
+    HANDLE hEventDone = runtime->CreateEventA(NULL, true, false, NULL);
+    if (hEventDone == NULL)
+    {
+        return ERR_RUNTIME_CREATE_EVENT_DONE;
+    }
+    runtime->EventDone = hEventDone;
     // create context data for initialize other modules
     Context context = {
         .MainMemPage = runtime->MainMemPage,
@@ -401,6 +416,7 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     // clean useless API functions in runtime structure
     RandBuf((byte*)(&runtime->GetSystemInfo), sizeof(uintptr));
     RandBuf((byte*)(&runtime->CreateMutexA),  sizeof(uintptr));
+    RandBuf((byte*)(&runtime->CreateEventA),  sizeof(uintptr));
     return NO_ERROR;
 }
 
@@ -554,6 +570,14 @@ static void cleanRuntime(Runtime* runtime)
         if (runtime->Mutex != NULL)
         {
             closeHandle(runtime->Mutex);
+        }
+        if (runtime->EventSleep != NULL)
+        {
+            closeHandle(runtime->EventSleep);
+        }
+        if (runtime->EventDone != NULL)
+        {
+            closeHandle(runtime->EventDone);
         }
     }
     // release main memory page
@@ -1015,7 +1039,6 @@ errno RT_Exit()
 
     // must record options before clean runtime
     bool notEraseInst = runtime->NotEraseInst;
-    _mm_mfence();
 
     // clean runtime modules
     errno errno = NO_ERROR;
