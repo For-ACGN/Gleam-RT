@@ -55,11 +55,16 @@ bool   TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext);
 bool   TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext);
 bool   TT_SwitchToThread();
 bool   TT_TerminateThread(HANDLE hThread, uint32 dwExitCode);
-HANDLE TT_ThdNew(uintptr address, void* parameter);
+HANDLE TT_ThdNew(uintptr address, void* parameter, bool track);
 void   TT_ThdExit();
 errno  TT_Suspend();
 errno  TT_Resume();
 errno  TT_Clean();
+
+HANDLE tt_createThread(
+    uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
+    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId, bool track
+);
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
@@ -314,58 +319,16 @@ HANDLE TT_CreateThread(
     uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
 )
 {
-    ThreadTracker* tracker = getTrackerPointer();
-
-    if (!tt_lock(tracker))
-    {
-        return NULL;
-    }
-
-    uint32 threadID;
-    HANDLE hThread;
-
-    bool success = true;
-    for (;;)
-    {
-        hThread = tracker->CreateThread(
-            lpThreadAttributes, dwStackSize, lpStartAddress,
-            lpParameter, dwCreationFlags, &threadID
-        );
-        if (hThread == NULL)
-        {
-            success = false;
-            break;
-        }
-        if (!addThread(tracker, threadID, hThread))
-        {
-            success = false;
-            break;
-        }
-        printf("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
-        break;
-    }
-    _mm_mfence();
-
-    if (!tt_unlock(tracker))
-    {
-        return NULL;
-    }
-
-    if (!success)
-    {
-        return NULL;
-    }
-    if (lpThreadId != NULL)
-    {
-        *lpThreadId = threadID;
-    }
-    return hThread;
+    return tt_createThread(
+        lpThreadAttributes, dwStackSize, lpStartAddress,
+        lpParameter, dwCreationFlags, lpThreadId, true
+    );
 }
 
 __declspec(noinline)
-HANDLE TT_CreateThread_fake(
+HANDLE tt_createThread(
     uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
-    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
+    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId, bool track
 )
 {
     ThreadTracker* tracker = getTrackerPointer();
@@ -454,7 +417,7 @@ HANDLE TT_CreateThread_fake(
             success = false;
             break;
         }
-        if (!addThread(tracker, threadID, hThread))
+        if (track && !addThread(tracker, threadID, hThread))
         {
             tracker->TerminateThread(hThread, 0);
             success = false;
@@ -766,9 +729,9 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
 }
 
 __declspec(noinline)
-HANDLE TT_ThdNew(uintptr address, void* parameter)
+HANDLE TT_ThdNew(uintptr address, void* parameter, bool track)
 {
-    return TT_CreateThread(0, 0, address, (uintptr)parameter, 0, NULL);
+    return tt_createThread(NULL, 0, address, (uintptr)parameter, 0, NULL, track);
 }
 
 __declspec(noinline)
