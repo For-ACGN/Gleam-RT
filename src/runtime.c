@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <intrin.h>
+
 #include "c_types.h"
 #include "windows_t.h"
 #include "lib_memory.h"
@@ -18,6 +18,9 @@
 #include "epilogue.h"
 
 #define MAIN_MEM_PAGE_SIZE 8192
+
+#define EVENT_TYPE_SLEEP 0x01
+#define EVENT_TYPE_STOP  0x02
 
 // for IAT hooks
 typedef struct {
@@ -55,12 +58,16 @@ typedef struct {
     Hook IAT_Hooks[23];
 
     // runtime data
-    uint32 PageSize;    // for memory management
-    HANDLE hProcess;    // for simulate kernel32.Sleep
-    HANDLE Mutex;       // global mutex
+    uint32 PageSize; // for memory management
+    HANDLE hProcess; // for simulate kernel32.Sleep
+    HANDLE Mutex;    // global mutex
+
+    // sleep event trigger
     HANDLE hEventSleep; // trigger sleep event
     HANDLE hEventDone;  // finish sleep event
-    HANDLE hThread;     // sleep event trigger
+    uint32 EventType;   // store event type
+    HANDLE hMutexEvent; // event type mutex
+    HANDLE hThread;     // trigger thread
 
     // submodules
     LibraryTracker_M*  LibraryTracker;
@@ -358,14 +365,14 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         CURRENT_PROCESS, CURRENT_PROCESS, CURRENT_PROCESS, &dupHandle,
         0, false, DUPLICATE_SAME_ACCESS
     )){
-        return ERR_RUNTIME_DUP_HANDLE;
+        return ERR_RUNTIME_DUP_PROCESS_HANDLE;
     }
     runtime->hProcess = dupHandle;
     // create global mutex
     HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
     if (hMutex == NULL)
     {
-        return ERR_RUNTIME_CREATE_MUTEX;
+        return ERR_RUNTIME_CREATE_GLOBAL_MUTEX;
     }
     runtime->Mutex = hMutex;
     // create sleep and done events
@@ -381,6 +388,13 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         return ERR_RUNTIME_CREATE_EVENT_DONE;
     }
     runtime->hEventDone = hEventDone;
+    // create event type mutex
+    HANDLE hMutexEvent = runtime->CreateMutexA(NULL, false, NULL);
+    if (hMutexEvent == NULL)
+    {
+        return ERR_RUNTIME_CREATE_EVENT_MUTEX;
+    }
+    runtime->hMutexEvent = hMutexEvent;
     // create context data for initialize other modules
     Context context = {
         .MainMemPage = runtime->MainMemPage,
@@ -590,6 +604,10 @@ static void cleanRuntime(Runtime* runtime)
         {
             closeHandle(runtime->hEventDone);
         }
+        if (runtime->hMutexEvent != NULL)
+        {
+            closeHandle(runtime->hMutexEvent);
+        }
         if (runtime->hThread != NULL)
         {
             closeHandle(runtime->hThread);
@@ -712,7 +730,6 @@ void RT_Sleep(uint32 milliseconds)
     // copy resource before unlock
     WaitForSingleObject_t wait = runtime->WaitForSingleObject;
     HANDLE hProcess = runtime->hProcess;
-    _mm_mfence();
 
     if (!rt_unlock(runtime))
     {
@@ -886,7 +903,6 @@ errno RT_SleepHR(uint32 milliseconds)
         }
         break;
     }
-    _mm_mfence();
 
     if (!rt_unlock(runtime))
     {
@@ -927,7 +943,6 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     byte* buf = (byte*)(runtime->MainMemPage);
-    _mm_mfence();
     // encrypt main page
     // EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
     // // call shield!!!
@@ -951,7 +966,6 @@ errno RT_Hide()
     }
 
     errno errno = hide(runtime);
-    _mm_mfence();
 
     if (!rt_unlock(runtime))
     {
@@ -1002,7 +1016,6 @@ errno RT_Recover()
     }
 
     errno errno = recover(runtime);
-    _mm_mfence();
 
     if (!rt_unlock(runtime))
     {
