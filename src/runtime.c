@@ -63,10 +63,11 @@ typedef struct {
     HANDLE Mutex;    // global mutex
 
     // sleep event trigger
-    HANDLE hEventSleep; // trigger sleep event
-    HANDLE hEventDone;  // finish sleep event
+    HANDLE hEventCome; // trigger events
+    HANDLE hEventDone;  // finish event
     uint32 EventType;   // store event type
-    HANDLE hMutexEvent; // event type mutex
+    uint32 SleepTime;   // store sleep argument
+    HANDLE hMutexEvent; // event data mutex
     HANDLE hThread;     // trigger thread
 
     // submodules
@@ -375,13 +376,13 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         return ERR_RUNTIME_CREATE_GLOBAL_MUTEX;
     }
     runtime->Mutex = hMutex;
-    // create sleep and done events
-    HANDLE hEventSleep = runtime->CreateEventA(NULL, true, false, NULL);
-    if (hEventSleep == NULL)
+    // create come and done events
+    HANDLE hEventCome = runtime->CreateEventA(NULL, true, false, NULL);
+    if (hEventCome == NULL)
     {
-        return ERR_RUNTIME_CREATE_EVENT_SLEEP;
+        return ERR_RUNTIME_CREATE_EVENT_COME;
     }
-    runtime->hEventSleep = hEventSleep;
+    runtime->hEventCome = hEventCome;
     HANDLE hEventDone = runtime->CreateEventA(NULL, true, false, NULL);
     if (hEventDone == NULL)
     {
@@ -596,9 +597,9 @@ static void cleanRuntime(Runtime* runtime)
         {
             closeHandle(runtime->Mutex);
         }
-        if (runtime->hEventSleep != NULL)
+        if (runtime->hEventCome != NULL)
         {
-            closeHandle(runtime->hEventSleep);
+            closeHandle(runtime->hEventCome);
         }
         if (runtime->hEventDone != NULL)
         {
@@ -874,6 +875,106 @@ static uintptr replaceToHook(Runtime* runtime, uintptr proc)
 }
 
 __declspec(noinline)
+errno RT_Hide()
+{
+    Runtime* runtime = getRuntimePointer();
+
+    if (!rt_lock(runtime))
+    {
+        return ERR_RUNTIME_LOCK;
+    }
+
+    errno errno = hide(runtime);
+
+    if (!rt_unlock(runtime))
+    {
+        return ERR_RUNTIME_UNLOCK;
+    }
+    return errno;
+}
+
+__declspec(noinline)
+static errno hide(Runtime* runtime)
+{
+    errno errno = NO_ERROR;
+    for (;;)
+    {
+        errno = runtime->ThreadTracker->ThdSuspend();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->MemoryTracker->MemEncrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->ResourceTracker->ResEncrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->LibraryTracker->LibEncrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        break;
+    }
+    return errno;
+}
+
+__declspec(noinline)
+errno RT_Recover()
+{
+    Runtime* runtime = getRuntimePointer();
+
+    if (!rt_lock(runtime))
+    {
+        return ERR_RUNTIME_LOCK;
+    }
+
+    errno errno = recover(runtime);
+
+    if (!rt_unlock(runtime))
+    {
+        return ERR_RUNTIME_UNLOCK;
+    }
+    return errno;
+}
+
+__declspec(noinline)
+static errno recover(Runtime* runtime)
+{
+    errno errno = NO_ERROR;
+    for (;;)
+    {
+        errno = runtime->LibraryTracker->LibDecrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->ResourceTracker->ResDecrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->MemoryTracker->MemDecrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->ThreadTracker->ThdResume();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        break;
+    }
+    return errno;
+}
+
+__declspec(noinline)
 errno RT_SleepHR(uint32 milliseconds)
 {
     Runtime* runtime = getRuntimePointer();
@@ -883,6 +984,50 @@ errno RT_SleepHR(uint32 milliseconds)
         return ERR_RUNTIME_LOCK;
     }
 
+    errno errno = NO_ERROR;
+
+
+
+
+
+    if (!rt_unlock(runtime))
+    {
+        return ERR_RUNTIME_LOCK;
+    }
+    return errno;
+}
+
+__declspec(noinline)
+static void trigger()
+{
+    Runtime* runtime = getRuntimePointer();
+
+    uint64 maxSleep  = RandUint((uint64)runtime);
+    uint32 waitEvent = WAIT_OBJECT_0;
+    for (;;)
+    {
+        // select random maximum sleep event trigger time.
+        maxSleep = RandUint(maxSleep);
+        uint32 sleepMS = (300 + maxSleep % 300) * 1000;
+        waitEvent = runtime->WaitForSingleObject(runtime->hEventCome, sleepMS);
+        switch (waitEvent)
+        {
+        case WAIT_OBJECT_0:
+
+        case WAIT_TIMEOUT:
+
+        default:
+            return;
+        }
+
+
+
+    }
+}
+
+__declspec(noinline)
+static errno sleepHR(Runtime* runtime, uint32 milliseconds)
+{
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -902,11 +1047,6 @@ errno RT_SleepHR(uint32 milliseconds)
             break;
         }
         break;
-    }
-
-    if (!rt_unlock(runtime))
-    {
-        return ERR_RUNTIME_LOCK;
     }
     return errno;
 }
@@ -944,133 +1084,15 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     RandBuf(iv, CRYPTO_IV_SIZE);
     byte* buf = (byte*)(runtime->MainMemPage);
     // encrypt main page
-    // EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
-    // // call shield!!!
-    // if (!DefenseRT(&ctx))
-    // {
-    //     return ERR_RUNTIME_DEFENSE_RT;
-    // }
-    // // decrypt main page
-    // DecryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
+    EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
+    // call shield!!!
+    if (!DefenseRT(&ctx))
+    {
+        return ERR_RUNTIME_DEFENSE_RT;
+    }
+    // decrypt main page
+    DecryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
     return NO_ERROR;
-}
-
-__declspec(noinline)
-errno RT_Hide()
-{
-    Runtime* runtime = getRuntimePointer();
-
-    if (!rt_lock(runtime))
-    {
-        return ERR_RUNTIME_LOCK;
-    }
-
-    errno errno = hide(runtime);
-
-    if (!rt_unlock(runtime))
-    {
-        return ERR_RUNTIME_UNLOCK;
-    }
-    return errno;
-}
-
-__declspec(noinline)
-static errno hide(Runtime* runtime)
-{
-    errno errno = NO_ERROR;
-    for (;;)
-    {
-        // errno = runtime->ThreadTracker->ThdSuspend();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
-        // errno = runtime->MemoryTracker->MemEncrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
-        // errno = runtime->ResourceTracker->ResEncrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
-        // errno = runtime->LibraryTracker->LibEncrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
-        break;
-    }
-    return errno;
-}
-
-__declspec(noinline)
-errno RT_Recover()
-{
-    Runtime* runtime = getRuntimePointer();
-
-    if (!rt_lock(runtime))
-    {
-        return ERR_RUNTIME_LOCK;
-    }
-
-    errno errno = recover(runtime);
-
-    if (!rt_unlock(runtime))
-    {
-        return ERR_RUNTIME_UNLOCK;
-    }
-    return errno;
-}
-
-__declspec(noinline)
-static errno recover(Runtime* runtime)
-{
-    errno errno = NO_ERROR;
-    for (;;)
-    {
-        // errno = runtime->LibraryTracker->LibDecrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
-        // errno = runtime->ResourceTracker->ResDecrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
-        // errno = runtime->MemoryTracker->MemDecrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
-        // errno = runtime->ThreadTracker->ThdResume();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
-        break;
-    }
-    return errno;
-}
-
-__declspec(noinline)
-static void trigger()
-{
-    Runtime* runtime = getRuntimePointer();
-
-    uint64 maxSleep = RandUint((uint64)runtime);
-
-    for (;;)
-    {
-        // select random maximum sleep event triggrr time.
-        maxSleep = RandUint(maxSleep);
-        uint32 sleepMS = (300 + maxSleep % 300) * 1000;
-        runtime->WaitForSingleObject(runtime->hEventSleep, sleepMS);
-
-
-    }
 }
 
 __declspec(noinline)
