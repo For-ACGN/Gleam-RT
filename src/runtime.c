@@ -67,6 +67,7 @@ typedef struct {
     HANDLE hEventDone;  // finish event
     uint32 EventType;   // store event type
     uint32 SleepTime;   // store sleep argument
+    errno  ReturnErrno; // store error number
     HANDLE hMutexEvent; // event data mutex
     HANDLE hThread;     // trigger thread
 
@@ -147,7 +148,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     printf("main page: 0x%llX\n", address);
     // set structure address
     uintptr runtimeAddr = address + 100 + RandUint(address) % 128;
-    uintptr moduleAddr  = address + 700 + RandUint(address) % 128;
+    uintptr moduleAddr  = address + 900 + RandUint(address) % 128;
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     mem_clean(runtime, sizeof(Runtime));
@@ -982,29 +983,64 @@ errno RT_SleepHR(uint32 milliseconds)
 {
     Runtime* runtime = getRuntimePointer();
 
+    // TODO adjust it
+    if (milliseconds < 1000)
+    {
+        milliseconds = 1000;
+    }
+
     if (!rt_lock(runtime))
     {
         return ERR_RUNTIME_LOCK;
     }
 
-    // TODO adjust it
-    if (milliseconds < 1)
-    {
-        milliseconds = 1;
-    }
-
     errno errno = NO_ERROR;
-
-
-
-
-    if (!runtime->SetEvent(runtime->hEventCome))
+    for (;;)
     {
-        return;
+        // set sleep arguments
+        if (runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE) != WAIT_OBJECT_0)
+        {
+            errno = ERR_RUNTIME_LOCK_EVENT;
+            break;
+        }
+        runtime->EventType = EVENT_TYPE_SLEEP;
+        runtime->SleepTime = milliseconds;
+        if (!runtime->ReleaseMutex(runtime->hMutexEvent))
+        {
+            errno = ERR_RUNTIME_UNLOCK_EVENT;
+            break;
+        }
+        // notice trigger
+        if (!runtime->SetEvent(runtime->hEventCome))
+        {
+            errno = ERR_RUNTIME_NOTICE_TRIGGER;
+            break;
+        }
+        // wait trigger process event
+        if (runtime->WaitForSingleObject(runtime->hEventDone, INFINITE) != WAIT_OBJECT_0)
+        {
+            errno = ERR_RUNTIME_WAIT_TRIGGER;
+            break;
+        }
+        // receive return errno
+        if (runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE) != WAIT_OBJECT_0)
+        {
+            errno = ERR_RUNTIME_LOCK_EVENT;
+            break;
+        }
+        errno = runtime->ReturnErrno;
+        if (!runtime->ReleaseMutex(runtime->hMutexEvent))
+        {
+            errno = ERR_RUNTIME_UNLOCK_EVENT;
+            break;
+        }
+        if (!runtime->ResetEvent(runtime->hEventDone))
+        {
+            errno = ERR_RUNTIME_RESET_EVENT;
+            break;
+        }
+        break;
     }
-
-
-
 
     if (!rt_unlock(runtime))
     {
@@ -1042,16 +1078,27 @@ static void trigger()
         default:
             return;
         }
-        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        // store return error
+        waitEvent = runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE);
+        if (waitEvent != WAIT_OBJECT_0)
         {
             return;
         }
-        if (!runtime->ResetEvent(runtime->hEventCome))
+        runtime->ReturnErrno = errno;
+        if (!runtime->ReleaseMutex(runtime->hMutexEvent))
         {
             return;
         }
         // notice caller
+        if (!runtime->ResetEvent(runtime->hEventCome))
+        {
+            return;
+        }
         if (!runtime->SetEvent(runtime->hEventDone))
+        {
+            return;
+        }
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             return;
         }
@@ -1066,14 +1113,14 @@ static errno processEvent(Runtime* runtime, bool* exit)
     if (waitEvent != WAIT_OBJECT_0)
     {
         *exit = true;
-        return NO_ERROR;
+        return ERR_RUNTIME_LOCK_EVENT;
     }
     uint32 eventType = runtime->EventType;
     uint32 sleepTime = runtime->SleepTime;
     if (!runtime->ReleaseMutex(runtime->hMutexEvent))
     {
         *exit = true;
-        return NO_ERROR;
+        return ERR_RUNTIME_UNLOCK_EVENT;
     }
     switch (eventType)
     {
