@@ -123,10 +123,13 @@ static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName);
 static uintptr getResTrackerHook(Runtime* runtime, uintptr proc);
 static uintptr replaceToHook(Runtime* runtime, uintptr proc);
 
-static errno sleep(Runtime* runtime, uint32 milliseconds);
 static errno hide(Runtime* runtime);
 static errno recover(Runtime* runtime);
+
 static void  trigger();
+static errno processEvent(Runtime* runtime, bool* exit);
+static errno sleepHR(Runtime* runtime, uint32 milliseconds);
+static errno sleep(Runtime* runtime, uint32 milliseconds);
 
 static void eraseRuntimeMethods();
 static void cleanRuntime(Runtime* runtime);
@@ -222,9 +225,9 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->GetProcAddressByHash   = &RT_GetProcAddressByHash;
     module->GetProcAddressOriginal = &RT_GetProcAddressOriginal;
     // runtime core methods
-    module->SleepHR = &RT_SleepHR;
     module->Hide    = &RT_Hide;
     module->Recover = &RT_Recover;
+    module->SleepHR = &RT_SleepHR;
     module->Exit    = &RT_Exit;
     return module;
 }
@@ -984,8 +987,21 @@ errno RT_SleepHR(uint32 milliseconds)
         return ERR_RUNTIME_LOCK;
     }
 
+    // TODO adjust it
+    if (milliseconds < 1)
+    {
+        milliseconds = 1;
+    }
+
     errno errno = NO_ERROR;
 
+
+
+
+    if (!runtime->SetEvent(runtime->hEventCome))
+    {
+        return;
+    }
 
 
 
@@ -1004,24 +1020,70 @@ static void trigger()
 
     uint64 maxSleep  = RandUint((uint64)runtime);
     uint32 waitEvent = WAIT_OBJECT_0;
+
+    bool  exit  = false;
+    errno errno = NO_ERROR;
     for (;;)
     {
-        // select random maximum sleep event trigger time.
+        // select random maximum event trigger time.
         maxSleep = RandUint(maxSleep);
         uint32 sleepMS = (300 + maxSleep % 300) * 1000;
         waitEvent = runtime->WaitForSingleObject(runtime->hEventCome, sleepMS);
         switch (waitEvent)
         {
         case WAIT_OBJECT_0:
-
-        case WAIT_TIMEOUT:
-
+            errno = processEvent(runtime, &exit);
+            if (exit)
+            {
+                return;
+            }
+        case WAIT_TIMEOUT: // force trigger sleep
+            errno = sleepHR(runtime, 1000);
         default:
             return;
         }
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            return;
+        }
+        if (!runtime->ResetEvent(runtime->hEventCome))
+        {
+            return;
+        }
+        // notice caller
+        if (!runtime->SetEvent(runtime->hEventDone))
+        {
+            return;
+        }
+    }
+}
 
-
-
+static errno processEvent(Runtime* runtime, bool* exit)
+{
+    // get event type and arguments
+    uint32 waitEvent = WAIT_OBJECT_0;
+    waitEvent = runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE);
+    if (waitEvent != WAIT_OBJECT_0)
+    {
+        *exit = true;
+        return NO_ERROR;
+    }
+    uint32 eventType = runtime->EventType;
+    uint32 sleepTime = runtime->SleepTime;
+    if (!runtime->ReleaseMutex(runtime->hMutexEvent))
+    {
+        *exit = true;
+        return NO_ERROR;
+    }
+    switch (eventType)
+    {
+    case EVENT_TYPE_SLEEP:
+        return sleepHR(runtime, sleepTime);
+    case EVENT_TYPE_STOP:
+        *exit = true;
+        return NO_ERROR;
+    default:
+        panic(PANIC_UNREACHABLE_CODE);
     }
 }
 
@@ -1061,11 +1123,6 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     {
         instAddress = runtimeAddr;
     }
-    // TODO check sleep
-    if (milliseconds < 1)
-    {
-        milliseconds = 1;
-    }
     Shield_Ctx ctx = {
         .InstAddress  = instAddress,
         .milliseconds = milliseconds,
@@ -1075,7 +1132,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         .FlushInstructionCache = runtime->FlushInstructionCache,
     };
 
-    bool success = ctx.WaitForSingleObject(ctx.hProcess, ctx.milliseconds);
+    // bool success = ctx.WaitForSingleObject(ctx.hProcess, ctx.milliseconds);
 
     // build crypto context
     byte key[CRYPTO_KEY_SIZE];
