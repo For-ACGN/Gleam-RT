@@ -10,7 +10,7 @@
 typedef void*  (*MemAlloc_t)(uint size);
 typedef void*  (*MemRealloc_t)(void* address, uint size);
 typedef bool   (*MemFree_t)(void* address);
-typedef HANDLE (*ThdNew_t)(uintptr address, void* parameter);
+typedef HANDLE (*ThdNew_t)(uintptr address, void* parameter, bool track);
 typedef void   (*ThdExit_t)();
 typedef void   (*Sleep_t)(uint32 milliseconds);
 
@@ -29,9 +29,9 @@ typedef uintptr (*GetProcAddressOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
 // are used to test and research, if use them, runtime will loss
 // the shield protect and structure data encrypt.
 typedef errno (*SleepHR_t)(uint32 milliseconds);
+typedef errno (*Exit_t)();
 typedef errno (*Hide_t)();
 typedef errno (*Recover_t)();
-typedef errno (*Exit_t)();
 
 typedef struct {
     // protect instructions like shellcode before runtime
@@ -63,9 +63,9 @@ typedef struct {
     GetProcAddressOriginal_t GetProcAddressOriginal;
     
     SleepHR_t SleepHR;
+    Exit_t    Exit;
     Hide_t    Hide;
     Recover_t Recover;
-    Exit_t    Exit;
 } Runtime_M;
 
 // InitRuntime is used to initialize runtime and return module methods.
