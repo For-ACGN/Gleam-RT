@@ -738,8 +738,9 @@ errno TT_Suspend()
     errno errno   = NO_ERROR;
 
     // suspend threads
+    uint len   = threads->Len;
     uint index = 0;
-    for (uint num = 0; num < threads->Len; index++)
+    for (uint num = 0; num < len; index++)
     {
         thread* thread = List_Get(threads, index);
         if (thread->threadID == 0)
@@ -755,6 +756,7 @@ errno TT_Suspend()
         uint32 count = tracker->SuspendThread(thread->hThread);
         if (count == -1)
         {
+            delThread(tracker, thread->threadID);
             errno = ERR_THREAD_SUSPEND;
         }
         num++;
@@ -791,8 +793,9 @@ errno TT_Resume()
     errno errno   = NO_ERROR;
 
     // resume threads
+    uint len   = threads->Len;
     uint index = 0;
-    for (uint num = 0; num < threads->Len; index++)
+    for (uint num = 0; num < len; index++)
     {
         thread* thread = List_Get(threads, index);
         if (thread->threadID == 0)
@@ -808,6 +811,7 @@ errno TT_Resume()
         uint32 count = tracker->ResumeThread(thread->hThread);
         if (count == -1)
         {
+            delThread(tracker, thread->threadID);
             errno = ERR_THREAD_RESUME;
         }
         // resume loop until count is zero
@@ -816,6 +820,7 @@ errno TT_Resume()
         //     uint32 count = tracker->ResumeThread(thread->hThread);
         //     if (count == -1)
         //     {
+        //         delThread(tracker, thread->threadID);
         //         errno = ERR_THREAD_RESUME;
         //         break;
         //     }
