@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <intrin.h>
+
 #include "c_types.h"
 #include "windows_t.h"
 #include "lib_memory.h"
@@ -540,14 +540,12 @@ void TT_ExitThread(uint32 dwExitCode)
     {
         return;
     }
-    _mm_mfence();
 
     uint32 threadID = tracker->GetCurrentThreadID();
     if (threadID != 0)
     {
         delThread(tracker, threadID);
     }
-    _mm_mfence();
 
     printf("ExitThread: %lu\n", threadID);
 
@@ -555,7 +553,6 @@ void TT_ExitThread(uint32 dwExitCode)
     {
         return;
     }
-    _mm_mfence();
     tracker->ExitThread(dwExitCode);
 }
 
@@ -586,7 +583,6 @@ uint32 TT_SuspendThread(HANDLE hThread)
     {
         return -1;
     }
-    _mm_mfence();
 
     uint32 count;
     uint32 threadID = tracker->GetThreadID(hThread);
@@ -598,15 +594,12 @@ uint32 TT_SuspendThread(HANDLE hThread)
             return -1;
         }
         count = tracker->SuspendThread(hThread);
-        _mm_mfence();
     } else {
         count = tracker->SuspendThread(hThread);
-        _mm_mfence();
         if (!tt_unlock(tracker))
         {
             return -1;
         }
-        _mm_mfence();
     }
     return count;
 }
@@ -620,17 +613,14 @@ uint32 TT_ResumeThread(HANDLE hThread)
     {
         return -1;
     }
-    _mm_mfence();
 
     uint32 count = tracker->ResumeThread(hThread);
-    _mm_mfence();
     // printf("ResumeThread: %llu\n", hThread);
 
     if (!tt_unlock(tracker))
     {
         return -1;
     }
-    _mm_mfence();
     return count;
 }
 
@@ -643,17 +633,14 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
     {
         return false;
     }
-    _mm_mfence();
 
     bool success = tracker->GetThreadContext(hThread, lpContext);
-    _mm_mfence();
     // printf("GetThreadContext: %llu\n", hThread);
 
     if (!tt_unlock(tracker))
     {
         return false;
     }
-    _mm_mfence();
     return success;
 }
 
@@ -666,10 +653,8 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
     {
         return false;
     }
-    _mm_mfence();
 
     bool success = tracker->SetThreadContext(hThread, lpContext);
-    _mm_mfence();
 
     // printf("SetThreadContext: %llu\n", hThread);
 
@@ -677,7 +662,6 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
     {
         return false;
     }
-    _mm_mfence();
     return success;
 }
 
@@ -717,7 +701,6 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
     {
         delThread(tracker, threadID);
     }
-    _mm_mfence();
 
     printf("TerminateThread: %lu\n", threadID);
 
@@ -750,15 +733,12 @@ errno TT_Suspend()
     {
         return ERR_THREAD_GET_CURRENT_TID;
     }
-    _mm_mfence();
 
     List* threads = &tracker->Threads;
     errno errno   = NO_ERROR;
 
     // suspend threads
     uint index = 0;
-    // record len
-
     for (uint num = 0; num < threads->Len; index++)
     {
         thread* thread = List_Get(threads, index);
@@ -775,12 +755,10 @@ errno TT_Suspend()
         uint32 count = tracker->SuspendThread(thread->hThread);
         if (count == -1)
         {
-            delThread(tracker, thread->threadID);
             errno = ERR_THREAD_SUSPEND;
         }
         num++;
     }
-    _mm_mfence();
 
     // encrypt thread list
     List* list = &tracker->Threads;
@@ -789,7 +767,6 @@ errno TT_Suspend()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
-    _mm_mfence();
     return errno;
 }
 
@@ -803,14 +780,12 @@ errno TT_Resume()
     {
         return ERR_THREAD_GET_CURRENT_TID;
     }
-    _mm_mfence();
 
     // decrypt thread list
     List* list = &tracker->Threads;
     byte* key  = &tracker->ThreadsKey[0];
     byte* iv   = &tracker->ThreadsIV[0];
     DecryptBuf(list->Data, List_Size(list), key, iv);
-    _mm_mfence();
 
     List* threads = &tracker->Threads;
     errno errno   = NO_ERROR;
@@ -836,7 +811,6 @@ errno TT_Resume()
             uint32 count = tracker->ResumeThread(thread->hThread);
             if (count == -1)
             {
-                delThread(tracker, thread->threadID);
                 errno = ERR_THREAD_RESUME;
                 break;
             }
@@ -847,7 +821,6 @@ errno TT_Resume()
         }
         num++;
     }
-    _mm_mfence();
     return errno;
 }
 
