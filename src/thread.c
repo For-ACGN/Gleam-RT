@@ -423,8 +423,8 @@ HANDLE tt_createThread(
             success = false;
             break;
         }
-        printf("fake start: %llX\n", fakeAddr);
-        printf("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
+        printf_s("fake start: %llX\n", fakeAddr);
+        printf_s("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
         break;
     }
 
@@ -547,7 +547,7 @@ void TT_ExitThread(uint32 dwExitCode)
         delThread(tracker, threadID);
     }
 
-    printf("ExitThread: %lu\n", threadID);
+    printf_s("ExitThread: %lu\n", threadID);
 
     if (!tt_unlock(tracker))
     {
@@ -702,7 +702,7 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
         delThread(tracker, threadID);
     }
 
-    printf("TerminateThread: %lu\n", threadID);
+    printf_s("TerminateThread: %lu\n", threadID);
 
     if (!tt_unlock(tracker))
     {

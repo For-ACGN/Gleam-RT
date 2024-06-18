@@ -1136,9 +1136,6 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         .FlushInstructionCache = runtime->FlushInstructionCache,
     };
 
-    bool success = ctx.WaitForSingleObject(ctx.hProcess, ctx.milliseconds);
-    return NO_ERROR;
-
     // build crypto context
     byte key[CRYPTO_KEY_SIZE];
     byte iv [CRYPTO_IV_SIZE];
