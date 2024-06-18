@@ -63,6 +63,7 @@ typedef struct {
     HANDLE Mutex;    // global mutex
 
     // sleep event trigger
+    HANDLE hMutexSleep; // sleep method mutex
     HANDLE hEventCome;  // trigger events
     HANDLE hEventDone;  // finish event
     uint32 EventType;   // store event type
@@ -379,6 +380,13 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         return ERR_RUNTIME_CREATE_GLOBAL_MUTEX;
     }
     runtime->Mutex = hMutex;
+    // create sleep method mutex
+    HANDLE hMutexSleep = runtime->CreateMutexA(NULL, false, NULL);
+    if (hMutexSleep == NULL)
+    {
+        return ERR_RUNTIME_CREATE_SLEEP_MUTEX;
+    }
+    runtime->hMutexSleep = hMutexSleep;
     // create come and done events
     HANDLE hEventCome = runtime->CreateEventA(NULL, true, false, NULL);
     if (hEventCome == NULL)
@@ -882,7 +890,10 @@ errno RT_SleepHR(uint32 milliseconds)
 {
     Runtime* runtime = getRuntimePointer();
 
-
+    if (runtime->WaitForSingleObject(runtime->hMutexSleep, INFINITE) != WAIT_OBJECT_0)
+    {
+        return ERR_RUNTIME_LOCK;
+    }
 
     // TODO adjust it
     if (milliseconds < 10)
@@ -894,8 +905,6 @@ errno RT_SleepHR(uint32 milliseconds)
     errno errno = NO_ERROR;
     for (;;)
     {
-        break;
-
         // set sleep arguments
         if (runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE) != WAIT_OBJECT_0)
         {
@@ -942,6 +951,10 @@ errno RT_SleepHR(uint32 milliseconds)
         break;
     }
 
+    if (!runtime->ReleaseMutex(runtime->hMutexSleep))
+    {
+        return ERR_RUNTIME_UNLOCK;
+    }
     return errno;
 }
 
@@ -1034,6 +1047,7 @@ static errno processEvent(Runtime* runtime, bool* exit)
     default:
         panic(PANIC_UNREACHABLE_CODE);
     }
+    return NO_ERROR;
 }
 
 __declspec(noinline)
