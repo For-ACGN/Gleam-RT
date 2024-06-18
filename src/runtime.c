@@ -1222,15 +1222,32 @@ errno RT_Exit()
         return ERR_RUNTIME_LOCK;
     }
 
+    errno exit_err = NO_ERROR;
+
     // must record options before clean runtime
     bool notEraseInst = runtime->NotEraseInst;
 
     // clean runtime modules
-    errno errno = NO_ERROR;
-    errno = runtime->ThreadTracker->ThdClean();
+    errno errno = runtime->ThreadTracker->ThdClean();
+    if (errno != NO_ERROR && exit_err == NO_ERROR)
+    {
+        exit_err = errno;
+    }
     errno = runtime->ResourceTracker->ResClean();
+    if (errno != NO_ERROR && exit_err == NO_ERROR)
+    {
+        exit_err = errno;
+    }
     errno = runtime->MemoryTracker->MemClean();
+    if (errno != NO_ERROR && exit_err == NO_ERROR)
+    {
+        exit_err = errno;
+    }
     errno = runtime->LibraryTracker->LibClean();
+    if (errno != NO_ERROR && exit_err == NO_ERROR)
+    {
+        exit_err = errno;
+    }
     cleanRuntime(runtime);
 
     // erase runtime instructions except this function
@@ -1245,7 +1262,7 @@ errno RT_Exit()
         size  = end - begin;
         eraseMemory(begin, size);
     }
-    return errno;
+    return exit_err;
 }
 
 // must disable compiler optimize, otherwise eraseMemory()
