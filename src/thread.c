@@ -805,20 +805,25 @@ errno TT_Resume()
             num++;
             continue;
         }
-        // resume loop until count is zero
-        for (;;)
+        uint32 count = tracker->ResumeThread(thread->hThread);
+        if (count == -1)
         {
-            uint32 count = tracker->ResumeThread(thread->hThread);
-            if (count == -1)
-            {
-                errno = ERR_THREAD_RESUME;
-                break;
-            }
-            if (count <= 1)
-            {
-                break;
-            }
+            errno = ERR_THREAD_RESUME;
         }
+        // resume loop until count is zero
+        // for (;;)
+        // {
+        //     uint32 count = tracker->ResumeThread(thread->hThread);
+        //     if (count == -1)
+        //     {
+        //         errno = ERR_THREAD_RESUME;
+        //         break;
+        //     }
+        //     if (count <= 1)
+        //     {
+        //         break;
+        //     }
+        // }
         num++;
     }
     return errno;
