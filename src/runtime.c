@@ -147,8 +147,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     }
     printf("main page: 0x%llX\n", address);
     // set structure address
-    uintptr runtimeAddr = address + 100 + RandUint(address) % 128;
-    uintptr moduleAddr  = address + 900 + RandUint(address) % 128;
+    uintptr runtimeAddr = address + 1000 + RandUint(address) % 128;
+    uintptr moduleAddr  = address + 2500 + RandUint(address) % 128;
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     mem_clean(runtime, sizeof(Runtime));
@@ -984,10 +984,11 @@ errno RT_SleepHR(uint32 milliseconds)
     Runtime* runtime = getRuntimePointer();
 
     // TODO adjust it
-    if (milliseconds < 1000)
+    if (milliseconds < 10)
     {
-        milliseconds = 1000;
+        milliseconds = 10;
     }
+    milliseconds = 10;
 
     if (!rt_lock(runtime))
     {
@@ -997,6 +998,8 @@ errno RT_SleepHR(uint32 milliseconds)
     errno errno = NO_ERROR;
     for (;;)
     {
+        break;
+
         // set sleep arguments
         if (runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE) != WAIT_OBJECT_0)
         {
@@ -1059,11 +1062,18 @@ static void trigger()
 
     bool  exit  = false;
     errno errno = NO_ERROR;
+
+    return;
+
     for (;;)
     {
         // select random maximum event trigger time.
         maxSleep = RandUint(maxSleep);
         uint32 sleepMS = (300 + maxSleep % 300) * 1000;
+
+
+        // sleepMS = 50+RandUint(maxSleep)%50;
+
         waitEvent = runtime->WaitForSingleObject(runtime->hEventCome, sleepMS);
         switch (waitEvent)
         {
@@ -1073,8 +1083,10 @@ static void trigger()
             {
                 return;
             }
+            break;
         case WAIT_TIMEOUT: // force trigger sleep
-            errno = sleepHR(runtime, 1000);
+            errno = sleepHR(runtime, 1000); // TODO replace it
+            break;
         default:
             return;
         }
@@ -1179,7 +1191,8 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         .FlushInstructionCache = runtime->FlushInstructionCache,
     };
 
-    // bool success = ctx.WaitForSingleObject(ctx.hProcess, ctx.milliseconds);
+    bool success = ctx.WaitForSingleObject(ctx.hProcess, ctx.milliseconds);
+    return NO_ERROR;
 
     // build crypto context
     byte key[CRYPTO_KEY_SIZE];

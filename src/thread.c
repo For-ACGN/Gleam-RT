@@ -91,8 +91,8 @@ ThreadTracker_M* InitThreadTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 3000 + RandUint(address) % 128;
-    uintptr moduleAddr  = address + 3600 + RandUint(address) % 128;
+    uintptr trackerAddr = address + 5000 + RandUint(address) % 128;
+    uintptr moduleAddr  = address + 5700 + RandUint(address) % 128;
     // initialize tracker
     ThreadTracker* tracker = (ThreadTracker*)trackerAddr;
     mem_clean(tracker, sizeof(ThreadTracker));
@@ -757,6 +757,8 @@ errno TT_Suspend()
 
     // suspend threads
     uint index = 0;
+    // record len
+
     for (uint num = 0; num < threads->Len; index++)
     {
         thread* thread = List_Get(threads, index);

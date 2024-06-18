@@ -59,8 +59,8 @@ ResourceTracker_M* InitResourceTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 4000 + RandUint(address) % 128;
-    uintptr moduleAddr  = address + 4600 + RandUint(address) % 128;
+    uintptr trackerAddr = address + 6000 + RandUint(address) % 128;
+    uintptr moduleAddr  = address + 6700 + RandUint(address) % 128;
     // initialize tracker
     ResourceTracker* tracker = (ResourceTracker*)trackerAddr;
     mem_clean(tracker, sizeof(ResourceTracker));
