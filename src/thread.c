@@ -37,6 +37,8 @@ typedef struct {
     // runtime data
     HANDLE Mutex; // global mutex
 
+    int64 numSuspend;
+
     // store all threads info
     List Threads;
     byte ThreadsKey[CRYPTO_KEY_SIZE];
@@ -584,22 +586,16 @@ uint32 TT_SuspendThread(HANDLE hThread)
         return -1;
     }
 
-    uint32 count;
-    uint32 threadID = tracker->GetThreadID(hThread);
-    // printf("SuspendThread: %lu\n", threadID);
-    if (threadID == tracker->GetCurrentThreadID() || threadID == 0)
+    uint32 count = tracker->SuspendThread(hThread);
+    if (count != -1)
     {
-        if (!tt_unlock(tracker))
-        {
-            return -1;
-        }
-        count = tracker->SuspendThread(hThread);
-    } else {
-        count = tracker->SuspendThread(hThread);
-        if (!tt_unlock(tracker))
-        {
-            return -1;
-        }
+        tracker->numSuspend++;
+    }
+    // printf_s("SuspendThread: %llu\n", hThread);
+
+    if (!tt_unlock(tracker))
+    {
+        return -1;
     }
     return count;
 }
@@ -615,7 +611,11 @@ uint32 TT_ResumeThread(HANDLE hThread)
     }
 
     uint32 count = tracker->ResumeThread(hThread);
-    // printf("ResumeThread: %llu\n", hThread);
+    if (count != -1)
+    {
+        tracker->numSuspend--;
+    }
+    // printf_s("ResumeThread: %llu\n", hThread);
 
     if (!tt_unlock(tracker))
     {
@@ -808,27 +808,31 @@ errno TT_Resume()
             num++;
             continue;
         }
-        uint32 count = tracker->ResumeThread(thread->hThread);
-        if (count == -1)
+        if (tracker->numSuspend == 0)
         {
-            delThread(tracker, thread->threadID);
-            errno = ERR_THREAD_RESUME;
+            // resume loop until count is zero
+            for (;;)
+            {
+                uint32 count = tracker->ResumeThread(thread->hThread);
+                if (count == -1)
+                {
+                    delThread(tracker, thread->threadID);
+                    errno = ERR_THREAD_RESUME;
+                    break;
+                }
+                if (count <= 1)
+                {
+                    break;
+                }
+            }
+        } else {
+            uint32 count = tracker->ResumeThread(thread->hThread);
+            if (count == -1)
+            {
+                delThread(tracker, thread->threadID);
+                errno = ERR_THREAD_RESUME;
+            }
         }
-        // resume loop until count is zero
-        // for (;;)
-        // {
-        //     uint32 count = tracker->ResumeThread(thread->hThread);
-        //     if (count == -1)
-        //     {
-        //         delThread(tracker, thread->threadID);
-        //         errno = ERR_THREAD_RESUME;
-        //         break;
-        //     }
-        //     if (count <= 1)
-        //     {
-        //         break;
-        //     }
-        // }
         num++;
     }
     return errno;
