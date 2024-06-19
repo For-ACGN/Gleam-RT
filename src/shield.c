@@ -1,4 +1,3 @@
-#include <intrin.h>
 #include "c_types.h"
 #include "random.h"
 #include "shield.h"
@@ -17,7 +16,6 @@ bool DefenseRT(Shield_Ctx* ctx)
     xorInstructions(ctx, &key[0]);
     // simulate kernel32.Sleep()
     bool success = ctx->WaitForSingleObject(ctx->hProcess, ctx->milliseconds);
-    _mm_mfence();
     // recover runtime(or with shellcode) instructions
     xorInstructions(ctx, &key[0]);
     // must flush instruction cache
@@ -35,7 +33,6 @@ void xorInstructions(Shield_Ctx* ctx, byte* key)
     // calculate shellcode position
     uintptr beginAddr = ctx->InstAddress;
     uintptr endAddr   = (uintptr)(&DefenseRT);
-    _mm_mfence();
     // hide runtime(or with shellcode) instructions
     byte keyIdx = 0;
     for (uintptr addr = beginAddr; addr < endAddr; addr++)
@@ -46,5 +43,4 @@ void xorInstructions(Shield_Ctx* ctx, byte* key)
         // select key
         keyIdx = k+1;
     }
-    _mm_mfence();
 }
