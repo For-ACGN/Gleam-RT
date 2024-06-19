@@ -352,7 +352,7 @@ HANDLE tt_createThread(
         dwCreationFlags |= CREATE_SUSPENDED;
 
         hThread = tracker->CreateThread(
-            lpThreadAttributes, dwStackSize, lpStartAddress,
+            lpThreadAttributes, dwStackSize, fakeAddr,
             lpParameter, dwCreationFlags, &threadID
         );
         if (hThread == NULL)
@@ -361,7 +361,7 @@ HANDLE tt_createThread(
             break;
         }
 
-        // hijack RCX/ECX for set the actual thread start address
+        // hijack RCX/EAX for set the actual thread start address
         // When use CREATE_SUSPENDED, the RIP/EIP will be set to
         // the RtlUserThreadStart(StartAddress, Parameter)
         CONTEXT ctx = {
@@ -373,7 +373,7 @@ HANDLE tt_createThread(
             break;
         }
     #ifdef _WIN64
-        // ctx.RCX = lpStartAddress;
+        ctx.RCX = lpStartAddress;
     #elif _WIN32
         // TODO x86
         // skip return address and the second parameter
@@ -389,8 +389,6 @@ HANDLE tt_createThread(
         printf("EAX: 0x%X\n", ctx.EAX);
         printf("ESP: 0x%X\n", ctx.ESP);
         printf("EIP: 0x%X\n", ctx.EIP);
-        
-
 
         // the context data is ???????
         ctx.EAX = lpStartAddress;
@@ -404,8 +402,7 @@ HANDLE tt_createThread(
         printf("ESP: 0x%X\n", ctx.ESP);
         printf("EIP: 0x%X\n", ctx.EIP);
 
-
-        tracker->WaitForSingleObject(-1, INFINITE);
+        // tracker->WaitForSingleObject(-1, INFINITE);
     #endif
         if (!tracker->SetThreadContext(hThread, &ctx))
         {
@@ -421,7 +418,6 @@ HANDLE tt_createThread(
         }
         if (track && !addThread(tracker, threadID, hThread))
         {
-            tracker->TerminateThread(hThread, 0);
             success = false;
             break;
         }
@@ -439,6 +435,7 @@ HANDLE tt_createThread(
     {
         if (hThread != NULL)
         {
+            tracker->TerminateThread(hThread, 0);
             tracker->CloseHandle(hThread);
         }
         return NULL;

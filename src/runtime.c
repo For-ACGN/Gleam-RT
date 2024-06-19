@@ -974,9 +974,6 @@ static void trigger()
         // select random maximum event trigger time.
         maxSleep = RandUint(maxSleep);
         uint32 sleepMS = (300 + maxSleep % 300) * 1000;
-
-        // sleepMS = 50+RandUint(maxSleep)%50;
-
         waitEvent = runtime->WaitForSingleObject(runtime->hEventCome, sleepMS);
         switch (waitEvent)
         {
@@ -988,7 +985,7 @@ static void trigger()
             }
             break;
         case WAIT_TIMEOUT: // force trigger sleep
-            errno = sleepHR(runtime, 1000); // TODO replace it
+            errno = sleepHR(runtime, 1000); 
             break;
         default:
             return;
