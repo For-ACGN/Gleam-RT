@@ -18,8 +18,8 @@ bool DefenseRT(Shield_Ctx* ctx)
     RandBuf(&key[0], XOR_KEY_SIZE);
     // hide runtime(or with shellcode) instructions
     xorInstructions(ctx, &key[0]);
-    // call simulated kernel32.Sleep()
-    bool success = ctx->Sleep(ctx->SleepTime);
+    // simulate kernel32.Sleep()
+    bool success = ctx->WaitForSingleObject(ctx->hProcess, ctx->SleepTime);
     // recover runtime(or with shellcode) instructions
     xorInstructions(ctx, &key[0]);
     return success;

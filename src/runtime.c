@@ -1117,7 +1117,9 @@ static errno hide(Runtime* runtime)
 __declspec(noinline)
 static errno sleep(Runtime* runtime, uint32 milliseconds)
 {
-    // build shield context
+    // store core Windows API before encrypt
+    FlushInstructionCache_t flush = runtime->FlushInstructionCache;
+    // build shield context before encrypt
     uintptr runtimeAddr = (uintptr)(&InitRuntime);
     uintptr instAddress = runtime->InstAddress;
     if (instAddress == NULL || instAddress >= runtimeAddr)
@@ -1127,9 +1129,10 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     Shield_Ctx ctx = {
         .InstAddress = instAddress,
         .SleepTime   = milliseconds,
-        .Sleep = 0,
-    };
+        .hProcess    = runtime->hProcess,
 
+        .WaitForSingleObject = runtime->WaitForSingleObject,
+    };
     // build crypto context
     byte key[CRYPTO_KEY_SIZE];
     byte iv [CRYPTO_IV_SIZE];
@@ -1143,10 +1146,10 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     {
         return ERR_RUNTIME_DEFENSE_RT;
     }
-    // must flush instruction cache
+    // flush instruction cache after decrypt
     uintptr baseAddr = instAddress;
     uint    instSize = (uintptr)(&DefenseRT) - baseAddr;
-    if (!runtime->FlushInstructionCache(CURRENT_PROCESS, baseAddr, instSize))
+    if (!flush(CURRENT_PROCESS, baseAddr, instSize))
     {
         return ERR_RUNTIME_FLUSH_INST_CACHE;
     }
