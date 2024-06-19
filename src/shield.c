@@ -2,6 +2,10 @@
 #include "random.h"
 #include "shield.h"
 
+// Only the instructions related to the DefenseRT function are
+// in plain text during Sleep, so if you need to advance AV, 
+// you only need to customize this function.
+
 #define XOR_KEY_SIZE 256
 
 void xorInstructions(Shield_Ctx* ctx, byte* key);
@@ -14,17 +18,10 @@ bool DefenseRT(Shield_Ctx* ctx)
     RandBuf(&key[0], XOR_KEY_SIZE);
     // hide runtime(or with shellcode) instructions
     xorInstructions(ctx, &key[0]);
-    // simulate kernel32.Sleep()
-    bool success = ctx->WaitForSingleObject(ctx->hProcess, ctx->milliseconds);
+    // call simulated kernel32.Sleep()
+    bool success = ctx->Sleep(ctx->SleepTime);
     // recover runtime(or with shellcode) instructions
     xorInstructions(ctx, &key[0]);
-    // must flush instruction cache
-    uintptr baseAddr = ctx->InstAddress;
-    uint    instSize = (uintptr)(&DefenseRT) - baseAddr;
-    if (!ctx->FlushInstructionCache(CURRENT_PROCESS, baseAddr, instSize))
-    {
-        return false;
-    }
     return success;
 }
 
