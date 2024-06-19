@@ -1125,12 +1125,9 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         instAddress = runtimeAddr;
     }
     Shield_Ctx ctx = {
-        .InstAddress  = instAddress,
-        .milliseconds = milliseconds,
-        .hProcess     = runtime->hProcess,
-
-        .WaitForSingleObject   = runtime->WaitForSingleObject,
-        .FlushInstructionCache = runtime->FlushInstructionCache,
+        .InstAddress = instAddress,
+        .SleepTime   = milliseconds,
+        .Sleep = 0,
     };
 
     // build crypto context
@@ -1145,6 +1142,13 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     if (!DefenseRT(&ctx))
     {
         return ERR_RUNTIME_DEFENSE_RT;
+    }
+    // must flush instruction cache
+    uintptr baseAddr = instAddress;
+    uint    instSize = (uintptr)(&DefenseRT) - baseAddr;
+    if (!runtime->FlushInstructionCache(CURRENT_PROCESS, baseAddr, instSize))
+    {
+        return ERR_RUNTIME_FLUSH_INST_CACHE;
     }
     // decrypt main page
     DecryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
