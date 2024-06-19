@@ -4,13 +4,12 @@
 #include "c_types.h"
 #include "windows_t.h"
 
+typedef bool (*sleep_t)(uint32 milliseconds);
+
 typedef struct {
     uintptr InstAddress;
-    uint32  milliseconds;
-	HANDLE  hProcess;
-	
-	WaitForSingleObject_t   WaitForSingleObject;
-    FlushInstructionCache_t FlushInstructionCache;
+    uint32  SleepTime;
+	sleep_t Sleep;
 } Shield_Ctx;
 
 bool DefenseRT(Shield_Ctx* ctx);
