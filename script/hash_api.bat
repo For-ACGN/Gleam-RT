@@ -56,6 +56,8 @@ hash_api -fmt 64 -conc -func TerminateThread
 echo.
 
 echo [Resource Tracker]
+hash_api -fmt 64 -conc -func CreateFileA
+hash_api -fmt 64 -conc -func CreateFileW
 hash_api -fmt 64 -conc -mod ws2_32.dll -func WSAStartup
 hash_api -fmt 64 -conc -mod ws2_32.dll -func WSACleanup
 echo.
@@ -113,6 +115,8 @@ hash_api -fmt 32 -conc -func TerminateThread
 echo.
 
 echo [Resource Tracker]
+hash_api -fmt 32 -conc -func CreateFileA
+hash_api -fmt 32 -conc -func CreateFileW
 hash_api -fmt 32 -conc -mod ws2_32.dll -func WSAStartup
 hash_api -fmt 32 -conc -mod ws2_32.dll -func WSACleanup
 echo.
