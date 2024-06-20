@@ -37,6 +37,7 @@ typedef struct {
     // runtime data
     HANDLE Mutex; // global mutex
 
+    // record the number of SuspendThread
     int64 numSuspend;
 
     // store all threads info
@@ -805,30 +806,11 @@ errno TT_Resume()
             num++;
             continue;
         }
-        if (tracker->numSuspend == 0)
+        uint32 count = tracker->ResumeThread(thread->hThread);
+        if (count == -1)
         {
-            // resume loop until count is zero
-            for (;;)
-            {
-                uint32 count = tracker->ResumeThread(thread->hThread);
-                if (count == -1)
-                {
-                    delThread(tracker, thread->threadID);
-                    errno = ERR_THREAD_RESUME;
-                    break;
-                }
-                if (count <= 1)
-                {
-                    break;
-                }
-            }
-        } else {
-            uint32 count = tracker->ResumeThread(thread->hThread);
-            if (count == -1)
-            {
-                delThread(tracker, thread->threadID);
-                errno = ERR_THREAD_RESUME;
-            }
+            delThread(tracker, thread->threadID);
+            errno = ERR_THREAD_RESUME;
         }
         num++;
     }
