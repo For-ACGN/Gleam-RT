@@ -584,5 +584,13 @@ errno LT_Clean()
 
 static bool cleanModule(LibraryTracker* tracker, module* module)
 {
-    return tracker->FreeLibrary(module->hModule);
+    uint num = module->counter;
+    for (uint i = 0; i < num; i++)
+    {
+        if (!tracker->FreeLibrary(module->hModule))
+        {
+            return false;
+        }
+    }
+    return true;
 }
