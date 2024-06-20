@@ -24,6 +24,7 @@ typedef struct {
 
 typedef struct {
     // API addresses
+    CloseHandle_t         CloseHandle;
     ReleaseMutex_t        ReleaseMutex;
     WaitForSingleObject_t WaitForSingleObject;
 
@@ -120,6 +121,33 @@ ResourceTracker_M* InitResourceTracker(Context* context)
 __declspec(noinline)
 static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
 {
+    typedef struct { 
+        uint hash; uint key; uintptr address;
+    } winapi;
+    winapi list[] =
+#ifdef _WIN64
+    {
+        { 0x31399C47B70A8590, 0x5C59C3E176954594 }, // CreateFileA
+        { 0xD1B5E30FA8812243, 0xFD9A53B98C9A437E }, // CreateFileW
+    };
+#elif _WIN32
+    {
+        { 0x0BB8EEBE, 0x28E70E8D }, // CreateFileA
+        { 0x2CB7048A, 0x76AC9783 }, // CreateFileW
+    };
+#endif
+    uintptr address;
+    for (int i = 0; i < arrlen(list); i++)
+    {
+        address = FindAPI(list[i].hash, list[i].key);
+        if (address == NULL)
+        {
+            return false;
+        }
+        list[i].address = address;
+    }
+
+    tracker->CloseHandle         = context->CloseHandle;
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
     return true;
@@ -150,6 +178,16 @@ static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context)
 {
     // copy runtime context data
     tracker->Mutex = context->Mutex;
+    // initialize handle list
+    List_Ctx ctx = {
+        .malloc  = context->malloc,
+        .realloc = context->realloc,
+        .free    = context->free,
+    };
+    List_Init(&tracker->Handles, &ctx, sizeof(handle));
+    // set crypto context data
+    RandBuf(&tracker->HandlesKey[0], CRYPTO_KEY_SIZE);
+    RandBuf(&tracker->HandlesIV[0], CRYPTO_IV_SIZE);
     // initialize structure fields
     tracker->WSAStartup = NULL;
     tracker->WSACleanup = NULL;
@@ -173,6 +211,7 @@ static void eraseTrackerMethods()
 __declspec(noinline)
 static void cleanTracker(ResourceTracker* tracker)
 {
+    List_Free(&tracker->Handles);
     for (int i = 0; i < arrlen(tracker->Counters); i++)
     {
         tracker->Counters[i] = 0;
