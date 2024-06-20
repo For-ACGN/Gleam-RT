@@ -22,6 +22,11 @@ https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-process
 https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentthreadid
 https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-terminatethread
 https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-flushinstructioncache
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
+https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup
+https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsacleanup
+https://learn.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2
 https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createmutexa
 https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-releasemutex
 https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventa
@@ -30,6 +35,3 @@ https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-resetev
 https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
 https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-duplicatehandle
 https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
-https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup
-https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsacleanup
-https://learn.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2
