@@ -11,7 +11,16 @@
 #include "errno.h"
 #include "resource.h"
 
+#define SRC_CREATE_FILE_A 0x0001
+#define SRC_CREATE_FILE_W 0x0002
+#define SRC_OPEN_FILE     0x0006
+
 #define RES_WSA 0x0000
+
+typedef struct {
+    HANDLE handle;
+    uint16 source;
+} handle;
 
 typedef struct {
     // API addresses
@@ -21,7 +30,12 @@ typedef struct {
     // runtime data
     HANDLE Mutex; // global mutex
 
-    // tracked API
+    // store all tracked Handles
+    List Handles;
+    byte HandlesKey[CRYPTO_KEY_SIZE];
+    byte HandlesIV [CRYPTO_IV_SIZE];
+
+    // tracked Windows API
     WSAStartup_t WSAStartup;
     WSACleanup_t WSACleanup;
 
@@ -202,21 +216,21 @@ int RT_WSAStartup(uint16 wVersionRequired, void* lpWSAData)
     if (tracker->WSAStartup == NULL)
     {
     #ifdef _WIN64
-        WSAStartup_t func = FindAPI(0x21A84954D72D9F93, 0xD549133F33DA137E);
+        WSAStartup_t proc = FindAPI(0x21A84954D72D9F93, 0xD549133F33DA137E);
     #elif _WIN32
-        WSAStartup_t func = FindAPI(0x8CD788B9, 0xA349D8A2);
+        WSAStartup_t proc = FindAPI(0x8CD788B9, 0xA349D8A2);
     #endif
-        if (func == NULL)
+        if (proc == NULL)
         {
             return WSASYSNOTREADY;
         }
-        tracker->WSAStartup = func;
+        tracker->WSAStartup = proc;
     }
     int ret = tracker->WSAStartup(wVersionRequired, lpWSAData);
     if (ret == 0)
     {
         tracker->Counters[RES_WSA]++;
-        printf("ResourceTracker: WSAStartup\n");
+        printf_s("ResourceTracker: WSAStartup\n");
     }
 
     if (!rt_unlock(tracker))
@@ -240,21 +254,21 @@ int RT_WSACleanup()
     if (tracker->WSACleanup == NULL)
     {
     #ifdef _WIN64
-        WSACleanup_t func = FindAPI(0x324EEA09CB7B262C, 0xE64CBAD3BBD4F522);
+        WSACleanup_t proc = FindAPI(0x324EEA09CB7B262C, 0xE64CBAD3BBD4F522);
     #elif _WIN32
-        WSACleanup_t func = FindAPI(0xBD997AF1, 0x88F10695);
+        WSACleanup_t proc = FindAPI(0xBD997AF1, 0x88F10695);
     #endif
-        if (func == NULL)
+        if (proc == NULL)
         {
             return WSAEINPROGRESS;
         }
-        tracker->WSACleanup = func;
+        tracker->WSACleanup = proc;
     }
     int ret = tracker->WSACleanup();
     if (ret == 0)
     {
         tracker->Counters[RES_WSA]--;
-        printf("ResourceTracker: WSACleanup\n");
+        printf_s("ResourceTracker: WSACleanup\n");
     }
 
     if (!rt_unlock(tracker))
