@@ -13,6 +13,7 @@
 
 typedef struct {
     HMODULE hModule;
+    uint    counter;
 } module;
 
 typedef struct {
@@ -415,10 +416,22 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
 
 static bool addModule(LibraryTracker* tracker, HMODULE hModule)
 {
-    module module = {
+    List* modules = &tracker->Modules;
+
+    // check this module is already exists
+    module mod = {
         .hModule = hModule,
     };
-    if (!List_Insert(&tracker->Modules, &module))
+    uint index;
+    if (List_Find(modules, &mod, sizeof(mod.hModule), &index))
+    {
+        module* module = List_Get(modules, index);
+        module->counter++;
+        return true;
+    }
+    // if not exist, add new item
+    mod.counter = 1;
+    if (!List_Insert(modules, &mod))
     {
         tracker->FreeLibrary(hModule);
         return false;
@@ -487,18 +500,25 @@ static bool delModule(LibraryTracker* tracker, HMODULE hModule)
     {
         return false;
     }
+    // search module and decrease counter
     List*  modules = &tracker->Modules;
-    module module  = {
+    module mod  = {
         .hModule = hModule,
     };
     uint index;
-    if (!List_Find(modules, &module, sizeof(module.hModule), &index))
+    if (!List_Find(modules, &mod, sizeof(mod.hModule), &index))
     {
         return false;
     }
-    if (!List_Delete(modules, index))
+    module* module = List_Get(modules, index);
+    module->counter--;
+    // if counter is zero, delete it in module list
+    if (module->counter == 0)
     {
-        return false;
+        if (!List_Delete(modules, index))
+        {
+            return false;
+        }
     }
     return true;
 }
