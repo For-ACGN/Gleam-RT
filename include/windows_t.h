@@ -270,6 +270,27 @@ typedef bool (*FlushInstructionCache_t)
     HANDLE hProcess, uintptr lpBaseAddress, uint dwSize
 );
 
+typedef HANDLE (*CreateFileA_t)
+(
+    LPCSTR lpFileName, uint32 dwDesiredAccess, uint32 dwShareMode,
+    uintptr lpSecurityAttributes, uint32 dwCreationDisposition,
+    uint32 dwFlagsAndAttributes, HANDLE hTemplateFile
+);
+
+typedef HANDLE (*CreateFileW_t)
+(
+    LPCWSTR lpFileName, uint32 dwDesiredAccess, uint32 dwShareMode,
+    uintptr lpSecurityAttributes, uint32 dwCreationDisposition,
+    uint32 dwFlagsAndAttributes, HANDLE hTemplateFile
+);
+
+typedef int(*WSAStartup_t)
+(
+    uint16 wVersionRequired, void* lpWSAData
+);
+
+typedef int (*WSACleanup_t)();
+
 typedef HANDLE (*CreateMutexA_t)
 (
     uintptr lpMutexAttributes, bool bInitialOwner, LPCSTR lpName
@@ -311,12 +332,5 @@ typedef bool (*CloseHandle_t)
 (
     HANDLE hObject
 );
-
-typedef int(*WSAStartup_t)
-(
-    uint16 wVersionRequired, void* lpWSAData
-);
-
-typedef int (*WSACleanup_t)();
 
 #endif // WINDOWS_T_H
