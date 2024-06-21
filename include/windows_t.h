@@ -13,14 +13,16 @@ typedef int16 SHORT;
 typedef int32 LONG;
 typedef int64 LONGLONG;
 
-typedef bool    BOOL;
+typedef uint SIZE_T;
+typedef bool BOOL;
+
+typedef uint HMODULE;
+typedef uint HANDLE;
+
 typedef uintptr POINTER;
 
-typedef byte*   LPCSTR;
+typedef uint8*  LPCSTR;
 typedef uint16* LPCWSTR;
-
-typedef uint    HMODULE;
-typedef uint    HANDLE;
 typedef HANDLE* LPHANDLE;
 
 typedef struct {
@@ -81,8 +83,8 @@ typedef struct __declspec(align(16)) {
     QWORD R14;
     QWORD R15;
     QWORD RIP;
-    byte   Anon0[512];
-    M128A  VectorRegister[26];
+    BYTE  Anon0[512];
+    M128A VectorRegister[26];
     QWORD VectorControl;
     QWORD DebugControl;
     QWORD LastBranchToRIP;
@@ -99,36 +101,36 @@ typedef struct __declspec(align(16)) {
 	DWORD ErrorSelector;
 	DWORD DataOffset;
     DWORD DataSelector;
-    uint8  RegisterArea[80];
+    BYTE  RegisterArea[80];
     DWORD CR0NPXState;
-} FSArea;
+} FS_AREA;
 
 typedef struct __declspec(align(16)) {
-    DWORD ContextFlags;
-    DWORD DR0;
-    DWORD DR1;
-    DWORD DR2;
-    DWORD DR3;
-    DWORD DR6;
-    DWORD DR7;
-    FSArea FloatSave;
-    DWORD SegGS;
-    DWORD SegFS;
-    DWORD SegES;
-    DWORD SegDS;
-    DWORD EDI;
-    DWORD ESI;
-    DWORD EBX;
-    DWORD EDX;
-    DWORD ECX;
-    DWORD EAX;
-    DWORD EBP;
-    DWORD EIP;
-    DWORD SegCS;
-    DWORD EFlags;
-    DWORD ESP;
-    DWORD SegSS;
-    uint8  ExtRegs[512];
+    DWORD   ContextFlags;
+    DWORD   DR0;
+    DWORD   DR1;
+    DWORD   DR2;
+    DWORD   DR3;
+    DWORD   DR6;
+    DWORD   DR7;
+    FS_AREA FloatSave;
+    DWORD   SegGS;
+    DWORD   SegFS;
+    DWORD   SegES;
+    DWORD   SegDS;
+    DWORD   EDI;
+    DWORD   ESI;
+    DWORD   EBX;
+    DWORD   EDX;
+    DWORD   ECX;
+    DWORD   EAX;
+    DWORD   EBP;
+    DWORD   EIP;
+    DWORD   SegCS;
+    DWORD   EFlags;
+    DWORD   ESP;
+    DWORD   SegSS;
+    BYTE    ExtRegs[512];
 } CONTEXT;
 #endif
 
@@ -216,27 +218,27 @@ typedef POINTER (*GetProcAddress_t)
 
 typedef POINTER (*VirtualAlloc_t)
 (
-    POINTER lpAddress, uint dwSize, DWORD flAllocationType, DWORD flProtect
+    POINTER lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect
 );
 
 typedef BOOL (*VirtualFree_t)
 (
-    POINTER lpAddress, uint dwSize, DWORD dwFreeType
+    POINTER lpAddress, SIZE_T dwSize, DWORD dwFreeType
 );
 
 typedef BOOL (*VirtualProtect_t)
 (
-    POINTER lpAddress, uint dwSize, DWORD flNewProtect, DWORD* lpflOldProtect
+    POINTER lpAddress, SIZE_T dwSize, DWORD flNewProtect, DWORD* lpflOldProtect
 );
 
-typedef uint (*VirtualQuery_t)
+typedef SIZE_T (*VirtualQuery_t)
 (
-    POINTER lpAddress, POINTER lpBuffer, uint dwLength
+    POINTER lpAddress, POINTER lpBuffer, SIZE_T dwLength
 );
 
 typedef HANDLE (*CreateThread_t)
 (
-    POINTER lpThreadAttributes, uint dwStackSize, POINTER lpStartAddress,
+    POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
     POINTER lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId
 );
 
@@ -281,7 +283,7 @@ typedef BOOL (*TerminateThread_t)
 
 typedef BOOL (*FlushInstructionCache_t)
 (
-    HANDLE hProcess, POINTER lpBaseAddress, uint dwSize
+    HANDLE hProcess, POINTER lpBaseAddress, SIZE_T dwSize
 );
 
 typedef HANDLE (*CreateFileA_t)
@@ -300,7 +302,7 @@ typedef HANDLE (*CreateFileW_t)
 
 typedef int(*WSAStartup_t)
 (
-    WORD wVersionRequired, void* lpWSAData
+    WORD wVersionRequired, POINTER lpWSAData
 );
 
 typedef int (*WSACleanup_t)();
