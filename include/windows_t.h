@@ -3,117 +3,131 @@
 
 #include "c_types.h"
 
+typedef uint8  BYTE;
+typedef uint16 WORD;
+typedef uint32 DWORD;
+typedef uint64 QWORD;
+
+typedef int8  CHAR;
+typedef int16 SHORT;
+typedef int32 LONG;
+typedef int64 LONGLONG;
+
+typedef bool    BOOL;
+typedef uintptr POINTER;
+
 typedef byte*   LPCSTR;
 typedef uint16* LPCWSTR;
+
 typedef uint    HMODULE;
 typedef uint    HANDLE;
 typedef HANDLE* LPHANDLE;
 
 typedef struct {
-    uint32  OEMID;
-    uint32  PageSize;
-    uintptr MinimumApplicationAddress;
-    uintptr MaximumApplicationAddress;
-    uintptr ActiveProcessorMask;
-    uint32  NumberOfProcessors;
-    uint32  ProcessorType;
-    uint32  AllocationGranularity;
-    uint16  ProcessorLevel;
-    uint16  ProcessorRevision;
+    DWORD   OEMID;
+    DWORD   PageSize;
+    POINTER MinimumApplicationAddress;
+    POINTER MaximumApplicationAddress;
+    POINTER ActiveProcessorMask;
+    DWORD   NumberOfProcessors;
+    DWORD   ProcessorType;
+    DWORD   AllocationGranularity;
+    WORD    ProcessorLevel;
+    WORD    ProcessorRevision;
 } SYSTEM_INFO;
 
 #ifdef _WIN64
 typedef struct __declspec(align(16)) {
-    uint64 Low; 
-    int64  High;
+    QWORD    Low; 
+    LONGLONG High;
 } M128A;
 
 typedef struct __declspec(align(16)) {
-    uint64 P1Home;
-    uint64 P2Home;
-    uint64 P3Home;
-    uint64 P4Home;
-    uint64 P5Home;
-    uint64 P6Home;
-    uint32 ContextFlags;
-    uint32 MxCSR;
-    uint16 SegCS;
-    uint16 SegDS;
-    uint16 SegES;
-    uint16 SegFS;
-    uint16 SegGS;
-    uint16 SegSS;
-    uint32 EFlags;
-    uint64 DR0;
-    uint64 DR1;
-    uint64 DR2;
-    uint64 DR3;
-    uint64 DR6;
-    uint64 DR7;
-    uint64 RAX;
-    uint64 RCX;
-    uint64 RDX;
-    uint64 RBX;
-    uint64 RSP;
-    uint64 RBP;
-    uint64 RSI;
-    uint64 RDI;
-    uint64 R8;
-    uint64 R9;
-    uint64 R10;
-    uint64 R11;
-    uint64 R12;
-    uint64 R13;
-    uint64 R14;
-    uint64 R15;
-    uint64 RIP;
+    QWORD P1Home;
+    QWORD P2Home;
+    QWORD P3Home;
+    QWORD P4Home;
+    QWORD P5Home;
+    QWORD P6Home;
+    DWORD ContextFlags;
+    DWORD MxCSR;
+    WORD  SegCS;
+    WORD  SegDS;
+    WORD  SegES;
+    WORD  SegFS;
+    WORD  SegGS;
+    WORD  SegSS;
+    DWORD EFlags;
+    QWORD DR0;
+    QWORD DR1;
+    QWORD DR2;
+    QWORD DR3;
+    QWORD DR6;
+    QWORD DR7;
+    QWORD RAX;
+    QWORD RCX;
+    QWORD RDX;
+    QWORD RBX;
+    QWORD RSP;
+    QWORD RBP;
+    QWORD RSI;
+    QWORD RDI;
+    QWORD R8;
+    QWORD R9;
+    QWORD R10;
+    QWORD R11;
+    QWORD R12;
+    QWORD R13;
+    QWORD R14;
+    QWORD R15;
+    QWORD RIP;
     byte   Anon0[512];
     M128A  VectorRegister[26];
-    uint64 VectorControl;
-    uint64 DebugControl;
-    uint64 LastBranchToRIP;
-    uint64 LastBranchFromRIP;
-    uint64 LastExceptionToRIP;
-    uint64 LastExceptionFromRIP;
+    QWORD VectorControl;
+    QWORD DebugControl;
+    QWORD LastBranchToRIP;
+    QWORD LastBranchFromRIP;
+    QWORD LastExceptionToRIP;
+    QWORD LastExceptionFromRIP;
 } CONTEXT;
 #elif _WIN32
 typedef struct __declspec(align(16)) {
-    uint32 ControlWord;
-    uint32 StatusWord;
-	uint32 TagWord;
-	uint32 ErrorOffset;
-	uint32 ErrorSelector;
-	uint32 DataOffset;
-    uint32 DataSelector;
+    DWORD ControlWord;
+    DWORD StatusWord;
+	DWORD TagWord;
+	DWORD ErrorOffset;
+	DWORD ErrorSelector;
+	DWORD DataOffset;
+    DWORD DataSelector;
     uint8  RegisterArea[80];
-    uint32 CR0NPXState;
+    DWORD CR0NPXState;
 } FSArea;
 
 typedef struct __declspec(align(16)) {
-    uint32 ContextFlags;
-    uint32 DR0;
-    uint32 DR1;
-    uint32 DR2;
-    uint32 DR3;
-    uint32 DR6;
-    uint32 DR7;
+    DWORD ContextFlags;
+    DWORD DR0;
+    DWORD DR1;
+    DWORD DR2;
+    DWORD DR3;
+    DWORD DR6;
+    DWORD DR7;
     FSArea FloatSave;
-    uint32 SegGS;
-    uint32 SegFS;
-    uint32 SegES;
-    uint32 SegDS;
-    uint32 EDI;
-    uint32 ESI;
-    uint32 EBX;
-    uint32 EDX;
-    uint32 ECX;
-    uint32 EAX;
-    uint32 EBP;
-    uint32 EIP;
-    uint32 SegCS;
-    uint32 EFlags;
-    uint32 ESP;
-    uint32 SegSS;
+    DWORD SegGS;
+    DWORD SegFS;
+    DWORD SegES;
+    DWORD SegDS;
+    DWORD EDI;
+    DWORD ESI;
+    DWORD EBX;
+    DWORD EDX;
+    DWORD ECX;
+    DWORD EAX;
+    DWORD EBP;
+    DWORD EIP;
+    DWORD SegCS;
+    DWORD EFlags;
+    DWORD ESP;
+    DWORD SegSS;
     uint8  ExtRegs[512];
 } CONTEXT;
 #endif
@@ -177,158 +191,158 @@ typedef HMODULE (*LoadLibraryW_t)
 
 typedef HMODULE (*LoadLibraryExA_t)
 (
-    LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags
+    LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags
 );
 
 typedef HMODULE(*LoadLibraryExW_t)
 (
-    LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags
+    LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags
 );
 
-typedef bool (*FreeLibrary_t)
+typedef BOOL (*FreeLibrary_t)
 (
     HMODULE hLibModule
 );
 
 typedef void (*FreeLibraryAndExitThread_t)
 (
-    HMODULE hLibModule, uint32 dwExitCode
+    HMODULE hLibModule, DWORD dwExitCode
 );
 
-typedef uintptr (*GetProcAddress_t)
+typedef POINTER (*GetProcAddress_t)
 (
     HMODULE hModule, LPCSTR lpProcName
 );
 
-typedef uintptr (*VirtualAlloc_t)
+typedef POINTER (*VirtualAlloc_t)
 (
-    uintptr lpAddress, uint dwSize, uint32 flAllocationType, uint32 flProtect
+    POINTER lpAddress, uint dwSize, DWORD flAllocationType, DWORD flProtect
 );
 
-typedef bool (*VirtualFree_t)
+typedef BOOL (*VirtualFree_t)
 (
-    uintptr lpAddress, uint dwSize, uint32 dwFreeType
+    POINTER lpAddress, uint dwSize, DWORD dwFreeType
 );
 
-typedef bool (*VirtualProtect_t)
+typedef BOOL (*VirtualProtect_t)
 (
-    uintptr lpAddress, uint dwSize, uint32 flNewProtect, uint32* lpflOldProtect
+    POINTER lpAddress, uint dwSize, DWORD flNewProtect, DWORD* lpflOldProtect
 );
 
 typedef uint (*VirtualQuery_t)
 (
-    uintptr lpAddress, uintptr lpBuffer, uint dwLength
+    POINTER lpAddress, POINTER lpBuffer, uint dwLength
 );
 
 typedef HANDLE (*CreateThread_t)
 (
-    uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
-    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
+    POINTER lpThreadAttributes, uint dwStackSize, POINTER lpStartAddress,
+    POINTER lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId
 );
 
 typedef void (*ExitThread_t)
 (
-    uint32 dwExitCode
+    DWORD dwExitCode
 );
 
-typedef uint32 (*SuspendThread_t)
+typedef DWORD (*SuspendThread_t)
 (
     HANDLE hThread
 );
 
-typedef uint32 (*ResumeThread_t)
+typedef DWORD (*ResumeThread_t)
 (
     HANDLE hThread
 );
 
-typedef bool (*GetThreadContext_t)
+typedef BOOL (*GetThreadContext_t)
 (
     HANDLE hThread, CONTEXT* lpContext
 );
 
-typedef bool (*SetThreadContext_t)
+typedef BOOL (*SetThreadContext_t)
 (
     HANDLE hThread, CONTEXT* lpContext
 );
 
-typedef bool (*SwitchToThread_t)();
+typedef BOOL (*SwitchToThread_t)();
 
-typedef uint32 (*GetThreadID_t)
+typedef DWORD (*GetThreadID_t)
 (
     HANDLE hThread
 );
 
-typedef uint32 (*GetCurrentThreadID_t)();
+typedef DWORD (*GetCurrentThreadID_t)();
 
-typedef bool (*TerminateThread_t)
+typedef BOOL (*TerminateThread_t)
 (
-    HANDLE hThread, uint32 dwExitCode
+    HANDLE hThread, DWORD dwExitCode
 );
 
-typedef bool (*FlushInstructionCache_t)
+typedef BOOL (*FlushInstructionCache_t)
 (
-    HANDLE hProcess, uintptr lpBaseAddress, uint dwSize
+    HANDLE hProcess, POINTER lpBaseAddress, uint dwSize
 );
 
 typedef HANDLE (*CreateFileA_t)
 (
-    LPCSTR lpFileName, uint32 dwDesiredAccess, uint32 dwShareMode,
-    uintptr lpSecurityAttributes, uint32 dwCreationDisposition,
-    uint32 dwFlagsAndAttributes, HANDLE hTemplateFile
+    LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+    POINTER lpSecurityAttributes, DWORD dwCreationDisposition,
+    DWORD dwFlagsAndAttributes, HANDLE hTemplateFile
 );
 
 typedef HANDLE (*CreateFileW_t)
 (
-    LPCWSTR lpFileName, uint32 dwDesiredAccess, uint32 dwShareMode,
-    uintptr lpSecurityAttributes, uint32 dwCreationDisposition,
-    uint32 dwFlagsAndAttributes, HANDLE hTemplateFile
+    LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+    POINTER lpSecurityAttributes, DWORD dwCreationDisposition,
+    DWORD dwFlagsAndAttributes, HANDLE hTemplateFile
 );
 
 typedef int(*WSAStartup_t)
 (
-    uint16 wVersionRequired, void* lpWSAData
+    WORD wVersionRequired, void* lpWSAData
 );
 
 typedef int (*WSACleanup_t)();
 
 typedef HANDLE (*CreateMutexA_t)
 (
-    uintptr lpMutexAttributes, bool bInitialOwner, LPCSTR lpName
+    POINTER lpMutexAttributes, BOOL bInitialOwner, LPCSTR lpName
 );
 
-typedef bool (*ReleaseMutex_t)
+typedef BOOL (*ReleaseMutex_t)
 (
     HANDLE hMutex
 );
 
 typedef HANDLE (*CreateEventA_t)
 (
-    uintptr lpEventAttributes, bool bManualReset, bool bInitialState, LPCSTR lpName
+    POINTER lpEventAttributes, BOOL bManualReset, BOOL bInitialState, LPCSTR lpName
 );
 
-typedef bool (*SetEvent_t)
+typedef BOOL (*SetEvent_t)
 (
     HANDLE hEvent
 );
 
-typedef bool (*ResetEvent_t)
+typedef BOOL (*ResetEvent_t)
 (
     HANDLE hEvent
 );
 
-typedef uint32 (*WaitForSingleObject_t)
+typedef DWORD (*WaitForSingleObject_t)
 (
-    HANDLE hHandle, uint32 dwMilliseconds
+    HANDLE hHandle, DWORD dwMilliseconds
 );
 
-typedef bool (*DuplicateHandle_t)
+typedef BOOL (*DuplicateHandle_t)
 (
     HANDLE hSourceProcessHandle, HANDLE hSourceHandle,
     HANDLE hTargetProcessHandle, LPHANDLE lpTargetHandle,
-    uint32 dwDesiredAccess, bool bInheritHandle, uint32 dwOptions
+    DWORD dwDesiredAccess, BOOL bInheritHandle, DWORD dwOptions
 );
 
-typedef bool (*CloseHandle_t)
+typedef BOOL (*CloseHandle_t)
 (
     HANDLE hObject
 );
