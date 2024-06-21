@@ -24,6 +24,8 @@ typedef struct {
 
 typedef struct {
     // API addresses
+    CreateFileA_t         CreateFileA;
+    CreateFileW_t         CreateFileW;
     CloseHandle_t         CloseHandle;
     ReleaseMutex_t        ReleaseMutex;
     WaitForSingleObject_t WaitForSingleObject;
@@ -147,6 +149,9 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
         list[i].address = address;
     }
 
+    tracker->CreateFileA = (CreateFileA_t)(list[0].address);
+    tracker->CreateFileW = (CreateFileW_t)(list[1].address);
+
     tracker->CloseHandle         = context->CloseHandle;
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
@@ -242,7 +247,7 @@ static bool rt_unlock(ResourceTracker* tracker)
 }
 
 __declspec(noinline)
-int RT_WSAStartup(uint16 wVersionRequired, void* lpWSAData)
+int RT_WSAStartup(uint16 wVersionRequired, POINTER lpWSAData)
 {
     ResourceTracker* tracker = getTrackerPointer();
 

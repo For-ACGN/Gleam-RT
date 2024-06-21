@@ -318,7 +318,7 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     {
         return true;
     }
-    // printf("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
+    // printf_s("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
     switch (type&0xF000)
     {
     case MEM_COMMIT:
