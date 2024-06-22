@@ -1,5 +1,4 @@
 #include "c_types.h"
-#include "windows_t.h"
 #include "lib_memory.h"
 #include "hash_api.h"
 
@@ -19,7 +18,7 @@ static uint calcSeedHash(uint key);
 static uint calcKeyHash(uint seed, uint key);
 static uint ror(uint value, uint bits);
 
-uintptr FindAPI(uint hash, uint key)
+void* FindAPI(uint hash, uint key)
 {
     uint seedHash = calcSeedHash(key);
     uint keyHash  = calcKeyHash(seedHash, key);
@@ -126,9 +125,9 @@ uintptr FindAPI(uint hash, uint key)
         #endif
             if (funcRVA < eatRVA || funcRVA >= eatRVA + eatSize)
             {
-                return modBase + funcRVA;
+                return (void*)(modBase + funcRVA);
             }
-            // search the at last "."
+            // search the last "." in function name
             byte* exportName = (byte*)(modBase + funcRVA);
             byte* src = exportName;
             uint  dot = 0;
@@ -146,7 +145,7 @@ uintptr FindAPI(uint hash, uint key)
                 src++;
             }
             // build DLL name
-            byte dllName[MAX_PATH];
+            byte dllName[512];
             mem_copy(&dllName[0], exportName, dot + 1);
             dllName[dot+1] = 'd';
             dllName[dot+2] = 'l';
@@ -154,7 +153,7 @@ uintptr FindAPI(uint hash, uint key)
             dllName[dot+4] = 0x00;
             // build hash and key
             byte* module   = &dllName[0];
-            byte* function = (byte*)((uint)exportName + dot + 1);
+            byte* function = (byte*)((uintptr)exportName + dot + 1);
             uint key  = finHash + (uint)function;
             uint hash = HashAPI_A(module, function, key);
             return FindAPI(hash, key);
@@ -207,7 +206,7 @@ uint HashAPI_A(byte* module, byte* function, uint key)
 #endif
 }
 
-uint HashAPI_W(byte* module, byte* function, uint key)
+uint HashAPI_W(uint16* module, byte* function, uint key)
 {
 #ifdef _WIN64
     return (uint)HashAPI64_W(module, function, (uint64)key);
@@ -266,7 +265,7 @@ uint64 HashAPI64_A(byte* module, byte* function, uint64 key)
     return seedHash + keyHash + modHash + funcHash;
 }
 
-uint64 HashAPI64_W(byte* module, byte* function, uint64 key)
+uint64 HashAPI64_W(uint16* module, byte* function, uint64 key)
 {
     uint64 seedHash = calcSeedHash64(key);
     uint64 keyHash  = calcKeyHash64(seedHash, key);
@@ -274,8 +273,8 @@ uint64 HashAPI64_W(byte* module, byte* function, uint64 key)
     uint64 modHash = seedHash;
     for (;;)
     {
-        byte b0 = *(module + 0);
-        byte b1 = *(module + 1);
+        byte b0 = *(byte*)((uintptr)module + 0);
+        byte b1 = *(byte*)((uintptr)module + 1);
         if (b0 >= 'a')
         {
             b0 -= 0x20;
@@ -292,7 +291,7 @@ uint64 HashAPI64_W(byte* module, byte* function, uint64 key)
         {
             break;
         }
-        module += 2;
+        module++;
     }
     // calculate function hash
     uint64 funcHash = seedHash;
@@ -391,7 +390,7 @@ uint32 HashAPI32_A(byte* module, byte* function, uint32 key)
     return seedHash + keyHash + modHash + funcHash;
 }
 
-uint32 HashAPI32_W(byte* module, byte* function, uint32 key)
+uint32 HashAPI32_W(uint16* module, byte* function, uint32 key)
 {
     uint32 seedHash = calcSeedHash32(key);
     uint32 keyHash  = calcKeyHash32(seedHash, key);
@@ -399,8 +398,8 @@ uint32 HashAPI32_W(byte* module, byte* function, uint32 key)
     uint32 modHash = seedHash;
     for (;;)
     {
-        byte b0 = *(module + 0);
-        byte b1 = *(module + 1);
+        byte b0 = *(byte*)((uintptr)module + 0);
+        byte b1 = *(byte*)((uintptr)module + 1);
         if (b0 >= 'a')
         {
             b0 -= 0x20;
@@ -417,7 +416,7 @@ uint32 HashAPI32_W(byte* module, byte* function, uint32 key)
         {
             break;
         }
-        module += 2;
+        module++;
     }
     // calculate function hash
     uint32 funcHash = seedHash;
