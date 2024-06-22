@@ -25,15 +25,15 @@ typedef unsigned long long uint64;
 typedef float  float32;
 typedef double float64;
 
-typedef unsigned char byte;
-typedef int32         rune;
+typedef uint8 byte;
+typedef int32 rune;
 
 typedef _Bool bool;
 #define true  1
 #define false 0
 
 #ifndef NULL
-#define NULL 0
+#define NULL ((void*)0)
 #endif
 
 // copy from <stdint.h>
