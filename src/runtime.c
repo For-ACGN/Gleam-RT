@@ -80,13 +80,13 @@ typedef struct {
 } Runtime;
 
 // export methods about Runtime
-uintptr RT_FindAPI(uint hash, uint key);
-void    RT_Sleep(uint32 milliseconds);
+void* RT_FindAPI(uint hash, uint key);
+void  RT_Sleep(uint32 milliseconds);
 
-uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
-uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
-uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook);
-uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
+void* RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
+void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
+void* RT_GetProcAddressByHash(uint hash, uint key, bool hook);
+void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 
 errno RT_SleepHR(uint32 milliseconds);
 errno RT_Hide();
@@ -145,7 +145,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     {
         return NULL;
     }
-    printf("main page: 0x%llX\n", address);
+    printf_s("main page: 0x%llX\n", address);
     // set structure address
     uintptr runtimeAddr = address + 1000 + RandUint(address) % 128;
     uintptr moduleAddr  = address + 2500 + RandUint(address) % 128;
@@ -724,7 +724,7 @@ bool RT_free(void* address)
 }
 
 __declspec(noinline)
-uintptr RT_FindAPI(uint hash, uint key)
+void* RT_FindAPI(uint hash, uint key)
 {
     return RT_GetProcAddressByHash(hash, key, true);
 }
@@ -752,13 +752,13 @@ void RT_Sleep(uint32 milliseconds)
 }
 
 __declspec(noinline)
-uintptr RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
+void* RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 {
     return RT_GetProcAddressByName(hModule, lpProcName, true);
 }
 
 __declspec(noinline)
-uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
+void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
 {
     // get module file name
     byte module[MAX_PATH];
@@ -780,7 +780,7 @@ uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
 }
 
 __declspec(noinline)
-uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
+void* RT_GetProcAddressByHash(uint hash, uint key, bool hook)
 {
     Runtime* runtime = getRuntimePointer();
 
@@ -804,7 +804,7 @@ uintptr RT_GetProcAddressByHash(uint hash, uint key, bool hook)
 // disable optimize for use call NOT jmp to runtime->GetProcAddress.
 #pragma optimize("", off)
 __declspec(noinline)
-uintptr RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
+void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 {
     Runtime* runtime = getRuntimePointer();
 
