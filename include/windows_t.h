@@ -16,10 +16,9 @@ typedef int64 LONGLONG;
 typedef uint SIZE_T;
 typedef bool BOOL;
 
-typedef uint HMODULE;
-typedef uint HANDLE;
-
-typedef uintptr POINTER;
+typedef void* POINTER;
+typedef void* HMODULE;
+typedef void* HANDLE;
 
 typedef uint8*  LPCSTR;
 typedef uint16* LPCWSTR;
