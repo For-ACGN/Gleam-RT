@@ -19,10 +19,14 @@ typedef bool BOOL;
 typedef void* POINTER;
 typedef void* HMODULE;
 typedef void* HANDLE;
+typedef void* FARPROC;
 
-typedef uint8*  LPCSTR;
-typedef uint16* LPCWSTR;
+typedef void*   LPVOID;
 typedef HANDLE* LPHANDLE;
+
+typedef const void*   LPCVOID;
+typedef const uint8*  LPCSTR;
+typedef const uint16* LPCWSTR;
 
 typedef struct {
     DWORD   OEMID;
@@ -210,35 +214,35 @@ typedef void (*FreeLibraryAndExitThread_t)
     HMODULE hLibModule, DWORD dwExitCode
 );
 
-typedef POINTER (*GetProcAddress_t)
+typedef FARPROC (*GetProcAddress_t)
 (
     HMODULE hModule, LPCSTR lpProcName
 );
 
-typedef POINTER (*VirtualAlloc_t)
+typedef LPVOID (*VirtualAlloc_t)
 (
-    POINTER lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect
+    LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect
 );
 
 typedef BOOL (*VirtualFree_t)
 (
-    POINTER lpAddress, SIZE_T dwSize, DWORD dwFreeType
+    LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType
 );
 
 typedef BOOL (*VirtualProtect_t)
 (
-    POINTER lpAddress, SIZE_T dwSize, DWORD flNewProtect, DWORD* lpflOldProtect
+    LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, DWORD* lpflOldProtect
 );
 
 typedef SIZE_T (*VirtualQuery_t)
 (
-    POINTER lpAddress, POINTER lpBuffer, SIZE_T dwLength
+    LPCVOID lpAddress, POINTER lpBuffer, SIZE_T dwLength
 );
 
 typedef HANDLE (*CreateThread_t)
 (
     POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
-    POINTER lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId
+    LPVOID lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId
 );
 
 typedef void (*ExitThread_t)
@@ -282,8 +286,7 @@ typedef BOOL (*TerminateThread_t)
 
 typedef BOOL (*FlushInstructionCache_t)
 (
-    HANDLE hProcess, POINTER lpBaseAddress, SIZE_T dwSize
-);
+    HANDLE hProcess, LPCVOID lpBaseAddress, SIZE_T dwSize);
 
 typedef HANDLE (*CreateFileA_t)
 (
