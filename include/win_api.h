@@ -21,6 +21,6 @@ typedef struct {
 } PE_Info;
 
 uint32 GetModuleFileName(HMODULE hModule, byte* name, uint32 size);
-void   ParsePEImage(void* address, PE_Info* info);
+void   ParsePEImage(byte* address, PE_Info* info);
 
 #endif // WIN_API_H
