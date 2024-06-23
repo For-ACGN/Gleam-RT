@@ -19,10 +19,9 @@ typedef void   (*Sleep_t)(uint32 milliseconds);
 // GetProcAddressOriginal is not recommend, usually use
 // GetProcAddressByName with hook OFF instead it.
 // These methods are used for IAT hooks or common shellcode.
-typedef uintptr (*GetProcAddress_t)(HMODULE hModule, LPCSTR lpProcName);
-typedef uintptr (*GetProcAddressByName_t)(HMODULE hModule, LPCSTR lpProcName, bool hook);
-typedef uintptr (*GetProcAddressByHash_t)(uint hash, uint key, bool hook);
-typedef uintptr (*GetProcAddressOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
+typedef void* (*GetProcAddressByName_t)(HMODULE hModule, LPCSTR lpProcName, bool hook);
+typedef void* (*GetProcAddressByHash_t)(uint hash, uint key, bool hook);
+typedef void* (*GetProcAddressOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
 
 // runtime core methods
 // it is NOT recommended use "Hide" and "Recover" these function
