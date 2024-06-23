@@ -108,12 +108,12 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     // create methods for tracker
     LibraryTracker_M* module = (LibraryTracker_M*)moduleAddr;
     // Windows API hooks
-    module->LoadLibraryA             = (LoadLibraryA_t            )(&LT_LoadLibraryA);
-    module->LoadLibraryW             = (LoadLibraryW_t            )(&LT_LoadLibraryW);
-    module->LoadLibraryExA           = (LoadLibraryExA_t          )(&LT_LoadLibraryExA);
-    module->LoadLibraryExW           = (LoadLibraryExW_t          )(&LT_LoadLibraryExW);
-    module->FreeLibrary              = (FreeLibrary_t             )(&LT_FreeLibrary);
-    module->FreeLibraryAndExitThread = (FreeLibraryAndExitThread_t)(&LT_FreeLibraryAndExitThread);
+    module->LoadLibraryA             = &LT_LoadLibraryA;
+    module->LoadLibraryW             = &LT_LoadLibraryW;
+    module->LoadLibraryExA           = &LT_LoadLibraryExA;
+    module->LoadLibraryExW           = &LT_LoadLibraryExW;
+    module->FreeLibrary              = &LT_FreeLibrary;
+    module->FreeLibraryAndExitThread = &LT_FreeLibraryAndExitThread;
     // methods for runtime   
     module->LibEncrypt = &LT_Encrypt;
     module->LibDecrypt = &LT_Decrypt;
@@ -125,7 +125,7 @@ __declspec(noinline)
 static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
 {
     typedef struct { 
-        uint hash; uint key; uintptr address;
+        uint hash; uint key; void* address;
     } winapi;
     winapi list[] =
 #ifdef _WIN64
@@ -147,7 +147,7 @@ static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
         { 0x7730C1E2, 0xF5551C66 }, // FreeLibraryAndExitThread
     };
 #endif
-    uintptr address;
+    void* address;
     for (int i = 0; i < arrlen(list); i++)
     {
         address = FindAPI(list[i].hash, list[i].key);
@@ -158,12 +158,12 @@ static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
         list[i].address = address;
     }
 
-    tracker->LoadLibraryA             = (LoadLibraryA_t            )(list[0].address);
-    tracker->LoadLibraryW             = (LoadLibraryW_t            )(list[1].address);
-    tracker->LoadLibraryExA           = (LoadLibraryExA_t          )(list[2].address);
-    tracker->LoadLibraryExW           = (LoadLibraryExW_t          )(list[3].address);
-    tracker->FreeLibrary              = (FreeLibrary_t             )(list[4].address);
-    tracker->FreeLibraryAndExitThread = (FreeLibraryAndExitThread_t)(list[5].address);
+    tracker->LoadLibraryA             = list[0].address;
+    tracker->LoadLibraryW             = list[1].address;
+    tracker->LoadLibraryExA           = list[2].address;
+    tracker->LoadLibraryExW           = list[3].address;
+    tracker->FreeLibrary              = list[4].address;
+    tracker->FreeLibraryAndExitThread = list[5].address;
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
@@ -272,7 +272,7 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
             success = false;
             break;
         }
-        printf("LoadLibraryA: %llu\n", hModule);
+        printf_s("LoadLibraryA: %llu\n", (uint64)hModule);
         break;
     }
 

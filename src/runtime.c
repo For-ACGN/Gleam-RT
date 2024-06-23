@@ -774,7 +774,7 @@ uintptr RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
         return method;
     }
     // generate key for calculate Windows API hash
-    uint key  = RandUint((uint64)(hModule + lpProcName));
+    uint key  = RandUint((uint64)(hModule) + (uint64)(lpProcName));
     uint hash = HashAPI_W(&module[0], lpProcName, key);
     return RT_GetProcAddressByHash(hash, key, hook);
 }
