@@ -46,7 +46,7 @@ bool List_Insert(List* list, void* data)
         bool empty = true;
         for (uint j = 0; j < list->Unit; j++)
         {
-            if (*(addr + j) == NULL)
+            if (*(addr + j) == 0)
             {
                 continue;
             }
