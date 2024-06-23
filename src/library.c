@@ -314,7 +314,7 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
             success = false;
             break;
         }
-        printf("LoadLibraryW: %llu\n", hModule);
+        printf_s("LoadLibraryW: %llu\n", (uint64)hModule);
         break;
     }
 
@@ -356,7 +356,7 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
             success = false;
             break;
         }
-        printf("LoadLibraryExA: %llu\n", hModule);
+        printf_s("LoadLibraryExA: %llu\n", (uint64)hModule);
         break;
     }
 
@@ -398,7 +398,7 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
             success = false;
             break;
         }
-        printf("LoadLibraryExW: %llu\n", hModule);
+        printf_s("LoadLibraryExW: %llu\n", (uint64)hModule);
         break;
     }
 
@@ -446,7 +446,7 @@ bool LT_FreeLibrary(HMODULE hLibModule)
 
     if (!lt_lock(tracker))
     {
-        return NULL;
+        return false;
     }
 
     bool success = true;
@@ -462,13 +462,13 @@ bool LT_FreeLibrary(HMODULE hLibModule)
             success = false;
             break;
         }
-        printf("FreeLibrary: %llu\n", hLibModule);
+        printf_s("FreeLibrary: %llu\n", (uint64)hLibModule);
         break;
     }
 
     if (!lt_unlock(tracker))
     {
-        return NULL;
+        return false;
     }
     return success;
 }
@@ -484,7 +484,7 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode)
     }
 
     delModule(tracker, hLibModule);
-    printf("FreeLibraryAndExitThread: %llu\n", hLibModule);
+    printf_s("FreeLibraryAndExitThread: %llu\n", (uint64)hLibModule);
 
     if (!lt_unlock(tracker))
     {
