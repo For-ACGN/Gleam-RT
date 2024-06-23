@@ -10,7 +10,7 @@
 typedef void*  (*MemAlloc_t)(uint size);
 typedef void*  (*MemRealloc_t)(void* address, uint size);
 typedef bool   (*MemFree_t)(void* address);
-typedef HANDLE (*ThdNew_t)(uintptr address, void* parameter, bool track);
+typedef HANDLE (*ThdNew_t)(void* address, void* parameter, bool track);
 typedef void   (*ThdExit_t)();
 typedef void   (*Sleep_t)(uint32 milliseconds);
 

@@ -6,7 +6,7 @@
 #include "context.h"
 #include "errno.h"
 
-typedef HANDLE (*ThdNew_t)(uintptr address, void* parameter, bool track);
+typedef HANDLE (*ThdNew_t)(void* address, void* parameter, bool track);
 typedef void   (*ThdExit_t)();
 typedef errno  (*ThdSuspend_t)();
 typedef errno  (*ThdResume_t)();
