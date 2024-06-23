@@ -49,7 +49,7 @@ uint32 GetModuleFileName(HMODULE hModule, byte* name, uint32 size)
     return 0;
 }
 
-void ParsePEImage(void* address, PE_Info* info)
+void ParsePEImage(byte* address, PE_Info* info)
 {
     uintptr imageAddr = (uintptr)address;
     uint32  peOffset  = *(uint32*)(imageAddr + 60);

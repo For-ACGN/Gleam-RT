@@ -47,7 +47,7 @@ typedef struct {
 } ResourceTracker;
 
 // methods about resource tracker
-int RT_WSAStartup(uint16 wVersionRequired, void* lpWSAData);
+int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData);
 int RT_WSACleanup();
 
 errno RT_Encrypt();
@@ -247,7 +247,7 @@ static bool rt_unlock(ResourceTracker* tracker)
 }
 
 __declspec(noinline)
-int RT_WSAStartup(uint16 wVersionRequired, POINTER lpWSAData)
+int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
 {
     ResourceTracker* tracker = getTrackerPointer();
 
