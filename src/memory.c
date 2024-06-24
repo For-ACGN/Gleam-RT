@@ -138,10 +138,10 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     // create methods for tracker
     MemoryTracker_M* module = (MemoryTracker_M*)moduleAddr;
     // Windows API hooks
-    module->VirtualAlloc   = (VirtualAlloc_t  )(&MT_VirtualAlloc);
-    module->VirtualFree    = (VirtualFree_t   )(&MT_VirtualFree);
-    module->VirtualProtect = (VirtualProtect_t)(&MT_VirtualProtect);
-    module->VirtualQuery   = (VirtualQuery_t  )(&MT_VirtualQuery);
+    module->VirtualAlloc   = &MT_VirtualAlloc;
+    module->VirtualFree    = &MT_VirtualFree;
+    module->VirtualProtect = &MT_VirtualProtect;
+    module->VirtualQuery   = &MT_VirtualQuery;
     // methods for runtime
     module->MemAlloc   = &MT_MemAlloc;
     module->MemRealloc = &MT_MemRealloc;
@@ -156,7 +156,7 @@ __declspec(noinline)
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 {
     typedef struct { 
-        uint hash; uint key; uintptr address;
+        uint hash; uint key; void* proc;
     } winapi;
     winapi list[] =
 #ifdef _WIN64
@@ -170,15 +170,14 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 #endif
     for (int i = 0; i < arrlen(list); i++)
     {
-        uintptr address = FindAPI(list[i].hash, list[i].key);
-        if (address == NULL)
+        void* proc = FindAPI(list[i].hash, list[i].key);
+        if (proc == NULL)
         {
             return false;
         }
-        list[i].address = address;
+        list[i].proc = proc;
     }
-
-    tracker->VirtualQuery = (VirtualQuery_t)(list[0].address);
+    tracker->VirtualQuery = list[0].proc;
 
     tracker->VirtualAlloc          = context->VirtualAlloc;
     tracker->VirtualFree           = context->VirtualFree;
