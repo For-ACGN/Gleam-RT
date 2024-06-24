@@ -895,12 +895,19 @@ errno RT_SleepHR(uint32 milliseconds)
         return ERR_RUNTIME_LOCK;
     }
 
-    // TODO adjust it
-    if (milliseconds < 10)
+    if (milliseconds <= 100)
     {
-        milliseconds = 10;
+        // prevent sleep too frequent
+        milliseconds = 100;
+    } else {
+        // make sure the sleep time is a multiple of 1s
+        milliseconds = (milliseconds / 1000) * 1000;
+        if (milliseconds == 0)
+        {
+            milliseconds = 1000;
+        }
     }
-    milliseconds = 10;
+    milliseconds = 10; // TODO remove it
 
     errno errno = NO_ERROR;
     for (;;)
