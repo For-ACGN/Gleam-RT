@@ -523,7 +523,7 @@ static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
 #pragma optimize("t", off)
 
 __declspec(noinline)
-bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
+BOOL MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
@@ -532,7 +532,7 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
         return false;
     }
 
-    bool success = true;
+    BOOL success = true;
     for (;;)
     {
         if (!tracker->VirtualProtect(address, size, new, old))
@@ -540,7 +540,7 @@ bool MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old)
             success = false;
             break;
         }
-        if (!protectPage(tracker, address, size, new))
+        if (!protectPage(tracker, (uintptr)address, size, new))
         {
             success = false;
             break;
@@ -568,7 +568,7 @@ static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint
     for (uint num = 0; num < len; index++)
     {
         page = List_Get(pages, index);
-        if (page->address == NULL)
+        if (page->address == 0)
         {
             continue;
         }
@@ -585,7 +585,7 @@ static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint
 }
 
 __declspec(noinline)
-uint MT_VirtualQuery(uintptr lpAddress, uintptr lpBuffer, uint dwLength)
+SIZE_T MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
@@ -594,7 +594,7 @@ uint MT_VirtualQuery(uintptr lpAddress, uintptr lpBuffer, uint dwLength)
         return 0;
     }
 
-    uint size = tracker->VirtualQuery(lpAddress, lpBuffer, dwLength);
+    uint size = tracker->VirtualQuery(address, buffer, length);
 
     if (!mt_unlock(tracker))
     {
@@ -659,8 +659,10 @@ static bool adjustPageProtect(MemoryTracker* tracker, memPage* page)
     {
         return true;
     }
+    LPVOID address = (LPVOID)(page->address);
+    SIZE_T size    = (SIZE_T)(tracker->PageSize);
     uint32 old;
-    return tracker->VirtualProtect(page->address, tracker->PageSize, PAGE_READWRITE, &old);
+    return tracker->VirtualProtect(address, size, PAGE_READWRITE, &old);
 }
 
 // recoverPageProtect is used to recover to prevent protect.
@@ -670,8 +672,10 @@ static bool recoverPageProtect(MemoryTracker* tracker, memPage* page)
     {
         return true;
     }
+    LPVOID address = (LPVOID)(page->address);
+    SIZE_T size    = (SIZE_T)(tracker->PageSize);
     uint32 old;
-    return tracker->VirtualProtect(page->address, tracker->PageSize, page->protect, &old);
+    return tracker->VirtualProtect(address, size, page->protect, &old);
 }
 
 __declspec(noinline)
@@ -681,8 +685,8 @@ void* MT_MemAlloc(uint size)
 
     // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
-    uint pageSize = ((size / tracker->PageSize) + 1) * tracker->PageSize;
-    uintptr addr = MT_VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    uint  pageSize = ((size / tracker->PageSize) + 1) * tracker->PageSize;
+    void* addr = MT_VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
@@ -692,7 +696,7 @@ void* MT_MemAlloc(uint size)
     byte* address = (byte*)addr;
     RandBuf(address, 16);
     mem_copy(address, &size, sizeof(uint));
-    return (void*)(addr + 16);
+    return (void*)(address + 16);
 }
 
 __declspec(noinline)
@@ -729,8 +733,8 @@ bool MT_MemFree(void* address)
         return true;
     }
     // clean the buffer data before call VirtualFree.
-    uintptr addr = (uintptr)(address)-16;
-    uint    size = *(uint*)addr;
+    void* addr = (LPVOID)((uintptr)(address)-16);
+    uint  size = *(uint*)addr;
     mem_clean((byte*)addr, size);
     return MT_VirtualFree(addr, 0, MEM_RELEASE);
 }
@@ -745,7 +749,7 @@ errno MT_Encrypt()
     for (uint num = 0; num < pages->Len; index++)
     {
         memPage* page = List_Get(pages, index);
-        if (page->address == NULL)
+        if (page->address == 0)
         {
             continue;
         }
@@ -818,7 +822,7 @@ errno MT_Decrypt()
     for (uint num = 0; num < pages->Len; index--)
     {
         memPage* page = List_Get(pages, index);
-        if (page->address == NULL)
+        if (page->address == 0)
         {
             continue;
         }
@@ -886,7 +890,7 @@ errno MT_Clean()
     for (uint num = 0; num < pages->Len; index++)
     {
         memPage* page = List_Get(pages, index);
-        if (page->address == NULL)
+        if (page->address == 0)
         {
             continue;
         }
@@ -902,11 +906,11 @@ errno MT_Clean()
     for (uint num = 0; num < regions->Len; index++)
     {
         memRegion* region = List_Get(regions, index);
-        if (region->address == NULL)
+        if (region->address == 0)
         {
             continue;
         }
-        if (!tracker->VirtualFree(region->address, 0, MEM_RELEASE))
+        if (!tracker->VirtualFree((LPVOID)(region->address), 0, MEM_RELEASE))
         {
             errno = ERR_MEMORY_CLEAN_REGION;
         }
@@ -934,10 +938,12 @@ static bool cleanPage(MemoryTracker* tracker, memPage* page)
     {
         return false;
     }
-    RandBuf((byte*)(page->address), tracker->PageSize);
+    byte* address = (byte*)(page->address);
+    RandBuf(address, tracker->PageSize);
     if (!recoverPageProtect(tracker, page))
     {
         return false;
     }
-    return tracker->VirtualFree(page->address, tracker->PageSize, MEM_DECOMMIT);
+    DWORD size = (DWORD)(tracker->PageSize);
+    return tracker->VirtualFree(address, size, MEM_DECOMMIT);
 }
