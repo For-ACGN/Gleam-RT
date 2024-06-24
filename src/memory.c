@@ -50,10 +50,10 @@ typedef struct {
 } MemoryTracker;
 
 // methods about memory tracker
-uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect);
-bool    MT_VirtualFree(uintptr address, uint size, uint32 type);
-bool    MT_VirtualProtect(uintptr address, uint size, uint32 new, uint32* old);
-uint    MT_VirtualQuery(uintptr lpAddress, uintptr lpBuffer, uint dwLength);
+LPVOID  MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect);
+BOOL    MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type);
+BOOL    MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old);
+SIZE_T  MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length);
 void*   MT_MemAlloc(uint size);
 void*   MT_MemRealloc(void* address, uint size);
 bool    MT_MemFree(void* address);
@@ -270,7 +270,7 @@ static bool mt_unlock(MemoryTracker* tracker)
 }
 
 __declspec(noinline)
-uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
+LPVOID MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
@@ -282,7 +282,7 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
     // adjust protect at sometime
     protect = replacePageProtect(protect);
 
-    uintptr page;
+    LPVOID page;
     bool success = true;
     for (;;)
     {
@@ -292,7 +292,7 @@ uintptr MT_VirtualAlloc(uintptr address, uint size, uint32 type, uint32 protect)
             success = false;
             break;
         }
-        if (!allocPage(tracker, page, size, type, protect))
+        if (!allocPage(tracker, (uintptr)page, size, type, protect))
         {
             success = false;
             break;
@@ -371,7 +371,7 @@ static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint3
 #pragma optimize("t", off)
 
 __declspec(noinline)
-bool MT_VirtualFree(uintptr address, uint size, uint32 type)
+BOOL MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
@@ -380,7 +380,7 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
         return false;
     }
 
-    bool success = true;
+    BOOL success = true;
     for (;;)
     {
         if (!tracker->VirtualFree(address, size, type))
@@ -388,7 +388,7 @@ bool MT_VirtualFree(uintptr address, uint size, uint32 type)
             success = false;
             break;
         }
-        if (!freePage(tracker, address, size, type))
+        if (!freePage(tracker, (uintptr)address, size, type))
         {
             success = false;
             break;
@@ -432,7 +432,7 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     for (uint num = 0; num < len; index++)
     {
         region = List_Get(regions, index);
-        if (region->address == NULL)
+        if (region->address == 0)
         {
             continue;
         }
@@ -466,7 +466,7 @@ static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
     for (uint num = 0; num < len; index++)
     {
         region = List_Get(regions, index);
-        if (region->address == NULL)
+        if (region->address == 0)
         {
             continue;
         }
@@ -502,7 +502,7 @@ static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
     for (uint num = 0; num < len; index++)
     {
         page = List_Get(pages, index);
-        if (page->address == NULL)
+        if (page->address == 0)
         {
             continue;
         }
