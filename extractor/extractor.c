@@ -12,7 +12,7 @@ int main()
 #endif
     if (file == NULL)
     {
-        printf("failed to open file");
+        printf_s("failed to open file");
         return 1;
     }
 
@@ -23,11 +23,11 @@ int main()
     uint64 n = fwrite((byte*)begin, size, 1, file);
     if (n != 1)
     {
-        printf("failed to save shellcode");
+        printf_s("failed to save shellcode");
         return 2;
     }
     fclose(file);
 
-    printf("save shellcode successfully");
+    printf_s("save shellcode successfully");
     return 0;
 }
