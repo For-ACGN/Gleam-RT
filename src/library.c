@@ -41,7 +41,7 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName);
 HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName);
 HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
 HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
-bool    LT_FreeLibrary(HMODULE hLibModule);
+BOOL    LT_FreeLibrary(HMODULE hLibModule);
 void    LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode);
 
 errno LT_Encrypt();
@@ -438,7 +438,7 @@ static bool addModule(LibraryTracker* tracker, HMODULE hModule)
 }
 
 __declspec(noinline)
-bool LT_FreeLibrary(HMODULE hLibModule)
+BOOL LT_FreeLibrary(HMODULE hLibModule)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
