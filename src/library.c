@@ -39,10 +39,10 @@ typedef struct {
 // methods about library tracker
 HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName);
 HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName);
-HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags);
-HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags);
+HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
+HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
 bool    LT_FreeLibrary(HMODULE hLibModule);
-void    LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode);
+void    LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode);
 
 errno LT_Encrypt();
 errno LT_Decrypt();
@@ -125,7 +125,7 @@ __declspec(noinline)
 static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
 {
     typedef struct { 
-        uint hash; uint key; void* address;
+        uint hash; uint key; void* proc;
     } winapi;
     winapi list[] =
 #ifdef _WIN64
@@ -147,23 +147,21 @@ static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
         { 0x7730C1E2, 0xF5551C66 }, // FreeLibraryAndExitThread
     };
 #endif
-    void* address;
     for (int i = 0; i < arrlen(list); i++)
     {
-        address = FindAPI(list[i].hash, list[i].key);
-        if (address == NULL)
+        void* proc = FindAPI(list[i].hash, list[i].key);
+        if (proc == NULL)
         {
             return false;
         }
-        list[i].address = address;
+        list[i].proc = proc;
     }
-
-    tracker->LoadLibraryA             = list[0].address;
-    tracker->LoadLibraryW             = list[1].address;
-    tracker->LoadLibraryExA           = list[2].address;
-    tracker->LoadLibraryExW           = list[3].address;
-    tracker->FreeLibrary              = list[4].address;
-    tracker->FreeLibraryAndExitThread = list[5].address;
+    tracker->LoadLibraryA             = list[0].proc;
+    tracker->LoadLibraryW             = list[1].proc;
+    tracker->LoadLibraryExA           = list[2].proc;
+    tracker->LoadLibraryExW           = list[3].proc;
+    tracker->FreeLibrary              = list[4].proc;
+    tracker->FreeLibraryAndExitThread = list[5].proc;
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
@@ -331,7 +329,7 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
 }
 
 __declspec(noinline)
-HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
+HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
@@ -373,7 +371,7 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
 }
 
 __declspec(noinline)
-HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, uint32 dwFlags)
+HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
@@ -474,7 +472,7 @@ bool LT_FreeLibrary(HMODULE hLibModule)
 }
 
 __declspec(noinline)
-void LT_FreeLibraryAndExitThread(HMODULE hLibModule, uint32 dwExitCode)
+void LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
