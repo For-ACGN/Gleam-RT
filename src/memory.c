@@ -49,11 +49,13 @@ typedef struct {
     byte PagesIV [CRYPTO_IV_SIZE];
 } MemoryTracker;
 
-// methods about memory tracker
+// methods for IAT hooks
 LPVOID  MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect);
 BOOL    MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type);
 BOOL    MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old);
 SIZE_T  MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length);
+
+// methods for runtime
 void*   MT_MemAlloc(uint size);
 void*   MT_MemRealloc(void* address, uint size);
 bool    MT_MemFree(void* address);

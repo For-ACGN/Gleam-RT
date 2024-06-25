@@ -36,7 +36,7 @@ typedef struct {
     byte ModulesIV [CRYPTO_IV_SIZE];
 } LibraryTracker;
 
-// methods about library tracker
+// methods for IAT hooks
 HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName);
 HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName);
 HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
@@ -44,6 +44,7 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
 BOOL    LT_FreeLibrary(HMODULE hLibModule);
 void    LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode);
 
+// methods for runtime
 errno LT_Encrypt();
 errno LT_Decrypt();
 errno LT_Clean();
