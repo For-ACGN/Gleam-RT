@@ -58,7 +58,7 @@ bool   TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext);
 bool   TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext);
 bool   TT_SwitchToThread();
 bool   TT_TerminateThread(HANDLE hThread, uint32 dwExitCode);
-HANDLE TT_ThdNew(uintptr address, void* parameter, bool track);
+HANDLE TT_ThdNew(void* address, void* parameter, bool track);
 void   TT_ThdExit();
 errno  TT_Suspend();
 errno  TT_Resume();
@@ -129,14 +129,14 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     // create methods for tracker
     ThreadTracker_M* module = (ThreadTracker_M*)moduleAddr;
     // Windows API hooks
-    module->CreateThread     = (CreateThread_t    )(&TT_CreateThread);
-    module->ExitThread       = (ExitThread_t      )(&TT_ExitThread);
-    module->SuspendThread    = (SuspendThread_t   )(&TT_SuspendThread);
-    module->ResumeThread     = (ResumeThread_t    )(&TT_ResumeThread);
-    module->GetThreadContext = (GetThreadContext_t)(&TT_GetThreadContext);
-    module->SetThreadContext = (SetThreadContext_t)(&TT_SetThreadContext);
-    module->SwitchToThread   = (SwitchToThread_t  )(&TT_SwitchToThread);
-    module->TerminateThread  = (TerminateThread_t )(&TT_TerminateThread);
+    module->CreateThread     = &TT_CreateThread;
+    module->ExitThread       = &TT_ExitThread;
+    module->SuspendThread    = &TT_SuspendThread;
+    module->ResumeThread     = &TT_ResumeThread;
+    module->GetThreadContext = &TT_GetThreadContext;
+    module->SetThreadContext = &TT_SetThreadContext;
+    module->SwitchToThread   = &TT_SwitchToThread;
+    module->TerminateThread  = &TT_TerminateThread;
     // methods for runtime
     module->ThdNew     = &TT_ThdNew;
     module->ThdExit    = &TT_ThdExit;
@@ -150,7 +150,7 @@ __declspec(noinline)
 static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
 {
     typedef struct { 
-        uint hash; uint key; uintptr address;
+        uint hash; uint key; void* proc;
     } winapi;
     winapi list[] =
 #ifdef _WIN64
@@ -180,27 +180,25 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0xBA134972, 0x295F9DD2 }, // TerminateThread
     };
 #endif
-    uintptr address;
     for (int i = 0; i < arrlen(list); i++)
     {
-        address = FindAPI(list[i].hash, list[i].key);
-        if (address == NULL)
+        void* proc = FindAPI(list[i].hash, list[i].key);
+        if (proc == NULL)
         {
             return false;
         }
-        list[i].address = address;
+        list[i].proc = proc;
     }
-
-    tracker->CreateThread       = (CreateThread_t      )(list[0].address);
-    tracker->ExitThread         = (ExitThread_t        )(list[1].address);
-    tracker->SuspendThread      = (SuspendThread_t     )(list[2].address);
-    tracker->ResumeThread       = (ResumeThread_t      )(list[3].address);
-    tracker->GetThreadContext   = (GetThreadContext_t  )(list[4].address);
-    tracker->SetThreadContext   = (SetThreadContext_t  )(list[5].address);
-    tracker->SwitchToThread     = (SwitchToThread_t    )(list[6].address);
-    tracker->GetThreadID        = (GetThreadID_t       )(list[7].address);
-    tracker->GetCurrentThreadID = (GetCurrentThreadID_t)(list[8].address);
-    tracker->TerminateThread    = (TerminateThread_t   )(list[9].address);
+    tracker->CreateThread       = list[0].proc;
+    tracker->ExitThread         = list[1].proc;
+    tracker->SuspendThread      = list[2].proc;
+    tracker->ResumeThread       = list[3].proc;
+    tracker->GetThreadContext   = list[4].proc;
+    tracker->SetThreadContext   = list[5].proc;
+    tracker->SwitchToThread     = list[6].proc;
+    tracker->GetThreadID        = list[7].proc;
+    tracker->GetCurrentThreadID = list[8].proc;
+    tracker->TerminateThread    = list[9].proc;
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
@@ -710,7 +708,7 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
 }
 
 __declspec(noinline)
-HANDLE TT_ThdNew(uintptr address, void* parameter, bool track)
+HANDLE TT_ThdNew(void* address, void* parameter, bool track)
 {
     return tt_createThread(NULL, 0, address, (uintptr)parameter, 0, NULL, track);
 }
