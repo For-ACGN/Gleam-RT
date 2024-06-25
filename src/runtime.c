@@ -32,11 +32,11 @@ typedef struct {
     Runtime_Opts* Options;
 
     // store options
-    uintptr InstAddress;
-    bool    NotEraseInst;
+    void* InstAddress;
+    bool  NotEraseInst;
 
     // store all structures
-    uintptr MainMemPage;
+    void* MainMemPage;
 
     // API addresses
     GetSystemInfo_t         GetSystemInfo;
@@ -408,7 +408,7 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     runtime->hMutexEvent = hMutexEvent;
     // create context data for initialize other modules
     Context context = {
-        .MainMemPage = runtime->MainMemPage,
+        .MainMemPage = (uintptr)(runtime->MainMemPage),
 
         .TrackCurrentThread = runtime->Options->TrackCurrentThread,
 
@@ -624,7 +624,7 @@ static void cleanRuntime(Runtime* runtime)
         }
     }
     // release main memory page
-    RandBuf((byte*)runtime->MainMemPage, MAIN_MEM_PAGE_SIZE);
+    RandBuf(runtime->MainMemPage, MAIN_MEM_PAGE_SIZE);
     if (virtualFree != NULL)
     {
         virtualFree(runtime->MainMemPage, 0, MEM_RELEASE);
@@ -1142,7 +1142,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     byte iv [CRYPTO_IV_SIZE];
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
-    byte* buf = (byte*)(runtime->MainMemPage);
+    void* buf = runtime->MainMemPage;
     // encrypt main page
     EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
     // call shield!!!
