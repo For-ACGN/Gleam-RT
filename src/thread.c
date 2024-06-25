@@ -380,16 +380,16 @@ HANDLE tt_createThread(
         // skip return address and the second parameter
         // uintptr esp = ctx.ESP + 2*sizeof(uintptr);
         // *(uintptr*)esp = lpStartAddress;
-        printf("ctx: 0x%X\n", (uintptr)(&ctx));
+        printf_s("ctx: 0x%X\n", (uintptr)(&ctx));
 
-        printf("start: 0x%X\n", lpStartAddress);
-        printf("para: 0x%X\n", lpParameter);
+        printf_s("start: 0x%X\n", lpStartAddress);
+        printf_s("para: 0x%X\n", lpParameter);
 
-        printf("EDX: 0x%X\n", ctx.EDX);
-        printf("ECX: 0x%X\n", ctx.ECX);
-        printf("EAX: 0x%X\n", ctx.EAX);
-        printf("ESP: 0x%X\n", ctx.ESP);
-        printf("EIP: 0x%X\n", ctx.EIP);
+        printf_s("EDX: 0x%X\n", ctx.EDX);
+        printf_s("ECX: 0x%X\n", ctx.ECX);
+        printf_s("EAX: 0x%X\n", ctx.EAX);
+        printf_s("ESP: 0x%X\n", ctx.ESP);
+        printf_s("EIP: 0x%X\n", ctx.EIP);
 
         // the context data is ???????
         ctx.EAX = lpStartAddress;
@@ -397,11 +397,11 @@ HANDLE tt_createThread(
         // addr += 11 * 16;
         // *(uint32*)addr = lpStartAddress;
 
-        printf("EDX: 0x%X\n", ctx.EDX);
-        printf("ECX: 0x%X\n", ctx.ECX);
-        printf("EAX: 0x%X\n", ctx.EAX);
-        printf("ESP: 0x%X\n", ctx.ESP);
-        printf("EIP: 0x%X\n", ctx.EIP);
+        printf_s("EDX: 0x%X\n", ctx.EDX);
+        printf_s("ECX: 0x%X\n", ctx.ECX);
+        printf_s("EAX: 0x%X\n", ctx.EAX);
+        printf_s("ESP: 0x%X\n", ctx.ESP);
+        printf_s("EIP: 0x%X\n", ctx.EIP);
 
         // tracker->WaitForSingleObject(-1, INFINITE);
     #endif
@@ -633,7 +633,7 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
     }
 
     bool success = tracker->GetThreadContext(hThread, lpContext);
-    // printf("GetThreadContext: %llu\n", hThread);
+    // printf_s("GetThreadContext: %llu\n", hThread);
 
     if (!tt_unlock(tracker))
     {
@@ -654,7 +654,7 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 
     bool success = tracker->SetThreadContext(hThread, lpContext);
 
-    // printf("SetThreadContext: %llu\n", hThread);
+    // printf_s("SetThreadContext: %llu\n", hThread);
 
     if (!tt_unlock(tracker))
     {
@@ -675,7 +675,7 @@ bool TT_SwitchToThread()
 
     bool success = tracker->SwitchToThread();
 
-    // printf("SwitchToThread\n");
+    // printf_s("SwitchToThread\n");
 
     if (!tt_unlock(tracker))
     {
