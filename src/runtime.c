@@ -109,7 +109,7 @@ static Runtime* getRuntimePointer();
 static bool rt_lock(Runtime* runtime);
 static bool rt_unlock(Runtime* runtime);
 
-static uintptr allocateRuntimeMemory();
+static void* allocateRuntimeMemory();
 static bool  initRuntimeAPI(Runtime* runtime);
 static bool  adjustPageProtect(Runtime* runtime);
 static bool  updateRuntimePointer(Runtime* runtime);
@@ -140,15 +140,15 @@ static void rt_epilogue();
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Opts* opts)
 {
-    uintptr address = allocateRuntimeMemory();
+    void* address = allocateRuntimeMemory();
     if (address == NULL)
     {
         return NULL;
     }
-    printf_s("main page: 0x%llX\n", address);
+    printf_s("main page: 0x%llX\n", (uintptr)address);
     // set structure address
-    uintptr runtimeAddr = address + 1000 + RandUint(address) % 128;
-    uintptr moduleAddr  = address + 2500 + RandUint(address) % 128;
+    uintptr runtimeAddr = (uintptr)address + 1000 + RandUint(address) % 128;
+    uintptr moduleAddr  = (uintptr)address + 2500 + RandUint(address) % 128;
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     mem_clean(runtime, sizeof(Runtime));
@@ -234,7 +234,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
 }
 
 // allocate memory for store structures.
-static uintptr allocateRuntimeMemory()
+static void* allocateRuntimeMemory()
 {
 #ifdef _WIN64
     uint hash = 0xB6A1D0D4A275D4B6;
@@ -248,12 +248,12 @@ static uintptr allocateRuntimeMemory()
     {
         return NULL;
     }
-    uintptr addr = virtualAlloc(0, MAIN_MEM_PAGE_SIZE, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    LPVOID addr = virtualAlloc(0, MAIN_MEM_PAGE_SIZE, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
     }
-    RandBuf((byte*)addr, MAIN_MEM_PAGE_SIZE);
+    RandBuf(addr, MAIN_MEM_PAGE_SIZE);
     return addr;
 }
 
