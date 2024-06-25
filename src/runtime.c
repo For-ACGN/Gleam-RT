@@ -24,7 +24,7 @@
 
 // for IAT hooks
 typedef struct {
-    uintptr Func;
+    uintptr Proc;
     uintptr Hook;
 } Hook;
 
@@ -243,7 +243,7 @@ static uintptr allocateRuntimeMemory()
     uint hash = 0xC3DE112E;
     uint key  = 0x8D9EA74F;
 #endif
-    VirtualAlloc_t virtualAlloc = (VirtualAlloc_t)FindAPI(hash, key);
+    VirtualAlloc_t virtualAlloc = FindAPI(hash, key);
     if (virtualAlloc == NULL)
     {
         return NULL;
@@ -260,7 +260,7 @@ static uintptr allocateRuntimeMemory()
 static bool initRuntimeAPI(Runtime* runtime)
 {
     typedef struct { 
-        uint hash; uint key; uintptr address;
+        uint hash; uint key; void* proc;
     } winapi;
     winapi list[] =
 #ifdef _WIN64
@@ -298,30 +298,29 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0x1CE92A4E, 0xBFF4B241 }, // GetProcAddress
     };
 #endif
-    uintptr address;
     for (int i = 0; i < arrlen(list); i++)
     {
-        address = FindAPI(list[i].hash, list[i].key);
-        if (address == NULL)
+        void* proc = FindAPI(list[i].hash, list[i].key);
+        if (proc == NULL)
         {
             return false;
         }
-        list[i].address = address;
+        list[i].proc = proc;
     }
-    runtime->GetSystemInfo         = (GetSystemInfo_t        )(list[0x00].address);
-    runtime->VirtualAlloc          = (VirtualAlloc_t         )(list[0x01].address);
-    runtime->VirtualFree           = (VirtualFree_t          )(list[0x02].address);
-    runtime->VirtualProtect        = (VirtualProtect_t       )(list[0x03].address);
-    runtime->FlushInstructionCache = (FlushInstructionCache_t)(list[0x04].address);
-    runtime->CreateMutexA          = (CreateMutexA_t         )(list[0x05].address);
-    runtime->ReleaseMutex          = (ReleaseMutex_t         )(list[0x06].address);
-    runtime->CreateEventA          = (CreateEventA_t         )(list[0x07].address);
-    runtime->SetEvent              = (SetEvent_t             )(list[0x08].address);
-    runtime->ResetEvent            = (ResetEvent_t           )(list[0x09].address);
-    runtime->WaitForSingleObject   = (WaitForSingleObject_t  )(list[0x0A].address);
-    runtime->DuplicateHandle       = (DuplicateHandle_t      )(list[0x0B].address);
-    runtime->CloseHandle           = (CloseHandle_t          )(list[0x0C].address);
-    runtime->GetProcAddress        = (GetProcAddress_t       )(list[0x0D].address);
+    runtime->GetSystemInfo         = list[0x00].proc;
+    runtime->VirtualAlloc          = list[0x01].proc;
+    runtime->VirtualFree           = list[0x02].proc;
+    runtime->VirtualProtect        = list[0x03].proc;
+    runtime->FlushInstructionCache = list[0x04].proc;
+    runtime->CreateMutexA          = list[0x05].proc;
+    runtime->ReleaseMutex          = list[0x06].proc;
+    runtime->CreateEventA          = list[0x07].proc;
+    runtime->SetEvent              = list[0x08].proc;
+    runtime->ResetEvent            = list[0x09].proc;
+    runtime->WaitForSingleObject   = list[0x0A].proc;
+    runtime->DuplicateHandle       = list[0x0B].proc;
+    runtime->CloseHandle           = list[0x0C].proc;
+    runtime->GetProcAddress        = list[0x0D].proc;
     return true;
 }
 
@@ -554,15 +553,14 @@ static bool initIATHooks(Runtime* runtime)
         { 0x6EF0E2AA, 0xE014E29F, runtime->ThreadTracker->TerminateThread },
     };
 #endif
-    uintptr func;
     for (int i = 0; i < arrlen(items); i++)
     {
-        func = FindAPI(items[i].hash, items[i].key);
-        if (func == NULL)
+        void* proc = FindAPI(items[i].hash, items[i].key);
+        if (proc == NULL)
         {
             return false;
         }
-        runtime->IAT_Hooks[i].Func = func;
+        runtime->IAT_Hooks[i].Proc = proc;
         runtime->IAT_Hooks[i].Hook = (uintptr)items[i].hook;
     }
     return true;
@@ -876,7 +874,7 @@ static uintptr replaceToHook(Runtime* runtime, uintptr proc)
 {
     for (int i = 0; i < arrlen(runtime->IAT_Hooks); i++)
     {
-        if (proc != runtime->IAT_Hooks[i].Func)
+        if (proc != runtime->IAT_Hooks[i].Proc)
         {
             continue;
         }
