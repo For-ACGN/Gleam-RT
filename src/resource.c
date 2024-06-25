@@ -46,10 +46,11 @@ typedef struct {
     int64 Counters[1];
 } ResourceTracker;
 
-// methods about resource tracker
+// methods for IAT hooks
 int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData);
 int RT_WSACleanup();
 
+// methods for runtime
 errno RT_Encrypt();
 errno RT_Decrypt();
 errno RT_Clean();
@@ -111,8 +112,8 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     // create methods for tracker
     ResourceTracker_M* module = (ResourceTracker_M*)moduleAddr;
     // Windows API hooks
-    module->WSAStartup = (WSAStartup_t)(&RT_WSAStartup);
-    module->WSACleanup = (WSACleanup_t)(&RT_WSACleanup);
+    module->WSAStartup = &RT_WSAStartup;
+    module->WSACleanup = &RT_WSACleanup;
     // methods for runtime
     module->ResEncrypt = &RT_Encrypt;
     module->ResDecrypt = &RT_Decrypt;
@@ -124,7 +125,7 @@ __declspec(noinline)
 static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
 {
     typedef struct { 
-        uint hash; uint key; uintptr address;
+        uint hash; uint key; void* proc;
     } winapi;
     winapi list[] =
 #ifdef _WIN64
@@ -138,19 +139,17 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
         { 0x2CB7048A, 0x76AC9783 }, // CreateFileW
     };
 #endif
-    uintptr address;
     for (int i = 0; i < arrlen(list); i++)
     {
-        address = FindAPI(list[i].hash, list[i].key);
-        if (address == NULL)
+        void* proc = FindAPI(list[i].hash, list[i].key);
+        if (proc == NULL)
         {
             return false;
         }
-        list[i].address = address;
+        list[i].proc = proc;
     }
-
-    tracker->CreateFileA = (CreateFileA_t)(list[0].address);
-    tracker->CreateFileW = (CreateFileW_t)(list[1].address);
+    tracker->CreateFileA = list[0].proc;
+    tracker->CreateFileW = list[1].proc;
 
     tracker->CloseHandle         = context->CloseHandle;
     tracker->ReleaseMutex        = context->ReleaseMutex;
