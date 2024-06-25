@@ -24,8 +24,8 @@
 
 // for IAT hooks
 typedef struct {
-    uintptr Proc;
-    uintptr Hook;
+    void* Proc;
+    void* Hook;
 } Hook;
 
 typedef struct {
@@ -121,9 +121,9 @@ static errno initResourceTracker(Runtime* runtime, Context* context);
 static bool  initIATHooks(Runtime* runtime);
 static bool  flushInstructionCache(Runtime* runtime);
 
-static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName);
-static uintptr getResTrackerHook(Runtime* runtime, uintptr proc);
-static uintptr replaceToHook(Runtime* runtime, uintptr proc);
+static void* getRuntimeMethods(byte* module, LPCSTR lpProcName);
+static void* getResTrackerHook(Runtime* runtime, void* proc);
+static void* replaceToHook(Runtime* runtime, void* proc);
 
 static void  trigger();
 static errno processEvent(Runtime* runtime, bool* exit);
@@ -561,7 +561,7 @@ static bool initIATHooks(Runtime* runtime)
             return false;
         }
         runtime->IAT_Hooks[i].Proc = proc;
-        runtime->IAT_Hooks[i].Hook = (uintptr)items[i].hook;
+        runtime->IAT_Hooks[i].Hook = items[i].hook;
     }
     return true;
 }
@@ -782,7 +782,7 @@ void* RT_GetProcAddressByHash(uint hash, uint key, bool hook)
 {
     Runtime* runtime = getRuntimePointer();
 
-    uintptr proc = FindAPI(hash, key);
+    void* proc = FindAPI(hash, key);
     if (proc == NULL)
     {
         return NULL;
@@ -791,7 +791,7 @@ void* RT_GetProcAddressByHash(uint hash, uint key, bool hook)
     {
         return proc;
     }
-    uintptr rth = getResTrackerHook(runtime, proc);
+    void* rth = getResTrackerHook(runtime, proc);
     if (rth != proc)
     {
         return rth;
@@ -810,7 +810,7 @@ void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 }
 #pragma optimize("", on)
 
-static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName)
+static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
 {
     typedef struct {
         uint hash; uint key; void* method;
@@ -836,15 +836,15 @@ static uintptr getRuntimeMethods(byte* module, LPCSTR lpProcName)
         {
             continue;
         }
-        return (uintptr)(methods[i].method);
+        return methods[i].method;
     }
     return NULL;
 }
 
-static uintptr getResTrackerHook(Runtime* runtime, uintptr proc)
+static void* getResTrackerHook(Runtime* runtime, void* proc)
 {
     typedef struct {
-        uint hash; uint key; void* method;
+        uint hash; uint key; void* hook;
     } hook;
     hook hooks[] =
 #ifdef _WIN64
@@ -860,17 +860,16 @@ static uintptr getResTrackerHook(Runtime* runtime, uintptr proc)
 #endif
     for (int i = 0; i < arrlen(hooks); i++)
     {
-        uintptr func = FindAPI(hooks[i].hash, hooks[i].key);
-        if (func != proc)
+        if (FindAPI(hooks[i].hash, hooks[i].key) != proc)
         {
             continue;
         }
-        return (uintptr)(hooks[i].method);
+        return hooks[i].hook;
     }
     return proc;
 }
 
-static uintptr replaceToHook(Runtime* runtime, uintptr proc)
+static void* replaceToHook(Runtime* runtime, void* proc)
 {
     for (int i = 0; i < arrlen(runtime->IAT_Hooks); i++)
     {
