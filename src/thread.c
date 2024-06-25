@@ -46,18 +46,20 @@ typedef struct {
     byte ThreadsIV [CRYPTO_IV_SIZE];
 } ThreadTracker;
 
-// methods about thread tracker
+// methods for IAT hooks
 HANDLE TT_CreateThread(
-    uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
-    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
+    POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
+    LPVOID lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId
 );
-void   TT_ExitThread(uint32 dwExitCode);
+void   TT_ExitThread(DWORD dwExitCode);
 uint32 TT_SuspendThread(HANDLE hThread);
 uint32 TT_ResumeThread(HANDLE hThread);
 bool   TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext);
 bool   TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext);
 bool   TT_SwitchToThread();
-bool   TT_TerminateThread(HANDLE hThread, uint32 dwExitCode);
+bool   TT_TerminateThread(HANDLE hThread, DWORD dwExitCode);
+
+// methods for runtime
 HANDLE TT_ThdNew(void* address, void* parameter, bool track);
 void   TT_ThdExit();
 errno  TT_Suspend();
@@ -65,8 +67,8 @@ errno  TT_Resume();
 errno  TT_Clean();
 
 HANDLE tt_createThread(
-    uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
-    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId, bool track
+    POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
+    LPVOID lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId, BOOL track
 );
 
 // hard encoded address in getTrackerPointer for replacement
@@ -83,7 +85,7 @@ static bool tt_unlock(ThreadTracker* tracker);
 static bool  initTrackerAPI(ThreadTracker* tracker, Context* context);
 static bool  updateTrackerPointer(ThreadTracker* tracker);
 static bool  initTrackerEnvironment(ThreadTracker* tracker, Context* context);
-static void* camouflageStartAddress(uintptr seed);
+static void* camouflageStartAddress(uint64 seed);
 static bool  addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
 static void  delThread(ThreadTracker* tracker, uint32 threadID);
 
@@ -316,8 +318,8 @@ static bool tt_unlock(ThreadTracker* tracker)
 
 __declspec(noinline)
 HANDLE TT_CreateThread(
-    uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
-    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId
+    POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
+    LPVOID lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId
 )
 {
     return tt_createThread(
@@ -328,8 +330,8 @@ HANDLE TT_CreateThread(
 
 __declspec(noinline)
 HANDLE tt_createThread(
-    uintptr lpThreadAttributes, uint dwStackSize, uintptr lpStartAddress,
-    uintptr lpParameter, uint32 dwCreationFlags, uint32* lpThreadId, bool track
+    POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
+    LPVOID lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId, BOOL track
 )
 {
     ThreadTracker* tracker = getTrackerPointer();
@@ -346,8 +348,8 @@ HANDLE tt_createThread(
     for (;;)
     {
         // create thread from camouflaged start address and pause it
-        bool    resume   = (dwCreationFlags & 0xF) != CREATE_SUSPENDED;
-        uintptr fakeAddr = camouflageStartAddress(lpStartAddress);
+        bool  resume   = (dwCreationFlags & 0xF) != CREATE_SUSPENDED;
+        void* fakeAddr = camouflageStartAddress((uint64)lpStartAddress);
         dwCreationFlags |= CREATE_SUSPENDED;
 
         hThread = tracker->CreateThread(
@@ -372,7 +374,7 @@ HANDLE tt_createThread(
             break;
         }
     #ifdef _WIN64
-        ctx.RCX = lpStartAddress;
+        ctx.RCX = (QWORD)lpStartAddress;
     #elif _WIN32
         // TODO x86
         // skip return address and the second parameter
@@ -420,8 +422,8 @@ HANDLE tt_createThread(
             success = false;
             break;
         }
-        printf_s("fake start: %llX\n", fakeAddr);
-        printf_s("CreateThread: 0x%llX, %lu\n", lpStartAddress, threadID);
+        printf_s("fake start: %llX\n", (uint64)fakeAddr);
+        printf_s("CreateThread: 0x%llX, %lu\n", (uint64)lpStartAddress, threadID);
         break;
     }
 
@@ -446,7 +448,7 @@ HANDLE tt_createThread(
     return hThread;
 }
 
-static void* camouflageStartAddress(uintptr seed)
+static void* camouflageStartAddress(uint64 seed)
 {
     // get current process module from PEB
 #ifdef _WIN64
@@ -469,7 +471,7 @@ static void* camouflageStartAddress(uintptr seed)
     ParsePEImage((byte*)modAddr, &info);
     // select a random start address
     uintptr base  = modAddr + info.TextVirtualAddress;
-    uintptr begin = base + (RandUint((uint64)seed)%info.TextSizeOfRawData);
+    uintptr begin = base + (RandUint(seed)%info.TextSizeOfRawData);
     uintptr end   = base + info.TextSizeOfRawData;
     for (uintptr addr = begin; addr < end; addr++)
     {
@@ -491,20 +493,21 @@ static void* camouflageStartAddress(uintptr seed)
         // push 
         if (b >= 0x50 && b <= 0x57)
         {
-            return addr;
+            return (void*)addr;
         }
         // mov
         if (b >= 0x88 && b <= 0x8B)
         {
-            return addr;
+            return (void*)addr;
         }
         // mov register
         if (b >= 0xB0 && b <= 0xBF)
         {
-            return addr;
+            return (void*)addr;
         }
     }
-    return begin;
+    // if not found, return the random start address
+    return (void*)begin;
 }
 
 static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
@@ -530,7 +533,7 @@ static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
 }
 
 __declspec(noinline)
-void TT_ExitThread(uint32 dwExitCode)
+void TT_ExitThread(DWORD dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
@@ -683,7 +686,7 @@ bool TT_SwitchToThread()
 }
 
 __declspec(noinline)
-bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
+bool TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
@@ -710,7 +713,7 @@ bool TT_TerminateThread(HANDLE hThread, uint32 dwExitCode)
 __declspec(noinline)
 HANDLE TT_ThdNew(void* address, void* parameter, bool track)
 {
-    return tt_createThread(NULL, 0, address, (uintptr)parameter, 0, NULL, track);
+    return tt_createThread(NULL, 0, address, parameter, 0, NULL, track);
 }
 
 __declspec(noinline)
