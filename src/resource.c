@@ -326,6 +326,12 @@ errno RT_Encrypt()
 {
     ResourceTracker* tracker = getTrackerPointer();
 
+    List* list = &tracker->Handles;
+    byte* key  = &tracker->HandlesKey[0];
+    byte* iv   = &tracker->HandlesIV[0];
+    RandBuf(key, CRYPTO_KEY_SIZE);
+    RandBuf(iv, CRYPTO_IV_SIZE);
+    EncryptBuf(list->Data, List_Size(list), key, iv);
     return NO_ERROR;
 }
 
@@ -334,6 +340,10 @@ errno RT_Decrypt()
 {
     ResourceTracker* tracker = getTrackerPointer();
 
+    List* list = &tracker->Handles;
+    byte* key  = &tracker->HandlesKey[0];
+    byte* iv   = &tracker->HandlesIV[0];
+    DecryptBuf(list->Data, List_Size(list), key, iv);
     return NO_ERROR;
 }
 
