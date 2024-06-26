@@ -145,9 +145,9 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     {
         return NULL;
     }
+    printf_s("main page: 0x%llX\n", (uintptr)memPage);
     // set structure address
     uintptr address = (uintptr)memPage;
-    printf_s("main page: 0x%llX\n", address);
     uintptr runtimeAddr = address + 1000 + RandUint(address) % 128;
     uintptr moduleAddr  = address + 2500 + RandUint(address) % 128;
     // initialize structure
@@ -332,11 +332,12 @@ static bool adjustPageProtect(Runtime* runtime)
     {
         return true;
     }
+    void*   addr  = &InitRuntime;
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
     int64   size  = end - begin;
     uint32  old;
-    return runtime->VirtualProtect(&InitRuntime, size, PAGE_EXECUTE_READWRITE, &old);
+    return runtime->VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &old);
 }
 
 static bool updateRuntimePointer(Runtime* runtime)
@@ -579,10 +580,11 @@ static void eraseRuntimeMethods()
 __declspec(noinline)
 static bool flushInstructionCache(Runtime* runtime)
 {
+    void*   addr  = &InitRuntime;
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
     int64   size  = end - begin;
-    if (!runtime->FlushInstructionCache(CURRENT_PROCESS, &InitRuntime, size))
+    if (!runtime->FlushInstructionCache(CURRENT_PROCESS, addr, size))
     {
         return false;
     }
@@ -766,14 +768,14 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
         return NULL;
     }
     // check is internal methods
-    uintptr method = getRuntimeMethods(&module[0], lpProcName);
+    void* method = getRuntimeMethods(&module[0], lpProcName);
     if (method != NULL)
     {
         return method;
     }
     // generate key for calculate Windows API hash
     uint key  = RandUint((uint64)(hModule) + (uint64)(lpProcName));
-    uint hash = HashAPI_W(&module[0], lpProcName, key);
+    uint hash = HashAPI_W((uint16*)(&module[0]), (byte*)lpProcName, key);
     return RT_GetProcAddressByHash(hash, key, hook);
 }
 
@@ -831,7 +833,7 @@ static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
 #endif
     for (int i = 0; i < arrlen(methods); i++)
     {
-        uint hash = HashAPI_W(module, lpProcName, methods[i].key);
+        uint hash = HashAPI_W((uint16*)module, (byte*)lpProcName, methods[i].key);
         if (hash != methods[i].hash)
         {
             continue;
@@ -1125,8 +1127,8 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     FlushInstructionCache_t flush = runtime->FlushInstructionCache;
     // build shield context before encrypt
     uintptr runtimeAddr = (uintptr)(&InitRuntime);
-    uintptr instAddress = runtime->InstAddress;
-    if (instAddress == NULL || instAddress >= runtimeAddr)
+    uintptr instAddress = (uintptr)(runtime->InstAddress);
+    if (instAddress == 0 || instAddress >= runtimeAddr)
     {
         instAddress = runtimeAddr;
     }
@@ -1151,8 +1153,8 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         return ERR_RUNTIME_DEFENSE_RT;
     }
     // flush instruction cache after decrypt
-    uintptr baseAddr = instAddress;
-    uint    instSize = (uintptr)(&DefenseRT) - baseAddr;
+    void* baseAddr = (void*)instAddress;
+    uint  instSize = (uintptr)(&DefenseRT) - instAddress;
     if (!flush(CURRENT_PROCESS, baseAddr, instSize))
     {
         return ERR_RUNTIME_FLUSH_INST_CACHE;
