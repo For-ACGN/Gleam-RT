@@ -140,22 +140,23 @@ static void rt_epilogue();
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Opts* opts)
 {
-    void* address = allocateRuntimeMemory();
-    if (address == NULL)
+    void* memPage = allocateRuntimeMemory();
+    if (memPage == NULL)
     {
         return NULL;
     }
-    printf_s("main page: 0x%llX\n", (uintptr)address);
     // set structure address
-    uintptr runtimeAddr = (uintptr)address + 1000 + RandUint(address) % 128;
-    uintptr moduleAddr  = (uintptr)address + 2500 + RandUint(address) % 128;
+    uintptr address = (uintptr)memPage;
+    printf_s("main page: 0x%llX\n", address);
+    uintptr runtimeAddr = address + 1000 + RandUint(address) % 128;
+    uintptr moduleAddr  = address + 2500 + RandUint(address) % 128;
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     mem_clean(runtime, sizeof(Runtime));
     runtime->Options = opts;
     runtime->InstAddress  = opts->InstAddress;
     runtime->NotEraseInst = opts->NotEraseInst;
-    runtime->MainMemPage  = address;
+    runtime->MainMemPage  = memPage;
     // initialize runtime
     errno errno = NO_ERROR;
     for (;;)
@@ -335,7 +336,7 @@ static bool adjustPageProtect(Runtime* runtime)
     uintptr end   = (uintptr)(&Epilogue);
     int64   size  = end - begin;
     uint32  old;
-    return runtime->VirtualProtect(begin, size, PAGE_EXECUTE_READWRITE, &old);
+    return runtime->VirtualProtect(&InitRuntime, size, PAGE_EXECUTE_READWRITE, &old);
 }
 
 static bool updateRuntimePointer(Runtime* runtime)
@@ -581,7 +582,7 @@ static bool flushInstructionCache(Runtime* runtime)
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
     int64   size  = end - begin;
-    if (!runtime->FlushInstructionCache(CURRENT_PROCESS, begin, size))
+    if (!runtime->FlushInstructionCache(CURRENT_PROCESS, &InitRuntime, size))
     {
         return false;
     }
@@ -662,12 +663,11 @@ void* RT_malloc(uint size)
     // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
     uint pageSize = ((size / runtime->PageSize) + 1) * runtime->PageSize;
-    uintptr addr = runtime->VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    void* addr = runtime->VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
     }
-
     // printf_s("rt_malloc: 0x%llX, %llu\n", addr, size);
 
     // store the size at the head of the memory page
@@ -675,7 +675,7 @@ void* RT_malloc(uint size)
     byte* address = (byte*)addr;
     RandBuf(address, 16);
     mem_copy(address, &size, sizeof(uint));
-    return (void*)(addr+16);
+    return (void*)(address + 16);
 }
 
 __declspec(noinline)
@@ -715,8 +715,8 @@ bool RT_free(void* address)
     // printf_s("rt_free: 0x%llX\n", (uintptr)address);
 
     // clean the buffer data before call VirtualFree.
-    uintptr addr = (uintptr)(address)-16;
-    uint    size = *(uint*)addr;
+    void* addr = (void*)((uintptr)(address)-16);
+    uint  size = *(uint*)addr;
     mem_clean((byte*)addr, size);
     return runtime->VirtualFree(addr, 0, MEM_RELEASE);
 }
