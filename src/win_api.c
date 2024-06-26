@@ -30,7 +30,7 @@ uint32 GetModuleFileName(HMODULE hModule, byte* name, uint32 size)
     #elif _WIN32
         uintptr modBase = *(uintptr*)(mod + 16);
     #endif
-        if (modBase != hModule)
+        if (modBase != (uintptr)hModule)
         {
             continue;
         }
