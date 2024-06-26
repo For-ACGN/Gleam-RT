@@ -34,7 +34,7 @@ typedef errno (*Recover_t)();
 
 typedef struct {
     // protect instructions like shellcode before runtime
-    uintptr InstAddress;
+    void* InstAddress;
 
     // not erase runtime instruction after call Stop
     bool NotEraseInst;
