@@ -857,11 +857,15 @@ static void* getResTrackerHook(Runtime* runtime, void* proc)
     hook hooks[] =
 #ifdef _WIN64
     {
+        { 0x94DAFAE03484102D, 0x300F881516DC2FF5, runtime->ResourceTracker->CreateFileA },
+        { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, runtime->ResourceTracker->CreateFileW },
         { 0x7749934E33C18703, 0xCFB41E32B03DC637, runtime->ResourceTracker->WSAStartup },
         { 0x46C76E87C13DF670, 0x37B6B54E4B2FBECC, runtime->ResourceTracker->WSACleanup },
     };
 #elif _WIN32
     {
+        { 0x79796D6E, 0x6DBBA55C, runtime->ResourceTracker->CreateFileA },
+        { 0x0370C4B8, 0x76254EF3, runtime->ResourceTracker->CreateFileW },
         { 0xE487BC0B, 0x283C1684, runtime->ResourceTracker->WSAStartup },
         { 0x175B553E, 0x541A996E, runtime->ResourceTracker->WSACleanup },
     };
