@@ -15,7 +15,7 @@
 #define SRC_CREATE_FILE_W 0x0002
 #define SRC_OPEN_FILE     0x0006
 
-#define RES_WSA 0x0000
+#define LIB_WSA_STARTUP 0x0000
 
 typedef struct {
     HANDLE handle;
@@ -272,7 +272,7 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
     int ret = tracker->WSAStartup(wVersionRequired, lpWSAData);
     if (ret == 0)
     {
-        tracker->Counters[RES_WSA]++;
+        tracker->Counters[LIB_WSA_STARTUP]++;
         printf_s("ResourceTracker: WSAStartup\n");
     }
 
@@ -310,7 +310,7 @@ int RT_WSACleanup()
     int ret = tracker->WSACleanup();
     if (ret == 0)
     {
-        tracker->Counters[RES_WSA]--;
+        tracker->Counters[LIB_WSA_STARTUP]--;
         printf_s("ResourceTracker: WSACleanup\n");
     }
 
@@ -352,11 +352,36 @@ errno RT_Clean()
 {
     ResourceTracker* tracker = getTrackerPointer();
 
+    List* handles = &tracker->Handles;
     errno errno   = NO_ERROR;
-    int64 counter = 0;
+    
+    // close all tracked handles
+    uint index = 0;
+    for (uint num = 0; num < handles->Len; index++)
+    {
+        handle* handle = List_Get(handles, index);
+        if (handle->handle == NULL)
+        {
+            continue;
+        }
+        if (!tracker->CloseHandle(handle->handle))
+        {
+            errno = ERR_RESOURCE_CLOSE_HANDLE;
+        }
+        num++;
+    }
 
+    // clean handle list
+    RandBuf(handles->Data, List_Size(handles));
+    if (!List_Free(handles))
+    {
+        errno = ERR_RESOURCE_FREE_HANDLE_LIST;
+    }
+
+    // process init function tracker
+    int64 counter = 0;
     // WSACleanup
-    counter = tracker->Counters[RES_WSA];
+    counter = tracker->Counters[LIB_WSA_STARTUP];
     for (int64 i = 0; i < counter; i++)
     {
         if (tracker->WSACleanup() != 0)
@@ -364,6 +389,5 @@ errno RT_Clean()
             errno = ERR_RESOURCE_WSA_CLEANUP;
         }
     }
-
     return errno;
 }

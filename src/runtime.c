@@ -575,6 +575,12 @@ static void eraseRuntimeMethods()
     uintptr end   = (uintptr)(&eraseRuntimeMethods);
     int64   size  = end - begin;
     RandBuf((byte*)begin, size);
+    // uintptr relative_address;
+    // __asm {
+    //     lea eax, _locale_t  allocateRuntimeMemory
+    //     mov relative_address, eax
+    // }
+    // printf_s("0x%X\n", relative_address);
 }
 
 __declspec(noinline)
