@@ -134,9 +134,14 @@ bool List_Resize(List* list, uint cap)
     void* data;
     if (list->Data != NULL)
     {
+        uint oldSize = List_Size(list);
         data = list->ctx.realloc(list->Data, size);
+        void* addr = (void*)((uintptr)data + oldSize);
+        uint  num = size - oldSize;
+        mem_clean(addr, num);
     } else {
         data = list->ctx.malloc(size);
+        mem_clean(data, size);
     }
     if (data == NULL)
     {
