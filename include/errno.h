@@ -8,12 +8,12 @@ typedef uint32 errno;
 void  SetLastErrno(errno errno);
 errno GetLastErrno();
 
-#define NO_ERROR 0x00000000
-
 // 00，，，，，， module id
 // ，，00，，，， error flags
 // ，，，，00，， major error id
 // ，，，，，，00 minor error id
+
+#define NO_ERROR 0x00000000
 
 #define ERR_FLAG_CAN_IGNORE 0x00010000
 
@@ -65,9 +65,11 @@ errno GetLastErrno();
 #define ERR_THREAD_CLOSE_HANDLE    (0x04000008|ERR_FLAG_CAN_IGNORE)
 #define ERR_THREAD_FREE_LIST       (0x04000009|ERR_FLAG_CAN_IGNORE)
 
-#define ERR_RESOURCE_INIT_API    (0x05000001)
-#define ERR_RESOURCE_UPDATE_PTR  (0x05000002)
-#define ERR_RESOURCE_INIT_ENV    (0x05000003)
-#define ERR_RESOURCE_WSA_CLEANUP (0x05000004)
+#define ERR_RESOURCE_INIT_API         (0x05000001)
+#define ERR_RESOURCE_UPDATE_PTR       (0x05000002)
+#define ERR_RESOURCE_INIT_ENV         (0x05000003)
+#define ERR_RESOURCE_CLOSE_HANDLE     (0x05000004|ERR_FLAG_CAN_IGNORE)
+#define ERR_RESOURCE_FREE_HANDLE_LIST (0x05000005|ERR_FLAG_CAN_IGNORE)
+#define ERR_RESOURCE_WSA_CLEANUP      (0x05000006|ERR_FLAG_CAN_IGNORE)
 
 #endif // ERRNO_H
