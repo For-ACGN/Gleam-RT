@@ -137,6 +137,8 @@ typedef struct __declspec(align(16)) {
 } CONTEXT;
 #endif
 
+#define INVALID_HANDLE_VALUE (HANDLE)(-1)
+
 #define CURRENT_PROCESS (HANDLE)(-1)
 #define CURRENT_THREAD  (HANDLE)(-2)
 
