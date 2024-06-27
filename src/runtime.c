@@ -145,7 +145,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     {
         return NULL;
     }
-    printf_s("main page: 0x%llX\n", (uintptr)memPage);
+    printf_s("main page: 0x%llX\n", (uint64)memPage);
     // set structure address
     uintptr address = (uintptr)memPage;
     uintptr runtimeAddr = address + 1000 + RandUint(address) % 128;
@@ -335,7 +335,7 @@ static bool adjustPageProtect(Runtime* runtime)
     void*   addr  = &InitRuntime;
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
-    int64   size  = end - begin;
+    uint    size  = end - begin;
     uint32  old;
     return runtime->VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &old);
 }
@@ -583,7 +583,7 @@ static bool flushInstructionCache(Runtime* runtime)
     void*   addr  = &InitRuntime;
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
-    int64   size  = end - begin;
+    uint    size  = end - begin;
     if (!runtime->FlushInstructionCache(CURRENT_PROCESS, addr, size))
     {
         return false;
