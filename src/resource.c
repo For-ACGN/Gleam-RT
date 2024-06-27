@@ -47,6 +47,17 @@ typedef struct {
 } ResourceTracker;
 
 // methods for IAT hooks
+HANDLE RT_CreateFileA(
+    LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+    POINTER lpSecurityAttributes, DWORD dwCreationDisposition,
+    DWORD dwFlagsAndAttributes, HANDLE hTemplateFile
+);
+HANDLE RT_CreateFileW(
+    LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+    POINTER lpSecurityAttributes, DWORD dwCreationDisposition,
+    DWORD dwFlagsAndAttributes, HANDLE hTemplateFile
+);
+
 int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData);
 int RT_WSACleanup();
 
@@ -112,8 +123,10 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     // create methods for tracker
     ResourceTracker_M* module = (ResourceTracker_M*)moduleAddr;
     // Windows API hooks
-    module->WSAStartup = &RT_WSAStartup;
-    module->WSACleanup = &RT_WSACleanup;
+    module->CreateFileA = &RT_CreateFileA;
+    module->CreateFileW = &RT_CreateFileW;
+    module->WSAStartup  = &RT_WSAStartup;
+    module->WSACleanup  = &RT_WSACleanup;
     // methods for runtime
     module->ResEncrypt = &RT_Encrypt;
     module->ResDecrypt = &RT_Decrypt;
@@ -244,6 +257,70 @@ static bool rt_unlock(ResourceTracker* tracker)
 {
     return tracker->ReleaseMutex(tracker->Mutex);
 }
+
+__declspec(noinline)
+HANDLE RT_CreateFileA(
+    LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+    POINTER lpSecurityAttributes, DWORD dwCreationDisposition,
+    DWORD dwFlagsAndAttributes, HANDLE hTemplateFile
+)
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
+    if (!rt_lock(tracker))
+    {
+        return INVALID_HANDLE_VALUE;
+    }
+
+    HANDLE hFile = tracker->CreateFileA(
+        lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+        dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile
+    );
+
+    printf_s("CreateFileA: %s\n", lpFileName);
+
+    if (!rt_unlock(tracker))
+    {
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            tracker->CloseHandle(hFile);
+        }
+        return INVALID_HANDLE_VALUE;
+    }
+    return hFile;
+};
+
+__declspec(noinline)
+HANDLE RT_CreateFileW(
+    LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
+    POINTER lpSecurityAttributes, DWORD dwCreationDisposition,
+    DWORD dwFlagsAndAttributes, HANDLE hTemplateFile
+)
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
+    if (!rt_lock(tracker))
+    {
+        return INVALID_HANDLE_VALUE;
+    }
+
+    HANDLE hFile = tracker->CreateFileW(
+        lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+        dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile
+    );
+
+    printf_s("CreateFileW: %ls\n", lpFileName);
+
+    if (!rt_unlock(tracker))
+    {
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            tracker->CloseHandle(hFile);
+        }
+        return INVALID_HANDLE_VALUE;
+    }
+    return hFile;
+};
 
 __declspec(noinline)
 int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
