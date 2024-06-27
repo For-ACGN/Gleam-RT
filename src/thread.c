@@ -382,8 +382,8 @@ HANDLE tt_createThread(
         // *(uintptr*)esp = lpStartAddress;
         printf_s("ctx: 0x%X\n", (uintptr)(&ctx));
 
-        printf_s("start: 0x%X\n", lpStartAddress);
-        printf_s("para: 0x%X\n", lpParameter);
+        printf_s("start: 0x%X\n", (uintptr)lpStartAddress);
+        printf_s("param: 0x%X\n", (uintptr)lpParameter);
 
         printf_s("EDX: 0x%X\n", ctx.EDX);
         printf_s("ECX: 0x%X\n", ctx.ECX);
@@ -393,9 +393,10 @@ HANDLE tt_createThread(
 
         // the context data is ???????
         ctx.EAX = lpStartAddress;
-        // uintptr addr = (uintptr)(&ctx);
-        // addr += 11 * 16;
-        // *(uint32*)addr = lpStartAddress;
+
+        uintptr addr = (uintptr)(&ctx);
+        addr += 11 * 16;
+        *(uint32*)addr = lpStartAddress;
 
         printf_s("EDX: 0x%X\n", ctx.EDX);
         printf_s("ECX: 0x%X\n", ctx.ECX);
