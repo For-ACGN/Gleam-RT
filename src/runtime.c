@@ -849,6 +849,8 @@ static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
     return NULL;
 }
 
+// getResTrackerHook is used to FindAPI after LoadLibrary
+// hooks in initIATHooks are all in kernel32.dll
 static void* getResTrackerHook(Runtime* runtime, void* proc)
 {
     typedef struct {
@@ -859,6 +861,10 @@ static void* getResTrackerHook(Runtime* runtime, void* proc)
     {
         { 0x94DAFAE03484102D, 0x300F881516DC2FF5, runtime->ResourceTracker->CreateFileA },
         { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, runtime->ResourceTracker->CreateFileW },
+        { 0x78AEE64CADBBC72F, 0x480A328AEFFB1A39, runtime->ResourceTracker->CloseHandle },
+        { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, runtime->ResourceTracker->FindFirstFileA },
+        { 0x7C520EB61A85181B, 0x933C760F029EF1DD, runtime->ResourceTracker->FindFirstFileW },
+        { 0x3D3A73632A3BCEDA, 0x72E6CA3A0850F779, runtime->ResourceTracker->FindClose },
         { 0x7749934E33C18703, 0xCFB41E32B03DC637, runtime->ResourceTracker->WSAStartup },
         { 0x46C76E87C13DF670, 0x37B6B54E4B2FBECC, runtime->ResourceTracker->WSACleanup },
     };
@@ -866,6 +872,10 @@ static void* getResTrackerHook(Runtime* runtime, void* proc)
     {
         { 0x79796D6E, 0x6DBBA55C, runtime->ResourceTracker->CreateFileA },
         { 0x0370C4B8, 0x76254EF3, runtime->ResourceTracker->CreateFileW },
+        { 0xCB5BD447, 0x49A6FC78, runtime->ResourceTracker->CloseHandle },
+        { 0x629ADDFA, 0x749D1CC9, runtime->ResourceTracker->FindFirstFileA },
+        { 0x612273CD, 0x563EDF55, runtime->ResourceTracker->FindFirstFileW },
+        { 0x6CD807C4, 0x812C40E9, runtime->ResourceTracker->FindClose },
         { 0xE487BC0B, 0x283C1684, runtime->ResourceTracker->WSAStartup },
         { 0x175B553E, 0x541A996E, runtime->ResourceTracker->WSACleanup },
     };
