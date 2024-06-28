@@ -11,14 +11,15 @@
 #include "errno.h"
 #include "resource.h"
 
-#define SRC_CREATE_FILE_A 0x0001
-#define SRC_CREATE_FILE_W 0x0002
-#define SRC_OPEN_FILE     0x0006
+#define SRC_CREATE_FILE_A     0x0001
+#define SRC_CREATE_FILE_W     0x0002
+#define SRC_FIND_FIRST_FILE_A 0x0003
+#define SRC_FIND_FIRST_FILE_W 0x0004
 
 #define LIB_WSA_STARTUP 0x0000
 
 typedef struct {
-    HANDLE handle;
+    void*  handle;
     uint16 source;
 } handle;
 
@@ -27,6 +28,9 @@ typedef struct {
     CreateFileA_t         CreateFileA;
     CreateFileW_t         CreateFileW;
     CloseHandle_t         CloseHandle;
+    FindFirstFileA_t      FindFirstFileA;
+    FindFirstFileW_t      FindFirstFileW;
+    FindClose_t           FindClose;
     ReleaseMutex_t        ReleaseMutex;
     WaitForSingleObject_t WaitForSingleObject;
 
@@ -57,6 +61,10 @@ HANDLE RT_CreateFileW(
     POINTER lpSecurityAttributes, DWORD dwCreationDisposition,
     DWORD dwFlagsAndAttributes, HANDLE hTemplateFile
 );
+BOOL   RT_CloseHandle(HANDLE hObject);
+HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData);
+HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData);
+BOOL   RT_FindClose(HANDLE hFindFile);
 
 int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData);
 int RT_WSACleanup();
@@ -123,10 +131,14 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     // create methods for tracker
     ResourceTracker_M* module = (ResourceTracker_M*)moduleAddr;
     // Windows API hooks
-    module->CreateFileA = &RT_CreateFileA;
-    module->CreateFileW = &RT_CreateFileW;
-    module->WSAStartup  = &RT_WSAStartup;
-    module->WSACleanup  = &RT_WSACleanup;
+    module->CreateFileA    = &RT_CreateFileA;
+    module->CreateFileW    = &RT_CreateFileW;
+    module->CloseHandle    = &RT_CloseHandle;
+    module->FindFirstFileA = &RT_FindFirstFileA;
+    module->FindFirstFileW = &RT_FindFirstFileW;
+    module->FindClose      = &RT_FindClose;
+    module->WSAStartup     = &RT_WSAStartup;
+    module->WSACleanup     = &RT_WSACleanup;
     // methods for runtime
     module->ResEncrypt = &RT_Encrypt;
     module->ResDecrypt = &RT_Decrypt;
@@ -145,11 +157,17 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
     {
         { 0x31399C47B70A8590, 0x5C59C3E176954594 }, // CreateFileA
         { 0xD1B5E30FA8812243, 0xFD9A53B98C9A437E }, // CreateFileW
+        { 0x60041DBB2B0D19DF, 0x7BD2C85D702B4DDC }, // FindFirstFileA
+        { 0xFE81B7989672CCE3, 0xA7FD593F0ED3E8EA }, // FindFirstFileW
+        { 0x98AC87F60ED8677D, 0x2DF5C74604B2E3A1 }, // FindClose
     };
 #elif _WIN32
     {
         { 0x0BB8EEBE, 0x28E70E8D }, // CreateFileA
         { 0x2CB7048A, 0x76AC9783 }, // CreateFileW
+        { 0x131B6345, 0x65478818 }, // FindFirstFileA
+        { 0xD57E7557, 0x50BC5D0F }, // FindFirstFileW
+        { 0xE992A699, 0x8B6ED092 }, // FindClose
     };
 #endif
     for (int i = 0; i < arrlen(list); i++)
@@ -161,8 +179,11 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
         }
         list[i].proc = proc;
     }
-    tracker->CreateFileA = list[0].proc;
-    tracker->CreateFileW = list[1].proc;
+    tracker->CreateFileA    = list[0x00].proc;
+    tracker->CreateFileW    = list[0x01].proc;
+    tracker->FindFirstFileA = list[0x02].proc;
+    tracker->FindFirstFileW = list[0x03].proc;
+    tracker->FindClose      = list[0x04].proc;
 
     tracker->CloseHandle         = context->CloseHandle;
     tracker->ReleaseMutex        = context->ReleaseMutex;
@@ -320,6 +341,34 @@ HANDLE RT_CreateFileW(
         return INVALID_HANDLE_VALUE;
     }
     return hFile;
+};
+
+__declspec(noinline)
+BOOL RT_CloseHandle(HANDLE hObject)
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
+};
+
+__declspec(noinline)
+HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData)
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
+};
+
+__declspec(noinline)
+HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData)
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
+};
+
+__declspec(noinline)
+BOOL RT_FindClose(HANDLE hFindFile)
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
 };
 
 __declspec(noinline)
