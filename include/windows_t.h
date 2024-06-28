@@ -304,6 +304,21 @@ typedef HANDLE (*CreateFileW_t)
     DWORD dwFlagsAndAttributes, HANDLE hTemplateFile
 );
 
+typedef HANDLE (*FindFirstFileA_t)
+(
+    LPCSTR lpFileName, POINTER lpFindFileData
+);
+
+typedef HANDLE (*FindFirstFileW_t)
+(
+    LPCWSTR lpFileName, POINTER lpFindFileData
+);
+
+typedef BOOL (*FindClose_t)
+(
+    HANDLE hFindFile
+);
+
 typedef int(*WSAStartup_t)
 (
     WORD wVersionRequired, POINTER lpWSAData
