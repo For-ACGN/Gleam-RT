@@ -24,6 +24,9 @@ https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-process
 https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-flushinstructioncache
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfilea
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfilew
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findclose
 https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup
 https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsacleanup
 https://learn.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2
