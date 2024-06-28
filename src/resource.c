@@ -348,6 +348,18 @@ BOOL RT_CloseHandle(HANDLE hObject)
 {
     ResourceTracker* tracker = getTrackerPointer();
 
+    if (!rt_lock(tracker))
+    {
+        return false;
+    }
+
+    BOOL ok = tracker->CloseHandle(hObject);
+
+    if (!rt_unlock(tracker))
+    {
+        return false;
+    }
+    return ok;
 };
 
 __declspec(noinline)
@@ -355,6 +367,24 @@ HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData)
 {
     ResourceTracker* tracker = getTrackerPointer();
 
+    if (!rt_lock(tracker))
+    {
+        return INVALID_HANDLE_VALUE;
+    }
+
+    HANDLE hFindFile = tracker->FindFirstFileA(lpFileName, lpFindFileData);
+
+    printf_s("FindFirstFileA: %s\n", lpFileName);
+
+    if (!rt_unlock(tracker))
+    {
+        if (hFindFile != INVALID_HANDLE_VALUE)
+        {
+            tracker->FindClose(hFindFile);
+        }
+        return INVALID_HANDLE_VALUE;
+    }
+    return hFindFile;
 };
 
 __declspec(noinline)
@@ -362,6 +392,24 @@ HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData)
 {
     ResourceTracker* tracker = getTrackerPointer();
 
+    if (!rt_lock(tracker))
+    {
+        return INVALID_HANDLE_VALUE;
+    }
+
+    HANDLE hFindFile = tracker->FindFirstFileW(lpFileName, lpFindFileData);
+
+    printf_s("FindFirstFileW: %ls\n", lpFileName);
+
+    if (!rt_unlock(tracker))
+    {
+        if (hFindFile != INVALID_HANDLE_VALUE)
+        {
+            tracker->FindClose(hFindFile);
+        }
+        return INVALID_HANDLE_VALUE;
+    }
+    return hFindFile;
 };
 
 __declspec(noinline)
@@ -369,6 +417,18 @@ BOOL RT_FindClose(HANDLE hFindFile)
 {
     ResourceTracker* tracker = getTrackerPointer();
 
+    if (!rt_lock(tracker))
+    {
+        return false;
+    }
+
+    BOOL ok = tracker->FindClose(hFindFile);
+
+    if (!rt_unlock(tracker))
+    {
+        return false;
+    }
+    return ok;
 };
 
 __declspec(noinline)
