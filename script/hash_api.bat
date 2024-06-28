@@ -58,6 +58,9 @@ echo.
 echo [Resource Tracker]
 hash_api -fmt 64 -conc -func CreateFileA
 hash_api -fmt 64 -conc -func CreateFileW
+hash_api -fmt 64 -conc -func FindFirstFileA
+hash_api -fmt 64 -conc -func FindFirstFileW
+hash_api -fmt 64 -conc -func FindClose
 hash_api -fmt 64 -conc -mod ws2_32.dll -func WSAStartup
 hash_api -fmt 64 -conc -mod ws2_32.dll -func WSACleanup
 echo.
@@ -117,6 +120,9 @@ echo.
 echo [Resource Tracker]
 hash_api -fmt 32 -conc -func CreateFileA
 hash_api -fmt 32 -conc -func CreateFileW
+hash_api -fmt 32 -conc -func FindFirstFileA
+hash_api -fmt 32 -conc -func FindFirstFileW
+hash_api -fmt 32 -conc -func FindClose
 hash_api -fmt 32 -conc -mod ws2_32.dll -func WSAStartup
 hash_api -fmt 32 -conc -mod ws2_32.dll -func WSACleanup
 echo.
