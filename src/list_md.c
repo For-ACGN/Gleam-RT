@@ -137,7 +137,7 @@ bool List_Resize(List* list, uint cap)
         uint oldSize = List_Size(list);
         data = list->ctx.realloc(list->Data, size);
         void* addr = (void*)((uintptr)data + oldSize);
-        uint  num = size - oldSize;
+        uint  num  = size - oldSize;
         mem_clean(addr, num);
     } else {
         data = list->ctx.malloc(size);
@@ -154,7 +154,7 @@ bool List_Resize(List* list, uint cap)
 
 uint List_Size(List* list)
 {
-    return list->Last * list->Unit;
+    return list->Cap * list->Unit;
 }
 
 bool List_Free(List* list)
