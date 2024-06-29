@@ -500,10 +500,9 @@ static bool deletePages(MemoryTracker* tracker, uintptr address, uint size)
     register List* pages = &tracker->Pages;
     register uint  len   = pages->Len;
     register uint  index = 0;
-    register memPage* page;
     for (uint num = 0; num < len; index++)
     {
-        page = List_Get(pages, index);
+        memPage* page = List_Get(pages, index);
         if (page->address == 0)
         {
             continue;

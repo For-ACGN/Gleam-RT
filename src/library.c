@@ -413,31 +413,6 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
     return hModule;
 }
 
-static bool addModule(LibraryTracker* tracker, HMODULE hModule)
-{
-    List* modules = &tracker->Modules;
-
-    // check this module is already exists
-    module mod = {
-        .hModule = hModule,
-    };
-    uint index;
-    if (List_Find(modules, &mod, sizeof(mod.hModule), &index))
-    {
-        module* module = List_Get(modules, index);
-        module->counter++;
-        return true;
-    }
-    // if not exist, add new item
-    mod.counter = 1;
-    if (!List_Insert(modules, &mod))
-    {
-        tracker->FreeLibrary(hModule);
-        return false;
-    }
-    return true;
-}
-
 __declspec(noinline)
 BOOL LT_FreeLibrary(HMODULE hLibModule)
 {
@@ -491,6 +466,34 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode)
     }
 
     tracker->FreeLibraryAndExitThread(hLibModule, dwExitCode);
+}
+
+static bool addModule(LibraryTracker* tracker, HMODULE hModule)
+{
+    if (hModule == NULL)
+    {
+        return false;
+    }
+    // check this module is already exists
+    List*  modules = &tracker->Modules;
+    module mod = {
+        .hModule = hModule,
+    };
+    uint index;
+    if (List_Find(modules, &mod, sizeof(mod.hModule), &index))
+    {
+        module* module = List_Get(modules, index);
+        module->counter++;
+        return true;
+    }
+    // if not exist, add new item
+    mod.counter = 1;
+    if (!List_Insert(modules, &mod))
+    {
+        tracker->FreeLibrary(hModule);
+        return false;
+    }
+    return true;
 }
 
 static bool delModule(LibraryTracker* tracker, HMODULE hModule)
