@@ -88,6 +88,8 @@ static bool rt_unlock(ResourceTracker* tracker);
 static bool initTrackerAPI(ResourceTracker* tracker, Context* context);
 static bool updateTrackerPointer(ResourceTracker* tracker);
 static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context);
+static bool addHandle(ResourceTracker* tracker, void* handle, uint16 source);
+static bool delHandle(ResourceTracker* tracker, void* handle, uint16 source);
 
 static void eraseTrackerMethods();
 static void cleanTracker(ResourceTracker* tracker);
@@ -293,14 +295,37 @@ HANDLE RT_CreateFileA(
         return INVALID_HANDLE_VALUE;
     }
 
-    HANDLE hFile = tracker->CreateFileA(
-        lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
-        dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile
-    );
-
-    printf_s("CreateFileA: %s\n", lpFileName);
+    HANDLE hFile;
+    bool success = true;
+    for (;;)
+    {
+        hFile = tracker->CreateFileA(
+            lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+            dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile
+        );
+        if (hFile == INVALID_HANDLE_VALUE)
+        {
+            success = false;
+            break;
+        }
+        if (!addHandle(tracker, hFile, SRC_CREATE_FILE_A))
+        {
+            success = false;
+            break;
+        }
+        printf_s("CreateFileA: %s\n", lpFileName);
+        break;
+    }
 
     if (!rt_unlock(tracker))
+    {
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            tracker->CloseHandle(hFile);
+        }
+        return INVALID_HANDLE_VALUE;
+    }
+    if (!success)
     {
         if (hFile != INVALID_HANDLE_VALUE)
         {
@@ -354,6 +379,7 @@ BOOL RT_CloseHandle(HANDLE hObject)
     }
 
     BOOL ok = tracker->CloseHandle(hObject);
+    printf_s("CloseHandle: %llu\n", (uint64)hObject);
 
     if (!rt_unlock(tracker))
     {
@@ -429,6 +455,16 @@ BOOL RT_FindClose(HANDLE hFindFile)
         return false;
     }
     return ok;
+};
+
+static bool addHandle(ResourceTracker* tracker, void* handle, uint16 source)
+{
+
+};
+
+static bool delHandle(ResourceTracker* tracker, void* handle, uint16 source)
+{
+
 };
 
 __declspec(noinline)
