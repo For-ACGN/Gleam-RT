@@ -521,17 +521,28 @@ static void delHandle(ResourceTracker* tracker, void* hObject, uint16 source)
         return;
     }
 
-    List*  handles = &tracker->Handles;
-    handle handle  = {
-        .handle = hObject,
-        .source = source,
-    };
-    uint index;
-    if (!List_Find(handles, &handle, sizeof(handle), &index))
+    List* handles = &tracker->Handles;
+    uint  index   = 0;
+    for (uint num = 0; num < handles->Len; index++)
     {
+        handle* handle = List_Get(handles, index);
+        if (handle->handle == NULL && handle->source == 0)
+        {
+            continue;
+        }
+        if ((handle->source & source) != source)
+        {
+            num++;
+            continue;
+        }
+        if (handle->handle != hObject)
+        {
+            num++;
+            continue;
+        }
+        List_Delete(handles, index);
         return;
     }
-    List_Delete(handles, index);
 };
 
 __declspec(noinline)
@@ -614,6 +625,8 @@ __declspec(noinline)
 errno RT_Encrypt()
 {
     ResourceTracker* tracker = getTrackerPointer();
+
+    printf_s("[runtime] handles: %llu\n", (uint64)(tracker->Handles.Len));
 
     List* list = &tracker->Handles;
     byte* key  = &tracker->HandlesKey[0];
