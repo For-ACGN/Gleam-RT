@@ -406,6 +406,7 @@ BOOL RT_CloseHandle(HANDLE hObject)
         }
         delHandle(tracker, hObject, SRC_TYPE_CLOSE_HANDLE);
         printf_s("CloseHandle: %llu\n", (uint64)hObject);
+        break;
     }    
 
     if (!rt_unlock(tracker))
@@ -485,6 +486,7 @@ BOOL RT_FindClose(HANDLE hFindFile)
         }
         delHandle(tracker, hFindFile, SRC_TYPE_FIND_CLOSE);
         printf_s("CloseHandle: %llu\n", (uint64)hFindFile);
+        break;
     }    
 
     if (!rt_unlock(tracker))
