@@ -277,9 +277,12 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
 
     if (!lt_unlock(tracker))
     {
+        if (success)
+        {
+            tracker->FreeLibrary(hModule);
+        }
         return NULL;
     }
-
     if (!success)
     {
         return NULL;
@@ -319,9 +322,12 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
 
     if (!lt_unlock(tracker))
     {
+        if (success)
+        {
+            tracker->FreeLibrary(hModule);
+        }
         return NULL;
     }
-
     if (!success)
     {
         return NULL;
@@ -361,9 +367,12 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 
     if (!lt_unlock(tracker))
     {
+        if (success)
+        {
+            tracker->FreeLibrary(hModule);
+        }
         return NULL;
     }
-
     if (!success)
     {
         return NULL;
@@ -403,9 +412,12 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 
     if (!lt_unlock(tracker))
     {
+        if (success)
+        {
+            tracker->FreeLibrary(hModule);
+        }
         return NULL;
     }
-
     if (!success)
     {
         return NULL;
