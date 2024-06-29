@@ -322,7 +322,7 @@ HANDLE RT_CreateFileA(
 
     if (!rt_unlock(tracker))
     {
-        if (hFile != INVALID_HANDLE_VALUE)
+        if (success)
         {
             tracker->CloseHandle(hFile);
         }
@@ -373,7 +373,7 @@ HANDLE RT_CreateFileW(
 
     if (!rt_unlock(tracker))
     {
-        if (hFile != INVALID_HANDLE_VALUE)
+        if (success)
         {
             tracker->CloseHandle(hFile);
         }
