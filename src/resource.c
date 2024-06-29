@@ -11,10 +11,13 @@
 #include "errno.h"
 #include "resource.h"
 
-#define SRC_CREATE_FILE_A     0x0001
-#define SRC_CREATE_FILE_W     0x0002
-#define SRC_FIND_FIRST_FILE_A 0x0003
-#define SRC_FIND_FIRST_FILE_W 0x0004
+#define SRC_TYPE_CLOSE_HANDLE 0x0100
+#define SRC_TYPE_FIND_CLOSE   0x0200
+
+#define SRC_CREATE_FILE_A     0x0101
+#define SRC_CREATE_FILE_W     0x0102
+#define SRC_FIND_FIRST_FILE_A 0x0201
+#define SRC_FIND_FIRST_FILE_W 0x0202
 
 #define LIB_WSA_STARTUP 0x0000
 
@@ -327,10 +330,6 @@ HANDLE RT_CreateFileA(
     }
     if (!success)
     {
-        if (hFile != INVALID_HANDLE_VALUE)
-        {
-            tracker->CloseHandle(hFile);
-        }
         return INVALID_HANDLE_VALUE;
     }
     return hFile;
@@ -350,12 +349,27 @@ HANDLE RT_CreateFileW(
         return INVALID_HANDLE_VALUE;
     }
 
-    HANDLE hFile = tracker->CreateFileW(
-        lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
-        dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile
-    );
-
-    printf_s("CreateFileW: %ls\n", lpFileName);
+    HANDLE hFile;
+    bool success = true;
+    for (;;)
+    {
+        hFile = tracker->CreateFileW(
+            lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes,
+            dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile
+        );
+        if (hFile == INVALID_HANDLE_VALUE)
+        {
+            success = false;
+            break;
+        }
+        if (!addHandle(tracker, hFile, SRC_CREATE_FILE_W))
+        {
+            success = false;
+            break;
+        }
+        printf_s("CreateFileW: %ls\n", lpFileName);
+        break;
+    }
 
     if (!rt_unlock(tracker))
     {
@@ -363,6 +377,10 @@ HANDLE RT_CreateFileW(
         {
             tracker->CloseHandle(hFile);
         }
+        return INVALID_HANDLE_VALUE;
+    }
+    if (!success)
+    {
         return INVALID_HANDLE_VALUE;
     }
     return hFile;
@@ -378,14 +396,23 @@ BOOL RT_CloseHandle(HANDLE hObject)
         return false;
     }
 
-    BOOL ok = tracker->CloseHandle(hObject);
-    printf_s("CloseHandle: %llu\n", (uint64)hObject);
+    BOOL success;
+    for (;;)
+    {
+        success = tracker->CloseHandle(hObject);
+        if (!success)
+        {
+            break;
+        }
+        delHandle(tracker, hObject, SRC_TYPE_CLOSE_HANDLE);
+        printf_s("CloseHandle: %llu\n", (uint64)hObject);
+    }    
 
     if (!rt_unlock(tracker))
     {
         return false;
     }
-    return ok;
+    return success;
 };
 
 __declspec(noinline)
@@ -448,13 +475,23 @@ BOOL RT_FindClose(HANDLE hFindFile)
         return false;
     }
 
-    BOOL ok = tracker->FindClose(hFindFile);
+    BOOL success;
+    for (;;)
+    {
+        success = tracker->FindClose(hFindFile);
+        if (!success)
+        {
+            break;
+        }
+        delHandle(tracker, hFindFile, SRC_TYPE_FIND_CLOSE);
+        printf_s("CloseHandle: %llu\n", (uint64)hFindFile);
+    }    
 
     if (!rt_unlock(tracker))
     {
         return false;
     }
-    return ok;
+    return success;
 };
 
 static bool addHandle(ResourceTracker* tracker, void* hObject, uint16 source)
