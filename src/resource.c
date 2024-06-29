@@ -88,8 +88,8 @@ static bool rt_unlock(ResourceTracker* tracker);
 static bool initTrackerAPI(ResourceTracker* tracker, Context* context);
 static bool updateTrackerPointer(ResourceTracker* tracker);
 static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context);
-static bool addHandle(ResourceTracker* tracker, void* handle, uint16 source);
-static bool delHandle(ResourceTracker* tracker, void* handle, uint16 source);
+static bool addHandle(ResourceTracker* tracker, void* hObject, uint16 source);
+static void delHandle(ResourceTracker* tracker, void* hObject, uint16 source);
 
 static void eraseTrackerMethods();
 static void cleanTracker(ResourceTracker* tracker);
@@ -457,14 +457,44 @@ BOOL RT_FindClose(HANDLE hFindFile)
     return ok;
 };
 
-static bool addHandle(ResourceTracker* tracker, void* handle, uint16 source)
+static bool addHandle(ResourceTracker* tracker, void* hObject, uint16 source)
 {
+    if (hObject == NULL)
+    {
+        return false;
+    }
 
+    List*  handles = &tracker->Handles;
+    handle handle  = {
+        .handle = hObject,
+        .source = source,
+    };
+    if (!List_Insert(handles, &handle))
+    {
+        tracker->CloseHandle(hObject);
+        return false;
+    }
+    return true;
 };
 
-static bool delHandle(ResourceTracker* tracker, void* handle, uint16 source)
+static void delHandle(ResourceTracker* tracker, void* hObject, uint16 source)
 {
+    if (hObject == NULL)
+    {
+        return;
+    }
 
+    List*  handles = &tracker->Handles;
+    handle handle  = {
+        .handle = hObject,
+        .source = source,
+    };
+    uint index;
+    if (!List_Find(handles, &handle, sizeof(handle), &index))
+    {
+        return;
+    }
+    List_Delete(handles, index);
 };
 
 __declspec(noinline)
