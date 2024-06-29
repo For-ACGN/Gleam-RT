@@ -45,6 +45,8 @@ BOOL    LT_FreeLibrary(HMODULE hLibModule);
 void    LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode);
 
 // methods for runtime
+bool  LT_Lock(LibraryTracker* tracker); // remove arguments
+bool  LT_Unlock(LibraryTracker* tracker);
 errno LT_Encrypt();
 errno LT_Decrypt();
 errno LT_Clean();
@@ -56,9 +58,6 @@ errno LT_Clean();
     #define TRACKER_POINTER 0x7FABCD01
 #endif
 static LibraryTracker* getTrackerPointer();
-
-static bool lt_lock(LibraryTracker* tracker);
-static bool lt_unlock(LibraryTracker* tracker);
 
 static bool initTrackerAPI(LibraryTracker* tracker, Context* context);
 static bool updateTrackerPointer(LibraryTracker* tracker);
@@ -233,24 +232,11 @@ static LibraryTracker* getTrackerPointer()
 #pragma optimize("", on)
 
 __declspec(noinline)
-static bool lt_lock(LibraryTracker* tracker)
-{
-    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
-    return event == WAIT_OBJECT_0;
-}
-
-__declspec(noinline)
-static bool lt_unlock(LibraryTracker* tracker)
-{
-    return tracker->ReleaseMutex(tracker->Mutex);
-}
-
-__declspec(noinline)
 HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!lt_lock(tracker))
+    if (!LT_Lock(tracker))
     {
         return NULL;
     }
@@ -275,7 +261,7 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
         break;
     }
 
-    if (!lt_unlock(tracker))
+    if (!LT_Unlock(tracker))
     {
         if (success)
         {
@@ -295,7 +281,7 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!lt_lock(tracker))
+    if (!LT_Lock(tracker))
     {
         return NULL;
     }
@@ -320,7 +306,7 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
         break;
     }
 
-    if (!lt_unlock(tracker))
+    if (!LT_Unlock(tracker))
     {
         if (success)
         {
@@ -340,7 +326,7 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!lt_lock(tracker))
+    if (!LT_Lock(tracker))
     {
         return NULL;
     }
@@ -365,7 +351,7 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
         break;
     }
 
-    if (!lt_unlock(tracker))
+    if (!LT_Unlock(tracker))
     {
         if (success)
         {
@@ -385,7 +371,7 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!lt_lock(tracker))
+    if (!LT_Lock(tracker))
     {
         return NULL;
     }
@@ -410,7 +396,7 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
         break;
     }
 
-    if (!lt_unlock(tracker))
+    if (!LT_Unlock(tracker))
     {
         if (success)
         {
@@ -430,7 +416,7 @@ BOOL LT_FreeLibrary(HMODULE hLibModule)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!lt_lock(tracker))
+    if (!LT_Lock(tracker))
     {
         return false;
     }
@@ -452,7 +438,7 @@ BOOL LT_FreeLibrary(HMODULE hLibModule)
         break;
     }
 
-    if (!lt_unlock(tracker))
+    if (!LT_Unlock(tracker))
     {
         return false;
     }
@@ -464,7 +450,7 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!lt_lock(tracker))
+    if (!LT_Lock(tracker))
     {
         return;
     }
@@ -472,7 +458,7 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode)
     delModule(tracker, hLibModule);
     printf_s("FreeLibraryAndExitThread: %llu\n", (uint64)hLibModule);
 
-    if (!lt_unlock(tracker))
+    if (!LT_Unlock(tracker))
     {
         return;
     }
@@ -535,6 +521,19 @@ static bool delModule(LibraryTracker* tracker, HMODULE hModule)
         }
     }
     return true;
+}
+
+__declspec(noinline)
+bool LT_Lock(LibraryTracker* tracker)
+{
+    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+__declspec(noinline)
+bool LT_Unlock(LibraryTracker* tracker)
+{
+    return tracker->ReleaseMutex(tracker->Mutex);
 }
 
 __declspec(noinline)
