@@ -426,16 +426,35 @@ HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData)
         return INVALID_HANDLE_VALUE;
     }
 
-    HANDLE hFindFile = tracker->FindFirstFileA(lpFileName, lpFindFileData);
-
-    printf_s("FindFirstFileA: %s\n", lpFileName);
+    HANDLE hFindFile;
+    bool   success = true;
+    for (;;)
+    {
+        hFindFile = tracker->FindFirstFileA(lpFileName, lpFindFileData);
+        if (hFindFile == INVALID_HANDLE_VALUE)
+        {
+            success = false;
+            break;
+        }
+        if (!addHandle(tracker, hFindFile, SRC_FIND_FIRST_FILE_A))
+        {
+            success = false;
+            break;
+        }
+        printf_s("FindFirstFileA: %s\n", lpFileName);
+        break;
+    }
 
     if (!rt_unlock(tracker))
     {
-        if (hFindFile != INVALID_HANDLE_VALUE)
+        if (success)
         {
             tracker->FindClose(hFindFile);
         }
+        return INVALID_HANDLE_VALUE;
+    }
+    if (!success)
+    {
         return INVALID_HANDLE_VALUE;
     }
     return hFindFile;
@@ -451,16 +470,35 @@ HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData)
         return INVALID_HANDLE_VALUE;
     }
 
-    HANDLE hFindFile = tracker->FindFirstFileW(lpFileName, lpFindFileData);
-
-    printf_s("FindFirstFileW: %ls\n", lpFileName);
+    HANDLE hFindFile;
+    bool   success = true;
+    for (;;)
+    {
+        hFindFile = tracker->FindFirstFileW(lpFileName, lpFindFileData);
+        if (hFindFile == INVALID_HANDLE_VALUE)
+        {
+            success = false;
+            break;
+        }
+        if (!addHandle(tracker, hFindFile, SRC_FIND_FIRST_FILE_W))
+        {
+            success = false;
+            break;
+        }
+        printf_s("FindFirstFileW: %ls\n", lpFileName);
+        break;
+    }
 
     if (!rt_unlock(tracker))
     {
-        if (hFindFile != INVALID_HANDLE_VALUE)
+        if (success)
         {
             tracker->FindClose(hFindFile);
         }
+        return INVALID_HANDLE_VALUE;
+    }
+    if (!success)
+    {
         return INVALID_HANDLE_VALUE;
     }
     return hFindFile;
