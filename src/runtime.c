@@ -35,9 +35,6 @@ typedef struct {
     void* InstAddress;
     bool  NotEraseInst;
 
-    // store all structures
-    void* MainMemPage;
-
     // API addresses
     GetSystemInfo_t         GetSystemInfo;
     VirtualAlloc_t          VirtualAlloc;
@@ -54,13 +51,11 @@ typedef struct {
     CloseHandle_t           CloseHandle;
     GetProcAddress_t        GetProcAddress;
 
-    // IAT hooks about GetProcAddress
-    Hook IAT_Hooks[23];
-
     // runtime data
-    uint32 PageSize; // for memory management
-    HANDLE hProcess; // for simulate kernel32.Sleep
-    HANDLE Mutex;    // global mutex
+    void*  MainMemPage; // store all structures
+    uint32 PageSize;    // for memory management
+    HANDLE hProcess;    // for simulate kernel32.Sleep
+    HANDLE Mutex;       // global mutex
 
     // sleep event trigger
     HANDLE hMutexSleep; // sleep method mutex
@@ -71,6 +66,9 @@ typedef struct {
     errno  ReturnErrno; // store error number
     HANDLE hMutexEvent; // event data mutex
     HANDLE hThread;     // trigger thread
+
+    // IAT hooks about GetProcAddress
+    Hook IAT_Hooks[23];
 
     // submodules
     LibraryTracker_M*  LibraryTracker;
@@ -410,13 +408,16 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     runtime->hMutexEvent = hMutexEvent;
     // create context data for initialize other modules
     Context context = {
-        .MainMemPage = (uintptr)(runtime->MainMemPage),
-
         .TrackCurrentThread = runtime->Options->TrackCurrentThread,
+
+        .MainMemPage = (uintptr)(runtime->MainMemPage),
+        .PageSize    = runtime->PageSize,
+        .Mutex       = runtime->Mutex,
 
         .VirtualAlloc          = runtime->VirtualAlloc,
         .VirtualFree           = runtime->VirtualFree,
         .VirtualProtect        = runtime->VirtualProtect,
+        .CreateMutexA          = runtime->CreateMutexA,
         .ReleaseMutex          = runtime->ReleaseMutex,
         .WaitForSingleObject   = runtime->WaitForSingleObject,
         .FlushInstructionCache = runtime->FlushInstructionCache,
@@ -426,9 +427,6 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         .malloc  = &RT_malloc,
         .realloc = &RT_realloc,
         .free    = &RT_free,
-
-        .PageSize = runtime->PageSize,
-        .Mutex    = runtime->Mutex,
     };
     errno errno;
     errno = initLibraryTracker(runtime, &context);
