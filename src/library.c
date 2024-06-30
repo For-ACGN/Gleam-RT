@@ -26,9 +26,10 @@ typedef struct {
     FreeLibraryAndExitThread_t FreeLibraryAndExitThread;
     ReleaseMutex_t             ReleaseMutex;
     WaitForSingleObject_t      WaitForSingleObject;
+    CloseHandle_t              CloseHandle;
 
-    // runtime data
-    HANDLE Mutex; // global mutex
+    // protect data
+    HANDLE hMutex;
 
     // store all modules info
     List Modules;
@@ -115,9 +116,8 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     module->FreeLibrary              = &LT_FreeLibrary;
     module->FreeLibraryAndExitThread = &LT_FreeLibraryAndExitThread;
     // methods for runtime
-
-
-
+    module->LibLock    = &LT_Lock;
+    module->LibUnlock  = &LT_Unlock;
     module->LibEncrypt = &LT_Encrypt;
     module->LibDecrypt = &LT_Decrypt;
     module->LibClean   = &LT_Clean;
@@ -168,6 +168,7 @@ static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
+    tracker->CloseHandle         = context->CloseHandle;
     return true;
 }
 
@@ -194,8 +195,13 @@ static bool updateTrackerPointer(LibraryTracker* tracker)
 __declspec(noinline)
 static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context)
 {
-    // copy runtime context data
-    tracker->Mutex = context->Mutex;
+    // create mutex
+    HANDLE hMutex = context->CreateMutexA(NULL, false, NULL);
+    if (hMutex == NULL)
+    {
+        return false;
+    }
+    tracker->hMutex = hMutex;
     // initialize module list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -221,6 +227,10 @@ static void eraseTrackerMethods()
 __declspec(noinline)
 static void cleanTracker(LibraryTracker* tracker)
 {
+    if (tracker->CloseHandle != NULL && tracker->hMutex != NULL)
+    {
+        tracker->CloseHandle(tracker->hMutex);
+    }
     List_Free(&tracker->Modules);
 }
 
@@ -531,7 +541,7 @@ bool LT_Lock()
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
@@ -540,7 +550,7 @@ bool LT_Unlock()
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    return tracker->ReleaseMutex(tracker->Mutex);
+    return tracker->ReleaseMutex(tracker->hMutex);
 }
 
 __declspec(noinline)
@@ -597,7 +607,13 @@ errno LT_Clean()
     RandBuf(modules->Data, List_Size(modules));
     if (!List_Free(modules))
     {
-        errno = ERR_LIBRARY_FREE_LIST; 
+        errno = ERR_LIBRARY_FREE_LIST;
+    }
+
+    // close mutex
+    if (!tracker->CloseHandle(tracker->hMutex))
+    {
+        errno = ERR_LIBRARY_CLOSE_MUTEX;
     }
     return errno;
 }
