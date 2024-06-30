@@ -1,7 +1,7 @@
 #include "c_types.h"
 #include "random.h"
 
-static uint64  rand(uint64 seed, uint64 m);
+static uint64  rand(uint64 seed, uint64 mod);
 static uint64  ror(uint64 value, uint8 bits);
 static uintptr getStackAddr();
 
@@ -58,7 +58,27 @@ uint64 RandUint64(uint64 seed)
     return rand(seed, UINT64_MAX);
 }
 
-static uint64 rand(uint64 seed, uint64 m)
+int RandIntN(uint64 seed, int n)
+{
+    return RandInt(seed) % n;
+}
+
+uint RandUintN(uint64 seed, uint n)
+{
+    return RandUint(seed) % n;
+}
+
+int64 RandInt64N(uint64 seed, int64 n)
+{
+    return RandInt64(seed) % n;
+}
+
+uint64 RandUint64N(uint64 seed, uint64 n)
+{
+    return RandUint64(seed) % n;
+}
+
+static uint64 rand(uint64 seed, uint64 mod)
 {
     if (seed < 4096)
     {
@@ -74,7 +94,7 @@ static uint64 rand(uint64 seed, uint64 m)
         c += getStackAddr();
         seed += ror(seed + a, 3);
         seed += ror(seed + c, 6);
-        seed += ror(seed + m, 9);
+        seed += ror(seed + mod, 9);
         seed += ror(seed, 1);        
         seed += ror(seed, 17);
     }
@@ -82,7 +102,7 @@ static uint64 rand(uint64 seed, uint64 m)
     {
         c++;
     }
-    return (a * seed + c) % m;
+    return (a * seed + c) % mod;
 }
 
 static uint64 ror(uint64 value, uint8 bits)
