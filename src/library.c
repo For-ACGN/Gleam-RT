@@ -74,8 +74,8 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 3000 + RandUint(address) % 128;
-    uintptr moduleAddr  = address + 3700 + RandUint(address) % 128;
+    uintptr trackerAddr = address + 3000 + RandUintN(address, 128);
+    uintptr moduleAddr  = address + 3700 + RandUintN(address, 128);
     // initialize tracker
     LibraryTracker* tracker = (LibraryTracker*)trackerAddr;
     mem_clean(tracker, sizeof(LibraryTracker));
