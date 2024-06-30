@@ -45,8 +45,8 @@ BOOL    LT_FreeLibrary(HMODULE hLibModule);
 void    LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode);
 
 // methods for runtime
-bool  LT_Lock(LibraryTracker* tracker); // remove arguments
-bool  LT_Unlock(LibraryTracker* tracker);
+bool  LT_Lock();
+bool  LT_Unlock();
 errno LT_Encrypt();
 errno LT_Decrypt();
 errno LT_Clean();
@@ -114,7 +114,10 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     module->LoadLibraryExW           = &LT_LoadLibraryExW;
     module->FreeLibrary              = &LT_FreeLibrary;
     module->FreeLibraryAndExitThread = &LT_FreeLibraryAndExitThread;
-    // methods for runtime   
+    // methods for runtime
+
+
+
     module->LibEncrypt = &LT_Encrypt;
     module->LibDecrypt = &LT_Decrypt;
     module->LibClean   = &LT_Clean;
@@ -236,7 +239,7 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!LT_Lock(tracker))
+    if (!LT_Lock())
     {
         return NULL;
     }
@@ -261,7 +264,7 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
         break;
     }
 
-    if (!LT_Unlock(tracker))
+    if (!LT_Unlock())
     {
         if (success)
         {
@@ -281,7 +284,7 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!LT_Lock(tracker))
+    if (!LT_Lock())
     {
         return NULL;
     }
@@ -306,7 +309,7 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
         break;
     }
 
-    if (!LT_Unlock(tracker))
+    if (!LT_Unlock())
     {
         if (success)
         {
@@ -326,7 +329,7 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!LT_Lock(tracker))
+    if (!LT_Lock())
     {
         return NULL;
     }
@@ -351,7 +354,7 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
         break;
     }
 
-    if (!LT_Unlock(tracker))
+    if (!LT_Unlock())
     {
         if (success)
         {
@@ -371,7 +374,7 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!LT_Lock(tracker))
+    if (!LT_Lock())
     {
         return NULL;
     }
@@ -396,7 +399,7 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
         break;
     }
 
-    if (!LT_Unlock(tracker))
+    if (!LT_Unlock())
     {
         if (success)
         {
@@ -416,7 +419,7 @@ BOOL LT_FreeLibrary(HMODULE hLibModule)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!LT_Lock(tracker))
+    if (!LT_Lock())
     {
         return false;
     }
@@ -438,7 +441,7 @@ BOOL LT_FreeLibrary(HMODULE hLibModule)
         break;
     }
 
-    if (!LT_Unlock(tracker))
+    if (!LT_Unlock())
     {
         return false;
     }
@@ -450,7 +453,7 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode)
 {
     LibraryTracker* tracker = getTrackerPointer();
 
-    if (!LT_Lock(tracker))
+    if (!LT_Lock())
     {
         return;
     }
@@ -458,7 +461,7 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode)
     delModule(tracker, hLibModule);
     printf_s("FreeLibraryAndExitThread: %llu\n", (uint64)hLibModule);
 
-    if (!LT_Unlock(tracker))
+    if (!LT_Unlock())
     {
         return;
     }
@@ -524,15 +527,19 @@ static bool delModule(LibraryTracker* tracker, HMODULE hModule)
 }
 
 __declspec(noinline)
-bool LT_Lock(LibraryTracker* tracker)
+bool LT_Lock()
 {
+    LibraryTracker* tracker = getTrackerPointer();
+
     uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
 __declspec(noinline)
-bool LT_Unlock(LibraryTracker* tracker)
+bool LT_Unlock()
 {
+    LibraryTracker* tracker = getTrackerPointer();
+
     return tracker->ReleaseMutex(tracker->Mutex);
 }
 
