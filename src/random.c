@@ -1,6 +1,9 @@
 #include "c_types.h"
 #include "random.h"
 
+// [reference]
+// https://en.wikipedia.org/wiki/Xorshift
+
 static uint64  rand(uint64 seed, uint64 mod);
 static uint64  ror(uint64 value, uint8 bits);
 static uintptr getStackAddr();
@@ -88,6 +91,7 @@ static uint64 rand(uint64 seed, uint64 mod)
     uint64 c = (uint64)(&getStackAddr);
     for (int i = 0; i < 32; i++)
     {
+        // just play game
         a += ror(a, 3);
         c += ror(c, 32);
         a += getStackAddr();
@@ -97,12 +101,14 @@ static uint64 rand(uint64 seed, uint64 mod)
         seed += ror(seed + mod, 9);
         seed += ror(seed, 1);        
         seed += ror(seed, 17);
+        seed = (a * seed + c);
+
+        // xor shift 64
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
     }
-    if (seed % 2 == 0)
-    {
-        c++;
-    }
-    return (a * seed + c) % mod;
+    return seed % mod;
 }
 
 static uint64 ror(uint64 value, uint8 bits)
