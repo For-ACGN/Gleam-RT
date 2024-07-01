@@ -20,11 +20,11 @@ typedef struct {
     FreeLibrary_t              FreeLibrary;
     FreeLibraryAndExitThread_t FreeLibraryAndExitThread;
 
-    LibLock_t    LibLock;
-    LibUnlock_t  LibUnlock;
-    LibEncrypt_t LibEncrypt;
-    LibDecrypt_t LibDecrypt;
-    LibClean_t   LibClean;
+    LibLock_t    Lock;
+    LibUnlock_t  Unlock;
+    LibEncrypt_t Encrypt;
+    LibDecrypt_t Decrypt;
+    LibClean_t   Clean;
 } LibraryTracker_M;
 
 LibraryTracker_M* InitLibraryTracker(Context* context);
