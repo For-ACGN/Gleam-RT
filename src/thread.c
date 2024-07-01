@@ -96,8 +96,8 @@ ThreadTracker_M* InitThreadTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 5000 + RandUint(address) % 128;
-    uintptr moduleAddr  = address + 5700 + RandUint(address) % 128;
+    uintptr trackerAddr = address + 5000 + RandUintN(address, 128);
+    uintptr moduleAddr  = address + 5700 + RandUintN(address, 128);
     // initialize tracker
     ThreadTracker* tracker = (ThreadTracker*)trackerAddr;
     mem_clean(tracker, sizeof(ThreadTracker));
@@ -472,7 +472,7 @@ static void* camouflageStartAddress(uint64 seed)
     ParsePEImage((byte*)modAddr, &info);
     // select a random start address
     uintptr base  = modAddr + info.TextVirtualAddress;
-    uintptr begin = base + (RandUint(seed)%info.TextSizeOfRawData);
+    uintptr begin = base + RandUintN(seed, info.TextSizeOfRawData);
     uintptr end   = base + info.TextSizeOfRawData;
     for (uintptr addr = begin; addr < end; addr++)
     {

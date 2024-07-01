@@ -105,8 +105,8 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 4000 + RandUint(address) % 128;
-    uintptr moduleAddr  = address + 4700 + RandUint(address) % 128;
+    uintptr trackerAddr = address + 4000 + RandUintN(address, 128);
+    uintptr moduleAddr  = address + 4700 + RandUintN(address, 128);
     // initialize tracker
     MemoryTracker* tracker = (MemoryTracker*)trackerAddr;
     mem_clean(tracker, sizeof(MemoryTracker));

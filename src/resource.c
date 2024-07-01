@@ -16,7 +16,7 @@
 
 #define SRC_CREATE_FILE_A     0x0101
 #define SRC_CREATE_FILE_W     0x0102
-#define SRC_FIND_FIRST_FILE_A 0x0201
+#define SRC_FIND_FIRST_FILE_A 0x0201  // EXA
 #define SRC_FIND_FIRST_FILE_W 0x0202
 
 #define LIB_WSA_STARTUP 0x0000
@@ -101,8 +101,8 @@ ResourceTracker_M* InitResourceTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 6000 + RandUint(address) % 128;
-    uintptr moduleAddr  = address + 6700 + RandUint(address) % 128;
+    uintptr trackerAddr = address + 6000 + RandUintN(address, 128);
+    uintptr moduleAddr  = address + 6700 + RandUintN(address, 128);
     // initialize tracker
     ResourceTracker* tracker = (ResourceTracker*)trackerAddr;
     mem_clean(tracker, sizeof(ResourceTracker));
@@ -299,6 +299,7 @@ HANDLE RT_CreateFileA(
     }
 
     HANDLE hFile;
+
     bool success = true;
     for (;;)
     {
@@ -350,6 +351,7 @@ HANDLE RT_CreateFileW(
     }
 
     HANDLE hFile;
+
     bool success = true;
     for (;;)
     {
@@ -427,7 +429,8 @@ HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData)
     }
 
     HANDLE hFindFile;
-    bool   success = true;
+
+    bool success = true;
     for (;;)
     {
         hFindFile = tracker->FindFirstFileA(lpFileName, lpFindFileData);
@@ -471,7 +474,8 @@ HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData)
     }
 
     HANDLE hFindFile;
-    bool   success = true;
+
+    bool success = true;
     for (;;)
     {
         hFindFile = tracker->FindFirstFileW(lpFileName, lpFindFileData);
