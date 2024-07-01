@@ -116,11 +116,11 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     module->FreeLibrary              = &LT_FreeLibrary;
     module->FreeLibraryAndExitThread = &LT_FreeLibraryAndExitThread;
     // methods for runtime
-    module->LibLock    = &LT_Lock;
-    module->LibUnlock  = &LT_Unlock;
-    module->LibEncrypt = &LT_Encrypt;
-    module->LibDecrypt = &LT_Decrypt;
-    module->LibClean   = &LT_Clean;
+    module->Lock    = &LT_Lock;
+    module->Unlock  = &LT_Unlock;
+    module->Encrypt = &LT_Encrypt;
+    module->Decrypt = &LT_Decrypt;
+    module->Clean   = &LT_Clean;
     return module;
 }
 
