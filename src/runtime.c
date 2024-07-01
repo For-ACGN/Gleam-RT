@@ -146,8 +146,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     printf_s("main page: 0x%llX\n", (uint64)memPage);
     // set structure address
     uintptr address = (uintptr)memPage;
-    uintptr runtimeAddr = address + 1000 + RandUint(address) % 128;
-    uintptr moduleAddr  = address + 2500 + RandUint(address) % 128;
+    uintptr runtimeAddr = address + 1000 + RandUintN(address, 128);
+    uintptr moduleAddr  = address + 2500 + RandUintN(address, 128);
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     mem_clean(runtime, sizeof(Runtime));
@@ -1079,6 +1079,11 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
         return ERR_RUNTIME_LOCK;
     }
 
+    if (!runtime->LibraryTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_LIBRARY;
+    }
+
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -1098,6 +1103,11 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
             break;
         }
         break;
+    }
+
+    if (!runtime->LibraryTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_LIBRARY;
     }
 
     if (!rt_unlock(runtime))
@@ -1128,7 +1138,7 @@ static errno hide(Runtime* runtime)
         {
             break;
         }
-        errno = runtime->LibraryTracker->LibEncrypt();
+        errno = runtime->LibraryTracker->Encrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
@@ -1188,7 +1198,7 @@ static errno recover(Runtime* runtime)
     errno errno = NO_ERROR;
     for (;;)
     {
-        errno = runtime->LibraryTracker->LibDecrypt();
+        errno = runtime->LibraryTracker->Decrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
@@ -1282,7 +1292,7 @@ errno RT_Exit()
     {
         exit_err = errno;
     }
-    errno = runtime->LibraryTracker->LibClean();
+    errno = runtime->LibraryTracker->Clean();
     if (errno != NO_ERROR && exit_err == NO_ERROR)
     {
         exit_err = errno;
