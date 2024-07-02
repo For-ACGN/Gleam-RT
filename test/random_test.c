@@ -25,155 +25,155 @@ bool TestRandom()
 
 static void TestRandBuf()
 {
-    printf("========TestRandBuf begin==========\n");
+    printf_s("========TestRandBuf begin==========\n");
 
     byte buf[16];
     RandBuf(&buf[0], 16);
 
-    printf("buf: ");
+    printf_s("buf: ");
     for (int i = 0; i < sizeof(buf); i++)
     {
-        printf("%d ", buf[i]);
+        printf_s("%d ", buf[i]);
     }
-    printf("\n");
+    printf_s("\n");
 
-    printf("========TestRandBuf passed=========\n\n");
+    printf_s("========TestRandBuf passed=========\n\n");
 }
 
 static void TestRandByte()
 {
-    printf("========TestRandByte begin=========\n");
+    printf_s("========TestRandByte begin=========\n");
 
     // will same
     for (uint i = 0; i < 3; i++)
     {
-        printf("byte: %d\n", RandByte(0));
+        printf_s("byte: %d\n", RandByte(0));
     }
-    printf("\n");
+    printf_s("\n");
 
     // will different
     uint64 last = (uint64)(&TestRandBuf);
     for (uint i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandByte(last);
-        printf("byte: %lld\n", val);
+        printf_s("byte: %lld\n", val);
         last += val;
     }
 
-    printf("========TestRandByte passed========\n\n");
+    printf_s("========TestRandByte passed========\n\n");
 }
 
 static void TestRandBool()
 {
-    printf("=========TestRandBool begin========\n");
+    printf_s("=========TestRandBool begin========\n");
 
     // will same
     for (int i = 0; i < 3; i++)
     {
-        printf("bool: %d\n", RandBool(0));
+        printf_s("bool: %d\n", RandBool(0));
     }
-    printf("\n");
+    printf_s("\n");
 
     // will different
     uint64 last = (uint64)(&TestRandBuf);
     for (int i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandBool(last);
-        printf("bool: %lld\n", val);
+        printf_s("bool: %lld\n", val);
         last += last + val + 1;
     }
 
-    printf("========TestRandBool passed========\n\n");
+    printf_s("========TestRandBool passed========\n\n");
 }
 
 static void TestRandInt()
 {
-    printf("=========TestRandInt begin=========\n");
+    printf_s("=========TestRandInt begin=========\n");
 
     // will same
     for (int i = 0; i < 3; i++)
     {
-        printf("int: %lld\n", (uint64)RandInt(0));
+        printf_s("int: %lld\n", (uint64)RandInt(0));
     }
-    printf("\n");
+    printf_s("\n");
 
     // will different
     uint64 last = (uint64)(&TestRandBuf);
     for (int i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandInt(last);
-        printf("int: %lld\n", val);
+        printf_s("int: %lld\n", val);
         last += val;
     }
 
-    printf("=========TestRandInt passed========\n\n");
+    printf_s("=========TestRandInt passed========\n\n");
 }
 
 static void TestRandUint()
 {
-    printf("=========TestRandUint begin========\n");
+    printf_s("=========TestRandUint begin========\n");
 
     // will same
     for (int i = 0; i < 3; i++)
     {
-        printf("uint: %llu\n", (uint64)RandUint(0));
+        printf_s("uint: %llu\n", (uint64)RandUint(0));
     }
-    printf("\n");
+    printf_s("\n");
 
     // will different
     uint64 last = (uint64)(&TestRandBuf);
     for (int i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandUint(last);
-        printf("uint: %llu\n", val);
+        printf_s("uint: %llu\n", val);
         last += val;
     }
 
-    printf("========TestRandUint passed========\n\n");
+    printf_s("========TestRandUint passed========\n\n");
 }
 
 static void TestRandInt64()
 {
-    printf("========TestRandInt64 begin========\n");
+    printf_s("========TestRandInt64 begin========\n");
 
     // will same
     for (int i = 0; i < 3; i++)
     {
-        printf("int64: %lld\n", (uint64)RandInt64(0));
+        printf_s("int64: %lld\n", (uint64)RandInt64(0));
     }
-    printf("\n");
+    printf_s("\n");
 
     // will different
     uint64 last = (uint64)(&TestRandBuf);
     for (int i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandInt64(last);
-        printf("int64: %lld\n", val);
+        printf_s("int64: %lld\n", val);
         last += val;
     }
 
-    printf("========TestRandInt64 passed=======\n\n");
+    printf_s("========TestRandInt64 passed=======\n\n");
 }
 
 static void TestRandUint64()
 {
-    printf("=======TestRandUint64 begin========\n");
+    printf_s("=======TestRandUint64 begin========\n");
 
     // will same
     for (int i = 0; i < 3; i++)
     {
-        printf("uint64: %llu\n", RandUint64(0));
+        printf_s("uint64: %llu\n", RandUint64(0));
     }
-    printf("\n");
+    printf_s("\n");
 
     // will different
     uint64 last = (uint64)(&TestRandBuf);
     for (int i = 0; i < 5; i++)
     {
         uint64 val = RandUint64(last);
-        printf("uint64: %llu\n", val);
+        printf_s("uint64: %llu\n", val);
         last += val;
     }
 
-    printf("=======TestRandUint64 passed=======\n\n");
+    printf_s("=======TestRandUint64 passed=======\n\n");
 }

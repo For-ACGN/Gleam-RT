@@ -24,7 +24,7 @@ bool TestCrypto()
 
 static bool TestEncryptBuf()
 {
-    printf("=======TestEncryptBuf begin========\n");
+    printf_s("=======TestEncryptBuf begin========\n");
 
     byte key[CRYPTO_KEY_SIZE];
     RandBuf(&key[0], sizeof(key));
@@ -60,24 +60,24 @@ static bool TestEncryptBuf()
     // }
     // mem_copy(&iv2[0], &iv1[0], sizeof(iv1));
 
-    printf("plain data:\n");
+    printf_s("plain data:\n");
     printHexBytes(&data1[0], sizeof(data1));
     printHexBytes(&data2[0], sizeof(data2));
 
-    printf("cipher data:\n");
+    printf_s("cipher data:\n");
     EncryptBuf(&data1[0], sizeof(data1), &key[0], &iv1[0]);
     printHexBytes(&data1[0], sizeof(data1));
 
     EncryptBuf(&data2[0], sizeof(data2), &key[0], &iv2[0]);
     printHexBytes(&data2[0], sizeof(data2));
 
-    printf("=======TestEncryptBuf passed=======\n\n");
+    printf_s("=======TestEncryptBuf passed=======\n\n");
     return true;
 }
 
 static bool TestDecryptBuf()
 {
-    printf("=======TestDecryptBuf begin========\n");
+    printf_s("=======TestDecryptBuf begin========\n");
 
     byte key[CRYPTO_KEY_SIZE];
     RandBuf(&key[0], sizeof(key));
@@ -90,12 +90,12 @@ static bool TestDecryptBuf()
     byte iv[CRYPTO_IV_SIZE];
     RandBuf(&iv[0], sizeof(iv));
 
-    printf("plain data:\n");
+    printf_s("plain data:\n");
     printHexBytes(&data2[0], sizeof(data2));
 
     EncryptBuf(&data2[0], sizeof(data2), &key[0], &iv[0]);
 
-    printf("cipher data:\n");
+    printf_s("cipher data:\n");
     printHexBytes(&data2[0], sizeof(data2));
 
     DecryptBuf(&data2[0], sizeof(data2), &key[0], &iv[0]);
@@ -105,12 +105,12 @@ static bool TestDecryptBuf()
     {
         if (data1[i] != data2[i])
         {
-            printf("[error] plain data is incorrect");
+            printf_s("[error] plain data is incorrect");
             return false;
         }
     }
 
-    printf("=======TestDecryptBuf passed=======\n\n");
+    printf_s("=======TestDecryptBuf passed=======\n\n");
     return true;
 }
 
@@ -119,15 +119,15 @@ static void printHexBytes(byte* buf, uint size)
     int counter = 0;
     for (uint i = 0; i < size; i++)
     {
-        printf("%02X ", *buf);
+        printf_s("%02X ", *buf);
 
         buf++;
         counter++;
         if (counter >= 16)
         {
             counter = 0;
-            printf("\n");
+            printf_s("\n");
         }
     }
-    printf("\n");
+    printf_s("\n");
 }

@@ -17,7 +17,7 @@ bool TestRuntime()
     Runtime_M* runtime = InitRuntime(&opts);
     if (runtime == NULL)
     {
-        printf("failed to initialize runtime: %lX\n", GetLastErrno());
+        printf_s("failed to initialize runtime: %lX\n", GetLastErrno());
         return false;
     }
 
@@ -29,7 +29,7 @@ bool TestRuntime()
     errno errno = runtime->Exit();
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf_s("error: %X\n", errno);
         return false;
     }
     return true;
@@ -37,7 +37,7 @@ bool TestRuntime()
 
 static bool TestRuntimeMemory(Runtime_M* runtime)
 {
-    printf("======TestRuntimeAlloc begin=======\n");
+    printf_s("======TestRuntimeAlloc begin=======\n");
 
     uint64* test1 = (uint64*)runtime->MemAlloc(sizeof(uint64));
     if (test1 == NULL)
@@ -65,13 +65,13 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
     errno = runtime->Hide();
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf_s("error: %X\n", errno);
         return false;
     }
     errno = runtime->Recover();
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf_s("error: %X\n", errno);
         return false;
     }
 
@@ -101,19 +101,19 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
     errno = runtime->Hide();
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf_s("error: %X\n", errno);
         return false;
     }
     errno = runtime->Recover();
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf_s("error: %X\n", errno);
         return false;
     }
     errno = runtime->SleepHR(1000);
     if (errno != NO_ERROR)
     {
-        printf("error: %X\n", errno);
+        printf_s("error: %X\n", errno);
         return false;
     }
 
@@ -130,6 +130,6 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
         return -1;
     }
 
-    printf("======TestRuntimeAlloc passed======\n\n");
+    printf_s("======TestRuntimeAlloc passed======\n\n");
     return true;
 }

@@ -40,10 +40,10 @@ int main()
 
     if (fail)
     {
-        printf("Failed to test\n");
+        printf_s("Failed to test\n");
         return 1;
     }
-    printf("All tests passed!\n");
+    printf_s("All tests passed!\n");
     return 0;
 }
 
@@ -54,20 +54,20 @@ static printBannerBegin(byte* name, uint len)
     // print prefix
     for (uint i = 0; i < padLen; i++)
     {
-        printf("=");
+        printf_s("=");
     }
-    printf("Test%s Begin", name);
+    printf_s("Test%s Begin", name);
     // print suffix
     for (uint i = 0; i < padLen; i++)
     {
-        printf("=");
+        printf_s("=");
     }
     // padding data
     if (!equal)
     {
-        printf("=");
+        printf_s("=");
     }
-    printf("\n");
+    printf_s("\n");
 }
 
 static printBannerEnd(byte* name, uint len, bool pass)
@@ -77,23 +77,23 @@ static printBannerEnd(byte* name, uint len, bool pass)
     // print prefix
     for (uint i = 0; i < padLen; i++)
     {
-        printf("=");
+        printf_s("=");
     }
     if (pass)
     {
-        printf("Test%s Passed", name);
+        printf_s("Test%s Passed", name);
     } else {
-        printf("Test%s FAILED", name);
+        printf_s("Test%s FAILED", name);
     }
     // print suffix
     for (uint i = 0; i < padLen; i++)
     {
-        printf("=");
+        printf_s("=");
     }
     // padding data
     if (!equal)
     {
-        printf("=");
+        printf_s("=");
     }
-    printf("\n\n");
+    printf_s("\n\n");
 }
