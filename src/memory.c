@@ -33,10 +33,11 @@ typedef struct {
     ReleaseMutex_t          ReleaseMutex;
     WaitForSingleObject_t   WaitForSingleObject;
     FlushInstructionCache_t FlushInstructionCache;
+    CloseHandle_t           CloseHandle;
 
     // runtime data
     uint32 PageSize; // memory page size
-    HANDLE Mutex;    // global mutex
+    HANDLE hMutex;   // protect data
 
     // store memory regions
     List Regions;
@@ -187,6 +188,7 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
     tracker->ReleaseMutex          = context->ReleaseMutex;
     tracker->WaitForSingleObject   = context->WaitForSingleObject;
     tracker->FlushInstructionCache = context->FlushInstructionCache;
+    tracker->CloseHandle           = context->CloseHandle;
     return true;
 }
 
@@ -215,7 +217,13 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 {
     // copy runtime context data
     tracker->PageSize = context->PageSize;
-    tracker->Mutex    = context->Mutex;
+    // create mutex
+    HANDLE hMutex = context->CreateMutexA(NULL, false, NULL);
+    if (hMutex == NULL)
+    {
+        return false;
+    }
+    tracker->hMutex = hMutex;
     // initialize memory region and page list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -244,6 +252,10 @@ static void eraseTrackerMethods()
 __declspec(noinline)
 static void cleanTracker(MemoryTracker* tracker)
 {
+    if (tracker->CloseHandle != NULL && tracker->hMutex != NULL)
+    {
+        tracker->CloseHandle(tracker->hMutex);
+    }
     List_Free(&tracker->Regions);
     List_Free(&tracker->Pages);
 }
@@ -261,14 +273,14 @@ static MemoryTracker* getTrackerPointer()
 __declspec(noinline)
 static bool mt_lock(MemoryTracker* tracker)
 {
-    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
 __declspec(noinline)
 static bool mt_unlock(MemoryTracker* tracker)
 {
-    return tracker->ReleaseMutex(tracker->Mutex);
+    return tracker->ReleaseMutex(tracker->hMutex);
 }
 
 __declspec(noinline)
