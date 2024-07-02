@@ -778,7 +778,7 @@ errno MT_Encrypt()
         num++;
     }
 
-    printf_s("num pages: %llu\n", (uint64)(pages->Len));
+    printf_s("[Memory] pages: %llu\n", (uint64)(pages->Len));
 
     // encrypt region and page list
     List* list = &tracker->Regions;
