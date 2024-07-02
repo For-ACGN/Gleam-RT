@@ -21,14 +21,14 @@ typedef struct {
     VirtualProtect_t VirtualProtect;
     VirtualQuery_t   VirtualQuery;
 
-    MemAlloc_t   MemAlloc;
-    MemRealloc_t MemRealloc;
-    MemFree_t    MemFree;
-    MemLock_t    MemLock;
-    MemUnlock_t  MemUnlock;
-    MemEncrypt_t MemEncrypt;
-    MemDecrypt_t MemDecrypt;
-    MemClean_t   MemClean;
+    MemAlloc_t   Alloc;
+    MemRealloc_t Realloc;
+    MemFree_t    Free;
+    MemLock_t    Lock;
+    MemUnlock_t  Unlock;
+    MemEncrypt_t Encrypt;
+    MemDecrypt_t Decrypt;
+    MemClean_t   Clean;
 } MemoryTracker_M;
 
 MemoryTracker_M* InitMemoryTracker(Context* context);
