@@ -145,14 +145,14 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->VirtualProtect = &MT_VirtualProtect;
     module->VirtualQuery   = &MT_VirtualQuery;
     // methods for runtime
-    module->MemAlloc   = &MT_MemAlloc;
-    module->MemRealloc = &MT_MemRealloc;
-    module->MemFree    = &MT_MemFree;
-    module->MemLock    = &MT_Lock;
-    module->MemUnlock  = &MT_Unlock;
-    module->MemEncrypt = &MT_Encrypt;
-    module->MemDecrypt = &MT_Decrypt;
-    module->MemClean   = &MT_Clean;
+    module->Alloc   = &MT_MemAlloc;
+    module->Realloc = &MT_MemRealloc;
+    module->Free    = &MT_MemFree;
+    module->Lock    = &MT_Lock;
+    module->Unlock  = &MT_Unlock;
+    module->Encrypt = &MT_Encrypt;
+    module->Decrypt = &MT_Decrypt;
+    module->Clean   = &MT_Clean;
     return module;
 }
 
@@ -945,6 +945,12 @@ errno MT_Clean()
     if (!List_Free(pages))
     {
         errno = ERR_MEMORY_FREE_REGION_LIST;
+    }
+
+    // close mutex
+    if (!tracker->CloseHandle(tracker->hMutex))
+    {
+        errno = ERR_MEMORY_CLOSE_MUTEX;
     }
     return errno;
 }
