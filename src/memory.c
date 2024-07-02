@@ -60,6 +60,8 @@ SIZE_T  MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length);
 void*   MT_MemAlloc(uint size);
 void*   MT_MemRealloc(void* address, uint size);
 bool    MT_MemFree(void* address);
+bool    MT_Lock();
+bool    MT_Unlock();
 errno   MT_Encrypt();
 errno   MT_Decrypt();
 errno   MT_Clean();
@@ -71,9 +73,6 @@ errno   MT_Clean();
     #define TRACKER_POINTER 0x7FABCD02
 #endif
 static MemoryTracker* getTrackerPointer();
-
-static bool mt_lock(MemoryTracker* tracker);
-static bool mt_unlock(MemoryTracker* tracker);
 
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
 static bool updateTrackerPointer(MemoryTracker* tracker);
@@ -149,6 +148,8 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->MemAlloc   = &MT_MemAlloc;
     module->MemRealloc = &MT_MemRealloc;
     module->MemFree    = &MT_MemFree;
+    module->MemLock    = &MT_Lock;
+    module->MemUnlock  = &MT_Unlock;
     module->MemEncrypt = &MT_Encrypt;
     module->MemDecrypt = &MT_Decrypt;
     module->MemClean   = &MT_Clean;
@@ -215,8 +216,6 @@ static bool updateTrackerPointer(MemoryTracker* tracker)
 __declspec(noinline)
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 {
-    // copy runtime context data
-    tracker->PageSize = context->PageSize;
     // create mutex
     HANDLE hMutex = context->CreateMutexA(NULL, false, NULL);
     if (hMutex == NULL)
@@ -237,6 +236,8 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     RandBuf(&tracker->RegionsIV[0], CRYPTO_IV_SIZE);
     RandBuf(&tracker->PagesKey[0], CRYPTO_KEY_SIZE);
     RandBuf(&tracker->PagesIV[0], CRYPTO_IV_SIZE);
+    // copy runtime context data
+    tracker->PageSize = context->PageSize;
     return true;
 }
 
@@ -271,24 +272,11 @@ static MemoryTracker* getTrackerPointer()
 #pragma optimize("", on)
 
 __declspec(noinline)
-static bool mt_lock(MemoryTracker* tracker)
-{
-    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
-    return event == WAIT_OBJECT_0;
-}
-
-__declspec(noinline)
-static bool mt_unlock(MemoryTracker* tracker)
-{
-    return tracker->ReleaseMutex(tracker->hMutex);
-}
-
-__declspec(noinline)
 LPVOID MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    if (!mt_lock(tracker))
+    if (!MT_Lock())
     {
         return NULL;
     }
@@ -314,7 +302,7 @@ LPVOID MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect)
         break;
     }
 
-    if (!mt_unlock(tracker))
+    if (!MT_Unlock())
     {
         return NULL;
     }
@@ -389,7 +377,7 @@ BOOL MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    if (!mt_lock(tracker))
+    if (!MT_Lock())
     {
         return false;
     }
@@ -410,7 +398,7 @@ BOOL MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type)
         break;
     }
 
-    if (!mt_unlock(tracker))
+    if (!MT_Unlock())
     {
         return false;
     }
@@ -540,7 +528,7 @@ BOOL MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    if (!mt_lock(tracker))
+    if (!MT_Lock())
     {
         return false;
     }
@@ -561,7 +549,7 @@ BOOL MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old)
         break;
     }
 
-    if (!mt_unlock(tracker))
+    if (!MT_Unlock())
     {
         return false;
     }
@@ -602,14 +590,14 @@ SIZE_T MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    if (!mt_lock(tracker))
+    if (!MT_Lock())
     {
         return 0;
     }
 
     uint size = tracker->VirtualQuery(address, buffer, length);
 
-    if (!mt_unlock(tracker))
+    if (!MT_Unlock())
     {
         return 0;
     }
@@ -750,6 +738,23 @@ bool MT_MemFree(void* address)
     uint  size = *(uint*)addr;
     mem_clean((byte*)addr, size);
     return MT_VirtualFree(addr, 0, MEM_RELEASE);
+}
+
+__declspec(noinline)
+bool MT_Lock()
+{
+    MemoryTracker* tracker = getTrackerPointer();
+
+    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+__declspec(noinline)
+bool MT_Unlock()
+{
+    MemoryTracker* tracker = getTrackerPointer();
+
+    return tracker->ReleaseMutex(tracker->hMutex);
 }
 
 __declspec(noinline)
