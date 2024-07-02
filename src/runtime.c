@@ -68,7 +68,7 @@ typedef struct {
     HANDLE hThread;     // trigger thread
 
     // IAT hooks about GetProcAddress
-    Hook IAT_Hooks[23];
+    Hook IATHooks[23];
 
     // submodules
     LibraryTracker_M*  LibraryTracker;
@@ -212,9 +212,9 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
-    module->MemAlloc   = runtime->MemoryTracker->MemAlloc;
-    module->MemRealloc = runtime->MemoryTracker->MemRealloc;
-    module->MemFree    = runtime->MemoryTracker->MemFree;
+    module->MemAlloc   = runtime->MemoryTracker->Alloc;
+    module->MemRealloc = runtime->MemoryTracker->Realloc;
+    module->MemFree    = runtime->MemoryTracker->Free;
     module->NewThread  = runtime->ThreadTracker->ThdNew;
     module->ExitThread = runtime->ThreadTracker->ThdExit;
     module->FindAPI    = &RT_FindAPI;
@@ -560,8 +560,8 @@ static bool initIATHooks(Runtime* runtime)
         {
             return false;
         }
-        runtime->IAT_Hooks[i].Proc = proc;
-        runtime->IAT_Hooks[i].Hook = items[i].hook;
+        runtime->IATHooks[i].Proc = proc;
+        runtime->IATHooks[i].Hook = items[i].hook;
     }
     return true;
 }
@@ -597,6 +597,7 @@ static bool flushInstructionCache(Runtime* runtime)
     return true;
 }
 
+// TODO return errno
 static void cleanRuntime(Runtime* runtime)
 {
     // must copy api address before call RandBuf
@@ -891,13 +892,13 @@ static void* getResTrackerHook(Runtime* runtime, void* proc)
 
 static void* replaceToHook(Runtime* runtime, void* proc)
 {
-    for (int i = 0; i < arrlen(runtime->IAT_Hooks); i++)
+    for (int i = 0; i < arrlen(runtime->IATHooks); i++)
     {
-        if (proc != runtime->IAT_Hooks[i].Proc)
+        if (proc != runtime->IATHooks[i].Proc)
         {
             continue;
         }
-        return runtime->IAT_Hooks[i].Hook;
+        return runtime->IATHooks[i].Hook;
     }
     return proc;
 }
@@ -1083,6 +1084,10 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
     {
         return ERR_RUNTIME_LOCK_LIBRARY;
     }
+    if (!runtime->MemoryTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_MEMORY;
+    }
 
     errno errno = NO_ERROR;
     for (;;)
@@ -1105,6 +1110,10 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
         break;
     }
 
+    if (!runtime->MemoryTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_MEMORY;
+    }
     if (!runtime->LibraryTracker->Unlock())
     {
         return ERR_RUNTIME_UNLOCK_LIBRARY;
@@ -1128,11 +1137,11 @@ static errno hide(Runtime* runtime)
         {
             break;
         }
-        // errno = runtime->MemoryTracker->MemEncrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
+        errno = runtime->MemoryTracker->Encrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
         errno = runtime->ResourceTracker->ResEncrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
@@ -1208,11 +1217,11 @@ static errno recover(Runtime* runtime)
         {
             break;
         }
-        // errno = runtime->MemoryTracker->MemDecrypt();
-        // if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        // {
-        //     break;
-        // }
+        errno = runtime->MemoryTracker->Decrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
         errno = runtime->ThreadTracker->ThdResume();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
@@ -1287,7 +1296,7 @@ errno RT_Exit()
     {
         exit_err = errno;
     }
-    errno = runtime->MemoryTracker->MemClean();
+    errno = runtime->MemoryTracker->Clean();
     if (errno != NO_ERROR && exit_err == NO_ERROR)
     {
         exit_err = errno;
