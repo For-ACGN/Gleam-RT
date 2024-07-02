@@ -392,11 +392,11 @@ HANDLE tt_createThread(
         printf_s("EIP: 0x%X\n", ctx.EIP);
 
         // the context data is ???????
-        ctx.EAX = lpStartAddress;
+        ctx.EAX = (DWORD)lpStartAddress;
 
         uintptr addr = (uintptr)(&ctx);
         addr += 11 * 16;
-        *(uint32*)addr = lpStartAddress;
+        *(uintptr*)addr = (uintptr)lpStartAddress;
 
         printf_s("EDX: 0x%X\n", ctx.EDX);
         printf_s("ECX: 0x%X\n", ctx.ECX);
