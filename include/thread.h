@@ -8,6 +8,8 @@
 
 typedef HANDLE (*ThdNew_t)(void* address, void* parameter, bool track);
 typedef void   (*ThdExit_t)();
+typedef bool   (*ThdLock_t)();
+typedef bool   (*ThdUnlock_t)();
 typedef errno  (*ThdSuspend_t)();
 typedef errno  (*ThdResume_t)();
 typedef errno  (*ThdClean_t)();
@@ -24,6 +26,8 @@ typedef struct {
 
     ThdNew_t     ThdNew;
     ThdExit_t    ThdExit;
+    ThdLock_t    ThdLock;
+    ThdUnlock_t  ThdUnlock;
     ThdSuspend_t ThdSuspend;
     ThdResume_t  ThdResume;
     ThdClean_t   ThdClean;
