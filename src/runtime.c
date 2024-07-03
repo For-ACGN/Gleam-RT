@@ -197,7 +197,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // start sleep event trigger
     if (errno == NO_ERROR)
     {
-        runtime->hThread = runtime->ThreadTracker->ThdNew(&trigger, NULL, false);
+        runtime->hThread = runtime->ThreadTracker->New(&trigger, NULL, false);
         if (runtime->hThread == NULL)
         {
             errno = ERR_RUNTIME_START_TRIGGER;
@@ -215,8 +215,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->MemAlloc   = runtime->MemoryTracker->Alloc;
     module->MemRealloc = runtime->MemoryTracker->Realloc;
     module->MemFree    = runtime->MemoryTracker->Free;
-    module->NewThread  = runtime->ThreadTracker->ThdNew;
-    module->ExitThread = runtime->ThreadTracker->ThdExit;
+    module->NewThread  = runtime->ThreadTracker->New;
+    module->ExitThread = runtime->ThreadTracker->Exit;
     module->FindAPI    = &RT_FindAPI;
     module->Sleep      = &RT_Sleep;
     // for IAT hooks
@@ -573,12 +573,6 @@ static void eraseRuntimeMethods()
     uintptr end   = (uintptr)(&eraseRuntimeMethods);
     int64   size  = end - begin;
     RandBuf((byte*)begin, size);
-    // uintptr relative_address;
-    // __asm {
-    //     lea eax, _locale_t  allocateRuntimeMemory
-    //     mov relative_address, eax
-    // }
-    // printf_s("0x%X\n", relative_address);
 }
 
 __declspec(noinline)
@@ -1088,6 +1082,10 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
     {
         return ERR_RUNTIME_LOCK_MEMORY;
     }
+    if (!runtime->ThreadTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_THREAD;
+    }
 
     errno errno = NO_ERROR;
     for (;;)
@@ -1110,6 +1108,10 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
         break;
     }
 
+    if (!runtime->ThreadTracker->Unlock())
+    {
+        return ERR_RUNTIME_LOCK_THREAD;
+    }
     if (!runtime->MemoryTracker->Unlock())
     {
         return ERR_RUNTIME_UNLOCK_MEMORY;
@@ -1132,7 +1134,7 @@ static errno hide(Runtime* runtime)
     errno errno = NO_ERROR;
     for (;;)
     {
-        errno = runtime->ThreadTracker->ThdSuspend();
+        errno = runtime->ThreadTracker->Suspend();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
@@ -1222,7 +1224,7 @@ static errno recover(Runtime* runtime)
         {
             break;
         }
-        errno = runtime->ThreadTracker->ThdResume();
+        errno = runtime->ThreadTracker->Resume();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
@@ -1286,7 +1288,7 @@ errno RT_Exit()
     bool notEraseInst = runtime->NotEraseInst;
 
     // clean runtime modules
-    errno errno = runtime->ThreadTracker->ThdClean();
+    errno errno = runtime->ThreadTracker->Clean();
     if (errno != NO_ERROR && exit_err == NO_ERROR)
     {
         exit_err = errno;
