@@ -139,13 +139,13 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     module->SwitchToThread   = &TT_SwitchToThread;
     module->TerminateThread  = &TT_TerminateThread;
     // methods for runtime
-    module->ThdNew     = &TT_ThdNew;
-    module->ThdExit    = &TT_ThdExit;
-    module->ThdLock    = &TT_Lock;
-    module->ThdUnlock  = &TT_Unlock;
-    module->ThdSuspend = &TT_Suspend;
-    module->ThdResume  = &TT_Resume;
-    module->ThdClean   = &TT_Clean;
+    module->New     = &TT_ThdNew;
+    module->Exit    = &TT_ThdExit;
+    module->Lock    = &TT_Lock;
+    module->Unlock  = &TT_Unlock;
+    module->Suspend = &TT_Suspend;
+    module->Resume  = &TT_Resume;
+    module->Clean   = &TT_Clean;
     return module;
 }
 
