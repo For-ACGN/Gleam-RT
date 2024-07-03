@@ -62,6 +62,8 @@ bool   TT_TerminateThread(HANDLE hThread, DWORD dwExitCode);
 // methods for runtime
 HANDLE TT_ThdNew(void* address, void* parameter, bool track);
 void   TT_ThdExit();
+bool   TT_Lock();
+bool   TT_Unlock();
 errno  TT_Suspend();
 errno  TT_Resume();
 errno  TT_Clean();
@@ -78,9 +80,6 @@ HANDLE tt_createThread(
     #define TRACKER_POINTER 0x7FABCD03
 #endif
 static ThreadTracker* getTrackerPointer();
-
-static bool tt_lock(ThreadTracker* tracker);
-static bool tt_unlock(ThreadTracker* tracker);
 
 static bool  initTrackerAPI(ThreadTracker* tracker, Context* context);
 static bool  updateTrackerPointer(ThreadTracker* tracker);
@@ -142,6 +141,8 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     // methods for runtime
     module->ThdNew     = &TT_ThdNew;
     module->ThdExit    = &TT_ThdExit;
+    module->ThdLock    = &TT_Lock;
+    module->ThdUnlock  = &TT_Unlock;
     module->ThdSuspend = &TT_Suspend;
     module->ThdResume  = &TT_Resume;
     module->ThdClean   = &TT_Clean;
@@ -313,19 +314,6 @@ static ThreadTracker* getTrackerPointer()
 #pragma optimize("", on)
 
 __declspec(noinline)
-static bool tt_lock(ThreadTracker* tracker)
-{
-    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
-    return event == WAIT_OBJECT_0;
-}
-
-__declspec(noinline)
-static bool tt_unlock(ThreadTracker* tracker)
-{
-    return tracker->ReleaseMutex(tracker->hMutex);
-}
-
-__declspec(noinline)
 HANDLE TT_CreateThread(
     POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
     LPVOID lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId
@@ -345,7 +333,7 @@ HANDLE tt_createThread(
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!tt_lock(tracker))
+    if (!TT_Lock())
     {
         return NULL;
     }
@@ -437,7 +425,7 @@ HANDLE tt_createThread(
         break;
     }
 
-    if (!tt_unlock(tracker))
+    if (!TT_Unlock())
     {
         return NULL;
     }
@@ -547,7 +535,7 @@ void TT_ExitThread(DWORD dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!tt_lock(tracker))
+    if (!TT_Lock())
     {
         return;
     }
@@ -560,7 +548,7 @@ void TT_ExitThread(DWORD dwExitCode)
 
     printf_s("ExitThread: %lu\n", threadID);
 
-    if (!tt_unlock(tracker))
+    if (!TT_Unlock())
     {
         return;
     }
@@ -590,7 +578,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!tt_lock(tracker))
+    if (!TT_Lock())
     {
         return -1;
     }
@@ -602,7 +590,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
     }
     // printf_s("SuspendThread: %llu\n", hThread);
 
-    if (!tt_unlock(tracker))
+    if (!TT_Unlock())
     {
         return -1;
     }
@@ -614,7 +602,7 @@ uint32 TT_ResumeThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!tt_lock(tracker))
+    if (!TT_Lock())
     {
         return -1;
     }
@@ -626,7 +614,7 @@ uint32 TT_ResumeThread(HANDLE hThread)
     }
     // printf_s("ResumeThread: %llu\n", hThread);
 
-    if (!tt_unlock(tracker))
+    if (!TT_Unlock())
     {
         return -1;
     }
@@ -638,7 +626,7 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!tt_lock(tracker))
+    if (!TT_Lock())
     {
         return false;
     }
@@ -646,7 +634,7 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
     bool success = tracker->GetThreadContext(hThread, lpContext);
     // printf_s("GetThreadContext: %llu\n", hThread);
 
-    if (!tt_unlock(tracker))
+    if (!TT_Unlock())
     {
         return false;
     }
@@ -658,7 +646,7 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!tt_lock(tracker))
+    if (!TT_Lock())
     {
         return false;
     }
@@ -667,7 +655,7 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 
     // printf_s("SetThreadContext: %llu\n", hThread);
 
-    if (!tt_unlock(tracker))
+    if (!TT_Unlock())
     {
         return false;
     }
@@ -679,7 +667,7 @@ bool TT_SwitchToThread()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!tt_lock(tracker))
+    if (!TT_Lock())
     {
         return false;
     }
@@ -688,7 +676,7 @@ bool TT_SwitchToThread()
 
     // printf_s("SwitchToThread\n");
 
-    if (!tt_unlock(tracker))
+    if (!TT_Unlock())
     {
         return false;
     }
@@ -700,7 +688,7 @@ bool TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!tt_lock(tracker))
+    if (!TT_Lock())
     {
         return false;
     }
@@ -713,7 +701,7 @@ bool TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
 
     printf_s("TerminateThread: %lu\n", threadID);
 
-    if (!tt_unlock(tracker))
+    if (!TT_Unlock())
     {
         return false;
     }
@@ -730,6 +718,23 @@ __declspec(noinline)
 void TT_ThdExit()
 {
     TT_ExitThread(0);
+}
+
+__declspec(noinline)
+bool TT_Lock()
+{
+    ThreadTracker* tracker = getTrackerPointer();
+
+    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+__declspec(noinline)
+bool TT_Unlock()
+{
+    ThreadTracker* tracker = getTrackerPointer();
+
+    return tracker->ReleaseMutex(tracker->hMutex);
 }
 
 __declspec(noinline)
@@ -871,6 +876,12 @@ errno TT_Clean()
     if (!List_Free(threads))
     {
         errno = ERR_THREAD_FREE_LIST;
+    }
+
+    // close mutex
+    if (!tracker->CloseHandle(tracker->hMutex))
+    {
+        errno = ERR_THREAD_CLOSE_MUTEX;
     }
     return errno;
 }
