@@ -34,8 +34,8 @@ typedef struct {
     DuplicateHandle_t     DuplicateHandle;
     CloseHandle_t         CloseHandle;
 
-    // runtime data
-    HANDLE Mutex; // global mutex
+    // protect data
+    HANDLE hMutex;
 
     // record the number of SuspendThread
     int64 numSuspend;
@@ -232,8 +232,13 @@ static bool updateTrackerPointer(ThreadTracker* tracker)
 __declspec(noinline)
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
 {
-    // copy runtime context data
-    tracker->Mutex = context->Mutex;
+    // create mutex
+    HANDLE hMutex = context->CreateMutexA(NULL, false, NULL);
+    if (hMutex == NULL)
+    {
+        return false;
+    }
+    tracker->hMutex = hMutex;
     // initialize thread list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -272,10 +277,15 @@ static void eraseTrackerMethods()
 __declspec(noinline)
 static void cleanTracker(ThreadTracker* tracker)
 {
-    List* threads = &tracker->Threads;
+    // close mutex handle
+    if (tracker->CloseHandle != NULL && tracker->hMutex != NULL)
+    {
+        tracker->CloseHandle(tracker->hMutex);
+    }
 
     // close already tracked handles
-    uint index = 0;
+    List* threads = &tracker->Threads;
+    uint  index   = 0;
     for (uint num = 0; num < threads->Len; index++)
     {
         thread* thread = List_Get(threads, index);
@@ -289,7 +299,6 @@ static void cleanTracker(ThreadTracker* tracker)
         }
         num++;
     }
-
     List_Free(threads);
 }
 
@@ -306,14 +315,14 @@ static ThreadTracker* getTrackerPointer()
 __declspec(noinline)
 static bool tt_lock(ThreadTracker* tracker)
 {
-    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
 __declspec(noinline)
 static bool tt_unlock(ThreadTracker* tracker)
 {
-    return tracker->ReleaseMutex(tracker->Mutex);
+    return tracker->ReleaseMutex(tracker->hMutex);
 }
 
 __declspec(noinline)
