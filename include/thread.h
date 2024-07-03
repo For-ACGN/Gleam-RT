@@ -24,13 +24,13 @@ typedef struct {
     SwitchToThread_t   SwitchToThread;
     TerminateThread_t  TerminateThread;
 
-    ThdNew_t     ThdNew;
-    ThdExit_t    ThdExit;
-    ThdLock_t    ThdLock;
-    ThdUnlock_t  ThdUnlock;
-    ThdSuspend_t ThdSuspend;
-    ThdResume_t  ThdResume;
-    ThdClean_t   ThdClean;
+    ThdNew_t     New;
+    ThdExit_t    Exit;
+    ThdLock_t    Lock;
+    ThdUnlock_t  Unlock;
+    ThdSuspend_t Suspend;
+    ThdResume_t  Resume;
+    ThdClean_t   Clean;
 } ThreadTracker_M;
 
 ThreadTracker_M* InitThreadTracker(Context* context);
