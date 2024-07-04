@@ -23,11 +23,11 @@ typedef struct {
     WSAStartup_t WSAStartup;
     WSACleanup_t WSACleanup;
 
-    ResLock_t    ResLock;
-    ResUnlock_t  ResUnlock;
-    ResEncrypt_t ResEncrypt;
-    ResDecrypt_t ResDecrypt;
-    ResClean_t   ResClean;
+    ResLock_t    Lock;
+    ResUnlock_t  Unlock;
+    ResEncrypt_t Encrypt;
+    ResDecrypt_t Decrypt;
+    ResClean_t   Clean;
 } ResourceTracker_M;
 
 ResourceTracker_M* InitResourceTracker(Context* context);
