@@ -37,8 +37,8 @@ typedef struct {
     ReleaseMutex_t        ReleaseMutex;
     WaitForSingleObject_t WaitForSingleObject;
 
-    // runtime data
-    HANDLE Mutex; // global mutex
+    // protect data
+    HANDLE hMutex;
 
     // store all tracked Handles
     List Handles;
@@ -219,8 +219,13 @@ static bool updateTrackerPointer(ResourceTracker* tracker)
 __declspec(noinline)
 static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context)
 {
-    // copy runtime context data
-    tracker->Mutex = context->Mutex;
+    // create mutex
+    HANDLE hMutex = context->CreateMutexA(NULL, false, NULL);
+    if (hMutex == NULL)
+    {
+        return false;
+    }
+    tracker->hMutex = hMutex;
     // initialize handle list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -254,6 +259,10 @@ static void eraseTrackerMethods()
 __declspec(noinline)
 static void cleanTracker(ResourceTracker* tracker)
 {
+    if (tracker->CloseHandle != NULL && tracker->hMutex != NULL)
+    {
+        tracker->CloseHandle(tracker->hMutex);
+    }
     List_Free(&tracker->Handles);
     for (int i = 0; i < arrlen(tracker->Counters); i++)
     {
@@ -274,14 +283,14 @@ static ResourceTracker* getTrackerPointer()
 __declspec(noinline)
 static bool rt_lock(ResourceTracker* tracker)
 {
-    uint32 event = tracker->WaitForSingleObject(tracker->Mutex, INFINITE);
+    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
 __declspec(noinline)
 static bool rt_unlock(ResourceTracker* tracker)
 {
-    return tracker->ReleaseMutex(tracker->Mutex);
+    return tracker->ReleaseMutex(tracker->hMutex);
 }
 
 __declspec(noinline)
@@ -670,7 +679,7 @@ errno RT_Encrypt()
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    printf_s("[runtime] handles: %llu\n", (uint64)(tracker->Handles.Len));
+    printf_s("[Resource] handles: %llu\n", (uint64)(tracker->Handles.Len));
 
     List* list = &tracker->Handles;
     byte* key  = &tracker->HandlesKey[0];
@@ -734,6 +743,12 @@ errno RT_Clean()
         {
             errno = ERR_RESOURCE_WSA_CLEANUP;
         }
+    }
+
+    // close mutex
+    if (!tracker->CloseHandle(tracker->hMutex))
+    {
+        errno = ERR_RESOURCE_CLOSE_MUTEX;
     }
     return errno;
 }
