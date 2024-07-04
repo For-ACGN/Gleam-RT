@@ -304,7 +304,7 @@ LPVOID MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect)
 
     if (!MT_Unlock())
     {
-        if (success)
+        if (address != NULL)
         {
             tracker->VirtualFree(address, 0, MEM_RELEASE);
         }
