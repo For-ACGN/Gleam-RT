@@ -11,15 +11,16 @@
 #include "errno.h"
 #include "resource.h"
 
-#define SRC_TYPE_CLOSE_HANDLE 0x0100
-#define SRC_TYPE_FIND_CLOSE   0x0200
+#define TYPE_CLOSE_HANDLE 0x0100
+#define TYPE_FIND_CLOSE   0x0200
 
 #define SRC_CREATE_FILE_A     0x0101
 #define SRC_CREATE_FILE_W     0x0102
 #define SRC_FIND_FIRST_FILE_A 0x0201  // EXA
 #define SRC_FIND_FIRST_FILE_W 0x0202
 
-#define LIB_WSA_STARTUP 0x0000
+// resource counter index
+#define CTR_WSA_STARTUP 0x0000
 
 typedef struct {
     void*  handle;
@@ -91,7 +92,7 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context);
 static bool updateTrackerPointer(ResourceTracker* tracker);
 static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context);
 static bool addHandle(ResourceTracker* tracker, void* hObject, uint16 source);
-static void delHandle(ResourceTracker* tracker, void* hObject, uint16 source);
+static void delHandle(ResourceTracker* tracker, void* hObject, uint16 type);
 
 static void eraseTrackerMethods();
 static void cleanTracker(ResourceTracker* tracker);
@@ -403,7 +404,7 @@ BOOL RT_CloseHandle(HANDLE hObject)
         {
             break;
         }
-        delHandle(tracker, hObject, SRC_TYPE_CLOSE_HANDLE);
+        delHandle(tracker, hObject, TYPE_CLOSE_HANDLE);
         printf_s("CloseHandle: %llu\n", (uint64)hObject);
         break;
     }    
@@ -523,7 +524,7 @@ BOOL RT_FindClose(HANDLE hFindFile)
         {
             break;
         }
-        delHandle(tracker, hFindFile, SRC_TYPE_FIND_CLOSE);
+        delHandle(tracker, hFindFile, TYPE_FIND_CLOSE);
         printf_s("CloseHandle: %llu\n", (uint64)hFindFile);
         break;
     }    
@@ -555,7 +556,7 @@ static bool addHandle(ResourceTracker* tracker, void* hObject, uint16 source)
     return true;
 };
 
-static void delHandle(ResourceTracker* tracker, void* hObject, uint16 source)
+static void delHandle(ResourceTracker* tracker, void* hObject, uint16 type)
 {
     if (hObject == NULL)
     {
@@ -571,7 +572,7 @@ static void delHandle(ResourceTracker* tracker, void* hObject, uint16 source)
         {
             continue;
         }
-        if ((handle->source & source) != source)
+        if ((handle->source & type) != type)
         {
             num++;
             continue;
@@ -613,7 +614,7 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
     int ret = tracker->WSAStartup(wVersionRequired, lpWSAData);
     if (ret == 0)
     {
-        tracker->Counters[LIB_WSA_STARTUP]++;
+        tracker->Counters[CTR_WSA_STARTUP]++;
         printf_s("ResourceTracker: WSAStartup\n");
     }
 
@@ -651,7 +652,7 @@ int RT_WSACleanup()
     int ret = tracker->WSACleanup();
     if (ret == 0)
     {
-        tracker->Counters[LIB_WSA_STARTUP]--;
+        tracker->Counters[CTR_WSA_STARTUP]--;
         printf_s("ResourceTracker: WSACleanup\n");
     }
 
@@ -741,7 +742,7 @@ errno RT_Clean()
     // process init function tracker
     int64 counter = 0;
     // WSACleanup
-    counter = tracker->Counters[LIB_WSA_STARTUP];
+    counter = tracker->Counters[CTR_WSA_STARTUP];
     for (int64 i = 0; i < counter; i++)
     {
         if (tracker->WSACleanup() != 0)
