@@ -73,6 +73,8 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData);
 int RT_WSACleanup();
 
 // methods for runtime
+bool  RT_Lock();
+bool  RT_Unlock();
 errno RT_Encrypt();
 errno RT_Decrypt();
 errno RT_Clean();
@@ -84,9 +86,6 @@ errno RT_Clean();
     #define TRACKER_POINTER 0x7FABCD04
 #endif
 static ResourceTracker* getTrackerPointer();
-
-static bool rt_lock(ResourceTracker* tracker);
-static bool rt_unlock(ResourceTracker* tracker);
 
 static bool initTrackerAPI(ResourceTracker* tracker, Context* context);
 static bool updateTrackerPointer(ResourceTracker* tracker);
@@ -281,19 +280,6 @@ static ResourceTracker* getTrackerPointer()
 #pragma optimize("", on)
 
 __declspec(noinline)
-static bool rt_lock(ResourceTracker* tracker)
-{
-    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
-    return event == WAIT_OBJECT_0;
-}
-
-__declspec(noinline)
-static bool rt_unlock(ResourceTracker* tracker)
-{
-    return tracker->ReleaseMutex(tracker->hMutex);
-}
-
-__declspec(noinline)
 HANDLE RT_CreateFileA(
     LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
     POINTER lpSecurityAttributes, DWORD dwCreationDisposition,
@@ -302,7 +288,7 @@ HANDLE RT_CreateFileA(
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    if (!rt_lock(tracker))
+    if (!RT_Lock())
     {
         return INVALID_HANDLE_VALUE;
     }
@@ -330,7 +316,7 @@ HANDLE RT_CreateFileA(
         break;
     }
 
-    if (!rt_unlock(tracker))
+    if (!RT_Unlock())
     {
         if (success)
         {
@@ -354,7 +340,7 @@ HANDLE RT_CreateFileW(
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    if (!rt_lock(tracker))
+    if (!RT_Lock())
     {
         return INVALID_HANDLE_VALUE;
     }
@@ -382,7 +368,7 @@ HANDLE RT_CreateFileW(
         break;
     }
 
-    if (!rt_unlock(tracker))
+    if (!RT_Unlock())
     {
         if (success)
         {
@@ -402,7 +388,7 @@ BOOL RT_CloseHandle(HANDLE hObject)
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    if (!rt_lock(tracker))
+    if (!RT_Lock())
     {
         return false;
     }
@@ -420,7 +406,7 @@ BOOL RT_CloseHandle(HANDLE hObject)
         break;
     }    
 
-    if (!rt_unlock(tracker))
+    if (!RT_Unlock())
     {
         return false;
     }
@@ -432,7 +418,7 @@ HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData)
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    if (!rt_lock(tracker))
+    if (!RT_Lock())
     {
         return INVALID_HANDLE_VALUE;
     }
@@ -457,7 +443,7 @@ HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData)
         break;
     }
 
-    if (!rt_unlock(tracker))
+    if (!RT_Unlock())
     {
         if (success)
         {
@@ -477,7 +463,7 @@ HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData)
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    if (!rt_lock(tracker))
+    if (!RT_Lock())
     {
         return INVALID_HANDLE_VALUE;
     }
@@ -502,7 +488,7 @@ HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData)
         break;
     }
 
-    if (!rt_unlock(tracker))
+    if (!RT_Unlock())
     {
         if (success)
         {
@@ -522,7 +508,7 @@ BOOL RT_FindClose(HANDLE hFindFile)
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    if (!rt_lock(tracker))
+    if (!RT_Lock())
     {
         return false;
     }
@@ -540,7 +526,7 @@ BOOL RT_FindClose(HANDLE hFindFile)
         break;
     }    
 
-    if (!rt_unlock(tracker))
+    if (!RT_Unlock())
     {
         return false;
     }
@@ -603,7 +589,7 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    if (!rt_lock(tracker))
+    if (!RT_Lock())
     {
         return WSASYSNOTREADY;
     }
@@ -629,7 +615,7 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
         printf_s("ResourceTracker: WSAStartup\n");
     }
 
-    if (!rt_unlock(tracker))
+    if (!RT_Unlock())
     {
         return WSASYSNOTREADY;
     }
@@ -641,7 +627,7 @@ int RT_WSACleanup()
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    if (!rt_lock(tracker))
+    if (!RT_Lock())
     {
         return WSAEINPROGRESS;
     }
@@ -667,11 +653,28 @@ int RT_WSACleanup()
         printf_s("ResourceTracker: WSACleanup\n");
     }
 
-    if (!rt_unlock(tracker))
+    if (!RT_Unlock())
     {
         return WSAEINPROGRESS;
     }
     return ret;
+}
+
+__declspec(noinline)
+bool RT_Lock()
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
+    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+__declspec(noinline)
+bool RT_Unlock()
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
+    return tracker->ReleaseMutex(tracker->hMutex);
 }
 
 __declspec(noinline)
