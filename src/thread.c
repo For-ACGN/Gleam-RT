@@ -427,9 +427,13 @@ HANDLE tt_createThread(
 
     if (!TT_Unlock())
     {
+        if (hThread != NULL)
+        {
+            tracker->TerminateThread(hThread, 0);
+            tracker->CloseHandle(hThread);
+        }
         return NULL;
     }
-
     if (!success)
     {
         if (hThread != NULL)
