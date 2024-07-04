@@ -6,6 +6,8 @@
 #include "context.h"
 #include "errno.h"
 
+typedef bool  (*ResLock_t)();
+typedef bool  (*ResUnlock_t)();
 typedef errno (*ResEncrypt_t)();
 typedef errno (*ResDecrypt_t)();
 typedef errno (*ResClean_t)();
@@ -21,6 +23,8 @@ typedef struct {
     WSAStartup_t WSAStartup;
     WSACleanup_t WSACleanup;
 
+    ResLock_t    ResLock;
+    ResUnlock_t  ResUnlock;
     ResEncrypt_t ResEncrypt;
     ResDecrypt_t ResDecrypt;
     ResClean_t   ResClean;
