@@ -522,10 +522,10 @@ static bool initIATHooks(Runtime* runtime)
         { 0xE9ECDC63F6D3DC53, 0x815C2FDFE640307E, runtime->MemoryTracker->VirtualQuery },
         { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, runtime->ThreadTracker->CreateThread },
         { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, runtime->ThreadTracker->ExitThread },
-        // { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, runtime->ThreadTracker->SuspendThread },
-        // { 0x226860209E13A99A, 0xE1BD9D8C64FAF97D, runtime->ThreadTracker->ResumeThread },
-        // { 0x374E149C710B1006, 0xE5D0E3FA417FA6CF, runtime->ThreadTracker->GetThreadContext },
-        // { 0xCFE3FFD5F0023AE3, 0x9044E42F1C020CF5, runtime->ThreadTracker->SetThreadContext },
+        { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, runtime->ThreadTracker->SuspendThread },
+        { 0x226860209E13A99A, 0xE1BD9D8C64FAF97D, runtime->ThreadTracker->ResumeThread },
+        { 0x374E149C710B1006, 0xE5D0E3FA417FA6CF, runtime->ThreadTracker->GetThreadContext },
+        { 0xCFE3FFD5F0023AE3, 0x9044E42F1C020CF5, runtime->ThreadTracker->SetThreadContext },
         // { 0xF0587A11F433BC0C, 0x9AB5CF006BC5744A, runtime->ThreadTracker->SwitchToThread },
         { 0x248E1CDD11AB444F, 0x195932EA70030929, runtime->ThreadTracker->TerminateThread },
     };
@@ -549,7 +549,7 @@ static bool initIATHooks(Runtime* runtime)
         { 0xA02B4251, 0x5287173F, runtime->ThreadTracker->ResumeThread },
         { 0xCF0EC7B7, 0xBAC33715, runtime->ThreadTracker->GetThreadContext },
         { 0xC59EF832, 0xEF75D2EA, runtime->ThreadTracker->SetThreadContext },
-        { 0xA031E829, 0xDD1BB334, runtime->ThreadTracker->SwitchToThread },
+        // { 0xA031E829, 0xDD1BB334, runtime->ThreadTracker->SwitchToThread },
         { 0x6EF0E2AA, 0xE014E29F, runtime->ThreadTracker->TerminateThread },
     };
 #endif
@@ -1082,6 +1082,10 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
     {
         return ERR_RUNTIME_LOCK_MEMORY;
     }
+    if (!runtime->ResourceTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_RESOURCE;
+    }
     if (!runtime->ThreadTracker->Lock())
     {
         return ERR_RUNTIME_LOCK_THREAD;
@@ -1110,7 +1114,11 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
 
     if (!runtime->ThreadTracker->Unlock())
     {
-        return ERR_RUNTIME_LOCK_THREAD;
+        return ERR_RUNTIME_UNLOCK_THREAD;
+    }
+    if (!runtime->ResourceTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_RESOURCE;
     }
     if (!runtime->MemoryTracker->Unlock())
     {
@@ -1144,7 +1152,7 @@ static errno hide(Runtime* runtime)
         {
             break;
         }
-        errno = runtime->ResourceTracker->ResEncrypt();
+        errno = runtime->ResourceTracker->Encrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
@@ -1214,7 +1222,7 @@ static errno recover(Runtime* runtime)
         {
             break;
         }
-        errno = runtime->ResourceTracker->ResDecrypt();
+        errno = runtime->ResourceTracker->Decrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
@@ -1293,7 +1301,7 @@ errno RT_Exit()
     {
         exit_err = errno;
     }
-    errno = runtime->ResourceTracker->ResClean();
+    errno = runtime->ResourceTracker->Clean();
     if (errno != NO_ERROR && exit_err == NO_ERROR)
     {
         exit_err = errno;
