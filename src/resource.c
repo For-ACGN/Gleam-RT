@@ -144,9 +144,11 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     module->WSAStartup     = &RT_WSAStartup;
     module->WSACleanup     = &RT_WSACleanup;
     // methods for runtime
-    module->ResEncrypt = &RT_Encrypt;
-    module->ResDecrypt = &RT_Decrypt;
-    module->ResClean   = &RT_Clean;
+    module->Lock    = &RT_Lock;
+    module->Unlock  = &RT_Unlock;
+    module->Encrypt = &RT_Encrypt;
+    module->Decrypt = &RT_Decrypt;
+    module->Clean   = &RT_Clean;
     return module;
 }
 
