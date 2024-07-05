@@ -46,10 +46,6 @@ typedef struct {
     byte HandlesKey[CRYPTO_KEY_SIZE];
     byte HandlesIV [CRYPTO_IV_SIZE];
 
-    // tracked Windows API
-    WSAStartup_t WSAStartup;
-    WSACleanup_t WSACleanup;
-
     // store all resource counters
     int64 Counters[1];
 } ResourceTracker;
@@ -238,9 +234,6 @@ static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context)
     // set crypto context data
     RandBuf(&tracker->HandlesKey[0], CRYPTO_KEY_SIZE);
     RandBuf(&tracker->HandlesIV[0], CRYPTO_IV_SIZE);
-    // initialize structure fields
-    tracker->WSAStartup = NULL;
-    tracker->WSACleanup = NULL;
     // initialize counters
     for (int i = 0; i < arrlen(tracker->Counters); i++)
     {
@@ -597,21 +590,17 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
         return WSASYSNOTREADY;
     }
 
-    // check API is found
-    if (tracker->WSAStartup == NULL)
+#ifdef _WIN64
+    WSAStartup_t WSAStartup = FindAPI(0x21A84954D72D9F93, 0xD549133F33DA137E);
+#elif _WIN32
+    WSAStartup_t WSAStartup = FindAPI(0x8CD788B9, 0xA349D8A2);
+#endif
+    if (WSAStartup == NULL)
     {
-    #ifdef _WIN64
-        WSAStartup_t proc = FindAPI(0x21A84954D72D9F93, 0xD549133F33DA137E);
-    #elif _WIN32
-        WSAStartup_t proc = FindAPI(0x8CD788B9, 0xA349D8A2);
-    #endif
-        if (proc == NULL)
-        {
-            return WSASYSNOTREADY;
-        }
-        tracker->WSAStartup = proc;
+        return WSASYSNOTREADY;
     }
-    int ret = tracker->WSAStartup(wVersionRequired, lpWSAData);
+
+    int ret = WSAStartup(wVersionRequired, lpWSAData);
     if (ret == 0)
     {
         tracker->Counters[CTR_WSA_STARTUP]++;
@@ -635,21 +624,17 @@ int RT_WSACleanup()
         return WSAEINPROGRESS;
     }
 
-    // check API is found
-    if (tracker->WSACleanup == NULL)
+#ifdef _WIN64
+    WSACleanup_t WSACleanup = FindAPI(0x324EEA09CB7B262C, 0xE64CBAD3BBD4F522);
+#elif _WIN32
+    WSACleanup_t WSACleanup = FindAPI(0xBD997AF1, 0x88F10695);
+#endif
+    if (WSACleanup == NULL)
     {
-    #ifdef _WIN64
-        WSACleanup_t proc = FindAPI(0x324EEA09CB7B262C, 0xE64CBAD3BBD4F522);
-    #elif _WIN32
-        WSACleanup_t proc = FindAPI(0xBD997AF1, 0x88F10695);
-    #endif
-        if (proc == NULL)
-        {
-            return WSAEINPROGRESS;
-        }
-        tracker->WSACleanup = proc;
+        return WSAEINPROGRESS;
     }
-    int ret = tracker->WSACleanup();
+
+    int ret = WSACleanup();
     if (ret == 0)
     {
         tracker->Counters[CTR_WSA_STARTUP]--;
@@ -739,15 +724,21 @@ errno RT_Clean()
         errno = ERR_RESOURCE_FREE_HANDLE_LIST;
     }
 
-    // process init function tracker
-    int64 counter = 0;
-    // WSACleanup
-    counter = tracker->Counters[CTR_WSA_STARTUP];
-    for (int64 i = 0; i < counter; i++)
+    // process init function trackers
+#ifdef _WIN64
+    WSACleanup_t WSACleanup = FindAPI(0x2D5ED79692C593E4, 0xF65130FCB6DB3FD4);
+#elif _WIN32
+    WSACleanup_t WSACleanup = FindAPI(0x59F727E0, 0x156A74C5);
+#endif
+    if (WSACleanup != NULL)
     {
-        if (tracker->WSACleanup() != 0)
+        int64 counter = tracker->Counters[CTR_WSA_STARTUP];
+        for (int64 i = 0; i < counter; i++)
         {
-            errno = ERR_RESOURCE_WSA_CLEANUP;
+            if (WSACleanup() != 0)
+            {
+                errno = ERR_RESOURCE_WSA_CLEANUP;
+            }
         }
     }
 
