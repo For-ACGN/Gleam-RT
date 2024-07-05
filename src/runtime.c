@@ -228,9 +228,9 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->GetProcAddressByHash   = &RT_GetProcAddressByHash;
     module->GetProcAddressOriginal = &RT_GetProcAddressOriginal;
     // runtime core methods
+    module->SleepHR = &RT_SleepHR;
     module->Hide    = &RT_Hide;
     module->Recover = &RT_Recover;
-    module->SleepHR = &RT_SleepHR;
     module->Exit    = &RT_Exit;
     return module;
 }
@@ -1351,31 +1351,32 @@ errno RT_Exit()
         return err;
     }
 
-    errno exit_err = NO_ERROR;
-
     // must record options before clean runtime
     bool notEraseInst = runtime->NotEraseInst;
 
     // clean runtime modules
-    errno errno = runtime->ThreadTracker->Clean();
-    if (errno != NO_ERROR && exit_err == NO_ERROR)
+    errno moden = NO_ERROR;
+    errno errno = NO_ERROR;
+    
+    moden = runtime->ThreadTracker->Clean();
+    if (moden != NO_ERROR && errno == NO_ERROR)
     {
-        exit_err = errno;
+        errno = moden;
     }
-    errno = runtime->ResourceTracker->Clean();
-    if (errno != NO_ERROR && exit_err == NO_ERROR)
+    moden = runtime->ResourceTracker->Clean();
+    if (moden != NO_ERROR && errno == NO_ERROR)
     {
-        exit_err = errno;
+        errno = moden;
     }
-    errno = runtime->MemoryTracker->Clean();
-    if (errno != NO_ERROR && exit_err == NO_ERROR)
+    moden = runtime->MemoryTracker->Clean();
+    if (moden != NO_ERROR && errno == NO_ERROR)
     {
-        exit_err = errno;
+        errno = moden;
     }
-    errno = runtime->LibraryTracker->Clean();
-    if (errno != NO_ERROR && exit_err == NO_ERROR)
+    moden = runtime->LibraryTracker->Clean();
+    if (moden != NO_ERROR && errno == NO_ERROR)
     {
-        exit_err = errno;
+        errno = moden;
     }
     cleanRuntime(runtime);
 
@@ -1391,7 +1392,7 @@ errno RT_Exit()
         size  = end - begin;
         eraseMemory(begin, size);
     }
-    return exit_err;
+    return errno;
 }
 
 // must disable compiler optimize, otherwise eraseMemory()
