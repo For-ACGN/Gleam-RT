@@ -1250,9 +1250,41 @@ errno RT_Hide()
     {
         return ERR_RUNTIME_LOCK;
     }
+    if (!runtime->LibraryTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_LIBRARY;
+    }
+    if (!runtime->MemoryTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_MEMORY;
+    }
+    if (!runtime->ResourceTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_RESOURCE;
+    }
+    if (!runtime->ThreadTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_THREAD;
+    }
 
     errno errno = hide(runtime);
 
+    if (!runtime->ThreadTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_THREAD;
+    }
+    if (!runtime->ResourceTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_RESOURCE;
+    }
+    if (!runtime->MemoryTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_MEMORY;
+    }
+    if (!runtime->LibraryTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_LIBRARY;
+    }
     if (!rt_unlock(runtime))
     {
         return ERR_RUNTIME_UNLOCK;
@@ -1269,9 +1301,41 @@ errno RT_Recover()
     {
         return ERR_RUNTIME_LOCK;
     }
+    if (!runtime->LibraryTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_LIBRARY;
+    }
+    if (!runtime->MemoryTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_MEMORY;
+    }
+    if (!runtime->ResourceTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_RESOURCE;
+    }
+    if (!runtime->ThreadTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_THREAD;
+    }
 
     errno errno = recover(runtime);
 
+    if (!runtime->ThreadTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_THREAD;
+    }
+    if (!runtime->ResourceTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_RESOURCE;
+    }
+    if (!runtime->MemoryTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_MEMORY;
+    }
+    if (!runtime->LibraryTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_LIBRARY;
+    }
     if (!rt_unlock(runtime))
     {
         return ERR_RUNTIME_UNLOCK;
@@ -1287,6 +1351,22 @@ errno RT_Exit()
     if (!rt_lock(runtime))
     {
         return ERR_RUNTIME_LOCK;
+    }
+    if (!runtime->LibraryTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_LIBRARY;
+    }
+    if (!runtime->MemoryTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_MEMORY;
+    }
+    if (!runtime->ResourceTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_RESOURCE;
+    }
+    if (!runtime->ThreadTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_THREAD;
     }
 
     errno exit_err = NO_ERROR;
