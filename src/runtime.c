@@ -96,6 +96,9 @@ void* RT_malloc(uint size);
 void* RT_realloc(void* address, uint size);
 bool  RT_free(void* address);
 
+errno RT_lock_mods();
+errno RT_unlock_mods();
+
 // hard encoded address in getRuntimePointer for replacement
 #ifdef _WIN64
     #define RUNTIME_POINTER 0x7FABCDEF111111FF
@@ -127,8 +130,8 @@ static void  trigger();
 static errno processEvent(Runtime* runtime, bool* exit);
 static errno sleepHR(Runtime* runtime, uint32 milliseconds);
 static errno hide(Runtime* runtime);
-static errno sleep(Runtime* runtime, uint32 milliseconds);
 static errno recover(Runtime* runtime);
+static errno sleep(Runtime* runtime, uint32 milliseconds);
 
 static void eraseRuntimeMethods();
 static void cleanRuntime(Runtime* runtime);
@@ -591,6 +594,7 @@ static bool flushInstructionCache(Runtime* runtime)
 }
 
 // TODO return errno
+//      kill trigger thread
 static void cleanRuntime(Runtime* runtime)
 {
     // must copy api address before call RandBuf
@@ -722,6 +726,56 @@ bool RT_free(void* address)
 }
 
 __declspec(noinline)
+errno RT_lock_mods()
+{
+    Runtime* runtime = getRuntimePointer();
+
+    if (!runtime->LibraryTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_LIBRARY;
+    }
+    if (!runtime->MemoryTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_MEMORY;
+    }
+    if (!runtime->ResourceTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_RESOURCE;
+    }
+    if (!runtime->ThreadTracker->Lock())
+    {
+        return ERR_RUNTIME_LOCK_THREAD;
+    }
+
+    return NO_ERROR;
+}
+
+__declspec(noinline)
+errno RT_unlock_mods()
+{
+    Runtime* runtime = getRuntimePointer();
+
+    if (!runtime->ThreadTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_THREAD;
+    }
+    if (!runtime->ResourceTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_RESOURCE;
+    }
+    if (!runtime->MemoryTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_MEMORY;
+    }
+    if (!runtime->LibraryTracker->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_LIBRARY;
+    }
+
+    return NO_ERROR;
+}
+
+__declspec(noinline)
 void* RT_FindAPI(uint hash, uint key)
 {
     return RT_GetProcAddressByHash(hash, key, true);
@@ -737,7 +791,7 @@ void RT_Sleep(uint32 milliseconds)
         return;
     }
 
-    // copy resource before unlock
+    // copy API address and handle
     WaitForSingleObject_t wait = runtime->WaitForSingleObject;
     HANDLE hProcess = runtime->hProcess;
 
@@ -1073,24 +1127,14 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
         return ERR_RUNTIME_LOCK;
     }
 
-    if (!runtime->LibraryTracker->Lock())
+    errno errno = NO_ERROR;
+
+    errno = RT_lock_mods();
+    if (errno != NO_ERROR)
     {
-        return ERR_RUNTIME_LOCK_LIBRARY;
-    }
-    if (!runtime->MemoryTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_MEMORY;
-    }
-    if (!runtime->ResourceTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_RESOURCE;
-    }
-    if (!runtime->ThreadTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_THREAD;
+        return errno;
     }
 
-    errno errno = NO_ERROR;
     for (;;)
     {
         errno = hide(runtime);
@@ -1111,21 +1155,10 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
         break;
     }
 
-    if (!runtime->ThreadTracker->Unlock())
+    errno = RT_unlock_mods();
+    if (errno != NO_ERROR)
     {
-        return ERR_RUNTIME_UNLOCK_THREAD;
-    }
-    if (!runtime->ResourceTracker->Unlock())
-    {
-        return ERR_RUNTIME_UNLOCK_RESOURCE;
-    }
-    if (!runtime->MemoryTracker->Unlock())
-    {
-        return ERR_RUNTIME_UNLOCK_MEMORY;
-    }
-    if (!runtime->LibraryTracker->Unlock())
-    {
-        return ERR_RUNTIME_UNLOCK_LIBRARY;
+        return errno;
     }
 
     if (!rt_unlock(runtime))
@@ -1157,6 +1190,37 @@ static errno hide(Runtime* runtime)
             break;
         }
         errno = runtime->LibraryTracker->Encrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        break;
+    }
+    return errno;
+}
+
+__declspec(noinline)
+static errno recover(Runtime* runtime)
+{
+    errno errno = NO_ERROR;
+    for (;;)
+    {
+        errno = runtime->LibraryTracker->Decrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->ResourceTracker->Decrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->MemoryTracker->Decrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->ThreadTracker->Resume();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
@@ -1211,37 +1275,6 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
 }
 
 __declspec(noinline)
-static errno recover(Runtime* runtime)
-{
-    errno errno = NO_ERROR;
-    for (;;)
-    {
-        errno = runtime->LibraryTracker->Decrypt();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        {
-            break;
-        }
-        errno = runtime->ResourceTracker->Decrypt();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        {
-            break;
-        }
-        errno = runtime->MemoryTracker->Decrypt();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        {
-            break;
-        }
-        errno = runtime->ThreadTracker->Resume();
-        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
-        {
-            break;
-        }
-        break;
-    }
-    return errno;
-}
-
-__declspec(noinline)
 errno RT_Hide()
 {
     Runtime* runtime = getRuntimePointer();
@@ -1250,22 +1283,7 @@ errno RT_Hide()
     {
         return ERR_RUNTIME_LOCK;
     }
-    if (!runtime->LibraryTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_LIBRARY;
-    }
-    if (!runtime->MemoryTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_MEMORY;
-    }
-    if (!runtime->ResourceTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_RESOURCE;
-    }
-    if (!runtime->ThreadTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_THREAD;
-    }
+
 
     errno errno = hide(runtime);
 
@@ -1426,7 +1444,7 @@ static void eraseMemory(uintptr address, int64 size)
 }
 #pragma optimize("", on)
 
-// prevent be linked to Epilogue.
+// prevent it be linked to Epilogue.
 #pragma optimize("", off)
 static void rt_epilogue()
 {
