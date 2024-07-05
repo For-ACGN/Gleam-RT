@@ -62,9 +62,9 @@ typedef struct {
     GetProcAddressOriginal_t GetProcAddressOriginal;
     
     SleepHR_t SleepHR;
-    Exit_t    Exit;
     Hide_t    Hide;
     Recover_t Recover;
+    Exit_t    Exit;
 } Runtime_M;
 
 // InitRuntime is used to initialize runtime and return module methods.
