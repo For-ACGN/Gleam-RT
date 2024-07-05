@@ -55,17 +55,17 @@ typedef struct {
     void*  MainMemPage; // store all structures
     uint32 PageSize;    // for memory management
     HANDLE hProcess;    // for simulate kernel32.Sleep
-    HANDLE Mutex;       // global mutex
+    HANDLE hMutex;      // global method mutex
 
     // sleep event trigger
-    HANDLE hMutexSleep; // sleep method mutex
-    HANDLE hEventCome;  // trigger events
-    HANDLE hEventDone;  // finish event
-    uint32 EventType;   // store event type
-    uint32 SleepTime;   // store sleep argument
-    errno  ReturnErrno; // store error number
-    HANDLE hMutexEvent; // event data mutex
-    HANDLE hThread;     // trigger thread
+    HANDLE hMutexSleep;  // sleep method mutex
+    HANDLE hEventArrive; // arrive event
+    HANDLE hEventDone;   // finish event
+    uint32 EventType;    // store event type
+    uint32 SleepTime;    // store sleep argument
+    errno  ReturnErrno;  // store error number
+    HANDLE hMutexEvent;  // event data mutex
+    HANDLE hThread;      // trigger thread
 
     // IAT hooks about GetProcAddress
     Hook IATHooks[23];
@@ -378,7 +378,7 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     {
         return ERR_RUNTIME_CREATE_GLOBAL_MUTEX;
     }
-    runtime->Mutex = hMutex;
+    runtime->hMutex = hMutex;
     // create sleep method mutex
     HANDLE hMutexSleep = runtime->CreateMutexA(NULL, false, NULL);
     if (hMutexSleep == NULL)
@@ -386,13 +386,13 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         return ERR_RUNTIME_CREATE_SLEEP_MUTEX;
     }
     runtime->hMutexSleep = hMutexSleep;
-    // create come and done events
-    HANDLE hEventCome = runtime->CreateEventA(NULL, true, false, NULL);
-    if (hEventCome == NULL)
+    // create arrive and done events
+    HANDLE hEventArrive = runtime->CreateEventA(NULL, true, false, NULL);
+    if (hEventArrive == NULL)
     {
-        return ERR_RUNTIME_CREATE_EVENT_COME;
+        return ERR_RUNTIME_CREATE_EVENT_ARRIVE;
     }
-    runtime->hEventCome = hEventCome;
+    runtime->hEventArrive = hEventArrive;
     HANDLE hEventDone = runtime->CreateEventA(NULL, true, false, NULL);
     if (hEventDone == NULL)
     {
@@ -412,7 +412,6 @@ static errno initRuntimeEnvironment(Runtime* runtime)
 
         .MainMemPage = (uintptr)(runtime->MainMemPage),
         .PageSize    = runtime->PageSize,
-        .Mutex       = runtime->Mutex,
 
         .VirtualAlloc          = runtime->VirtualAlloc,
         .VirtualFree           = runtime->VirtualFree,
@@ -604,13 +603,13 @@ static void cleanRuntime(Runtime* runtime)
         {
             closeHandle(runtime->hProcess);
         }
-        if (runtime->Mutex != NULL)
+        if (runtime->hMutex != NULL)
         {
-            closeHandle(runtime->Mutex);
+            closeHandle(runtime->hMutex);
         }
-        if (runtime->hEventCome != NULL)
+        if (runtime->hEventArrive != NULL)
         {
-            closeHandle(runtime->hEventCome);
+            closeHandle(runtime->hEventArrive);
         }
         if (runtime->hEventDone != NULL)
         {
@@ -646,14 +645,14 @@ static Runtime* getRuntimePointer()
 __declspec(noinline)
 static bool rt_lock(Runtime* runtime)
 {
-    uint32 event = runtime->WaitForSingleObject(runtime->Mutex, INFINITE);
+    uint32 event = runtime->WaitForSingleObject(runtime->hMutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
 __declspec(noinline)
 static bool rt_unlock(Runtime* runtime)
 {
-    return runtime->ReleaseMutex(runtime->Mutex);
+    return runtime->ReleaseMutex(runtime->hMutex);
 }
 
 __declspec(noinline)
@@ -904,7 +903,7 @@ errno RT_SleepHR(uint32 milliseconds)
 
     if (runtime->WaitForSingleObject(runtime->hMutexSleep, INFINITE) != WAIT_OBJECT_0)
     {
-        return ERR_RUNTIME_LOCK;
+        return ERR_RUNTIME_LOCK_SLEEP;
     }
 
     if (milliseconds <= 100)
@@ -938,7 +937,7 @@ errno RT_SleepHR(uint32 milliseconds)
             break;
         }
         // notice trigger
-        if (!runtime->SetEvent(runtime->hEventCome))
+        if (!runtime->SetEvent(runtime->hEventArrive))
         {
             errno = ERR_RUNTIME_NOTICE_TRIGGER;
             break;
@@ -972,7 +971,7 @@ errno RT_SleepHR(uint32 milliseconds)
 
     if (!runtime->ReleaseMutex(runtime->hMutexSleep))
     {
-        return ERR_RUNTIME_UNLOCK;
+        return ERR_RUNTIME_UNLOCK_SLEEP;
     }
     return errno;
 }
@@ -993,7 +992,7 @@ static void trigger()
         // select random maximum event trigger time.
         maxSleep = RandUint(maxSleep);
         uint32 sleepMS = (300 + maxSleep % 300) * 1000;
-        waitEvent = runtime->WaitForSingleObject(runtime->hEventCome, sleepMS);
+        waitEvent = runtime->WaitForSingleObject(runtime->hEventArrive, sleepMS);
         switch (waitEvent)
         {
         case WAIT_OBJECT_0:
@@ -1021,7 +1020,7 @@ static void trigger()
             return;
         }
         // notice caller
-        if (!runtime->ResetEvent(runtime->hEventCome))
+        if (!runtime->ResetEvent(runtime->hEventArrive))
         {
             return;
         }
