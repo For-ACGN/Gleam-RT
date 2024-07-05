@@ -1127,14 +1127,13 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
         return ERR_RUNTIME_LOCK;
     }
 
-    errno errno = NO_ERROR;
-
-    errno = RT_lock_mods();
-    if (errno != NO_ERROR)
+    errno err = RT_lock_mods();
+    if (err != NO_ERROR)
     {
-        return errno;
+        return err;
     }
 
+    errno errno = NO_ERROR;
     for (;;)
     {
         errno = hide(runtime);
@@ -1155,10 +1154,10 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
         break;
     }
 
-    errno = RT_unlock_mods();
-    if (errno != NO_ERROR)
+    err = RT_unlock_mods();
+    if (err != NO_ERROR)
     {
-        return errno;
+        return err;
     }
 
     if (!rt_unlock(runtime))
@@ -1284,25 +1283,20 @@ errno RT_Hide()
         return ERR_RUNTIME_LOCK;
     }
 
+    errno err = RT_lock_mods();
+    if (err != NO_ERROR)
+    {
+        return err;
+    }
 
     errno errno = hide(runtime);
 
-    if (!runtime->ThreadTracker->Unlock())
+    err = RT_unlock_mods();
+    if (err != NO_ERROR)
     {
-        return ERR_RUNTIME_UNLOCK_THREAD;
+        return err;
     }
-    if (!runtime->ResourceTracker->Unlock())
-    {
-        return ERR_RUNTIME_UNLOCK_RESOURCE;
-    }
-    if (!runtime->MemoryTracker->Unlock())
-    {
-        return ERR_RUNTIME_UNLOCK_MEMORY;
-    }
-    if (!runtime->LibraryTracker->Unlock())
-    {
-        return ERR_RUNTIME_UNLOCK_LIBRARY;
-    }
+
     if (!rt_unlock(runtime))
     {
         return ERR_RUNTIME_UNLOCK;
@@ -1319,41 +1313,21 @@ errno RT_Recover()
     {
         return ERR_RUNTIME_LOCK;
     }
-    if (!runtime->LibraryTracker->Lock())
+
+    errno err = RT_lock_mods();
+    if (err != NO_ERROR)
     {
-        return ERR_RUNTIME_LOCK_LIBRARY;
-    }
-    if (!runtime->MemoryTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_MEMORY;
-    }
-    if (!runtime->ResourceTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_RESOURCE;
-    }
-    if (!runtime->ThreadTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_THREAD;
+        return err;
     }
 
     errno errno = recover(runtime);
 
-    if (!runtime->ThreadTracker->Unlock())
+    err = RT_unlock_mods();
+    if (err != NO_ERROR)
     {
-        return ERR_RUNTIME_UNLOCK_THREAD;
+        return err;
     }
-    if (!runtime->ResourceTracker->Unlock())
-    {
-        return ERR_RUNTIME_UNLOCK_RESOURCE;
-    }
-    if (!runtime->MemoryTracker->Unlock())
-    {
-        return ERR_RUNTIME_UNLOCK_MEMORY;
-    }
-    if (!runtime->LibraryTracker->Unlock())
-    {
-        return ERR_RUNTIME_UNLOCK_LIBRARY;
-    }
+
     if (!rt_unlock(runtime))
     {
         return ERR_RUNTIME_UNLOCK;
@@ -1370,21 +1344,11 @@ errno RT_Exit()
     {
         return ERR_RUNTIME_LOCK;
     }
-    if (!runtime->LibraryTracker->Lock())
+
+    errno err = RT_lock_mods();
+    if (err != NO_ERROR)
     {
-        return ERR_RUNTIME_LOCK_LIBRARY;
-    }
-    if (!runtime->MemoryTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_MEMORY;
-    }
-    if (!runtime->ResourceTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_RESOURCE;
-    }
-    if (!runtime->ThreadTracker->Lock())
-    {
-        return ERR_RUNTIME_LOCK_THREAD;
+        return err;
     }
 
     errno exit_err = NO_ERROR;
