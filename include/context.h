@@ -12,7 +12,6 @@ typedef struct {
     // runtime context data
     uintptr MainMemPage;
     uint32  PageSize;
-    HANDLE  Mutex;
 
     // API about initialize submodules
     VirtualAlloc_t          VirtualAlloc;
