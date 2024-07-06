@@ -34,6 +34,10 @@ typedef struct {
     DuplicateHandle_t     DuplicateHandle;
     CloseHandle_t         CloseHandle;
 
+    // runtime methods
+    rt_lock_t   Lock;
+    rt_unlock_t Unlock;
+
     // protect data
     HANDLE hMutex;
 
@@ -263,6 +267,9 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
             return false;
         }
     }
+    // copy runtime methods
+    tracker->Lock   = context->lock;
+    tracker->Unlock = context->unlock;
     return true;
 }
 
@@ -582,7 +589,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!TT_Lock())
+    if (tracker->Lock() != NO_ERROR)
     {
         return -1;
     }
@@ -594,7 +601,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
     }
     // printf_s("SuspendThread: %llu\n", hThread);
 
-    if (!TT_Unlock())
+    if (tracker->Unlock() != NO_ERROR)
     {
         return -1;
     }
@@ -606,7 +613,7 @@ uint32 TT_ResumeThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!TT_Lock())
+    if (tracker->Lock() != NO_ERROR)
     {
         return -1;
     }
@@ -618,7 +625,7 @@ uint32 TT_ResumeThread(HANDLE hThread)
     }
     // printf_s("ResumeThread: %llu\n", hThread);
 
-    if (!TT_Unlock())
+    if (tracker->Unlock() != NO_ERROR)
     {
         return -1;
     }
@@ -630,7 +637,7 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!TT_Lock())
+    if (tracker->Lock() != NO_ERROR)
     {
         return false;
     }
@@ -638,7 +645,7 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
     bool success = tracker->GetThreadContext(hThread, lpContext);
     // printf_s("GetThreadContext: %llu\n", hThread);
 
-    if (!TT_Unlock())
+    if (tracker->Unlock() != NO_ERROR)
     {
         return false;
     }
@@ -650,7 +657,7 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!TT_Lock())
+    if (tracker->Lock() != NO_ERROR)
     {
         return false;
     }
@@ -659,7 +666,7 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 
     // printf_s("SetThreadContext: %llu\n", hThread);
 
-    if (!TT_Unlock())
+    if (tracker->Unlock() != NO_ERROR)
     {
         return false;
     }
@@ -692,7 +699,7 @@ bool TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (!TT_Lock())
+    if (tracker->Lock() != NO_ERROR)
     {
         return false;
     }
@@ -705,7 +712,7 @@ bool TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
 
     printf_s("TerminateThread: %lu\n", threadID);
 
-    if (!TT_Unlock())
+    if (tracker->Unlock() != NO_ERROR)
     {
         return false;
     }
