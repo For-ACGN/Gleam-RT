@@ -16,6 +16,7 @@
 #include "runtime.h"
 #include "shield.h"
 #include "epilogue.h"
+#include "debug.h"
 
 #define MAIN_MEM_PAGE_SIZE 8192
 
@@ -146,7 +147,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     {
         return NULL;
     }
-    printf_s("main page: 0x%llX\n", (uint64)memPage);
+    dbg_log("[runtime]", "main page: 0x%llX\n", (uint64)memPage);
     // set structure address
     uintptr address = (uintptr)memPage;
     uintptr runtimeAddr = address + 1000 + RandUintN(address, 128);
