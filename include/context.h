@@ -4,6 +4,10 @@
 #include "c_types.h"
 #include "lib_memory.h"
 #include "windows_t.h"
+#include "errno.h"
+
+typedef errno (*rt_lock_t)();
+typedef errno (*rt_unlock_t)();
 
 typedef struct {
     // runtime options
@@ -25,9 +29,11 @@ typedef struct {
     CloseHandle_t           CloseHandle;
 
     // runtime internal methods
-    malloc_t  malloc;
-    realloc_t realloc;
-    free_t    free;
+    malloc_t    malloc;
+    realloc_t   realloc;
+    free_t      free;
+    rt_lock_t   lock;
+    rt_unlock_t unlock;
 } Context;
 
 #endif // CONTEXT_H
