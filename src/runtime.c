@@ -429,6 +429,8 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         .malloc  = &RT_malloc,
         .realloc = &RT_realloc,
         .free    = &RT_free,
+        .lock    = &RT_lock_mods,
+        .unlock  = &RT_unlock_mods,
     };
     errno errno;
     errno = initLibraryTracker(runtime, &context);
