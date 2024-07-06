@@ -101,6 +101,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\include\c_types.h" />
+    <ClInclude Include="..\include\debug.h" />
     <ClInclude Include="..\include\windows_t.h" />
     <ClInclude Include="..\include\lib_memory.h" />
     <ClInclude Include="..\include\lib_string.h" />
@@ -120,6 +121,7 @@
     <ClInclude Include="..\include\epilogue.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\debug.c" />
     <ClCompile Include="extractor.c" />
     <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\lib_memory.c" />
