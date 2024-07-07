@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include "c_types.h"
 #include "windows_t.h"
 #include "lib_memory.h"
@@ -10,6 +8,7 @@
 #include "crypto.h"
 #include "errno.h"
 #include "resource.h"
+#include "debug.h"
 
 #define TYPE_CLOSE_HANDLE 0x0100
 #define TYPE_FIND_CLOSE   0x0200
@@ -308,9 +307,10 @@ HANDLE RT_CreateFileA(
             success = false;
             break;
         }
-        printf_s("CreateFileA: %s\n", lpFileName);
         break;
     }
+
+    dbg_log("[resource]", "CreateFileA: %s\n", lpFileName);
 
     if (!RT_Unlock())
     {
@@ -360,9 +360,10 @@ HANDLE RT_CreateFileW(
             success = false;
             break;
         }
-        printf_s("CreateFileW: %ls\n", lpFileName);
         break;
     }
+
+    dbg_log("[resource]", "CreateFileW: %ls\n", lpFileName);
 
     if (!RT_Unlock())
     {
@@ -398,9 +399,10 @@ BOOL RT_CloseHandle(HANDLE hObject)
             break;
         }
         delHandle(tracker, hObject, TYPE_CLOSE_HANDLE);
-        printf_s("CloseHandle: %llu\n", (uint64)hObject);
         break;
     }    
+
+    dbg_log("[resource]", "CloseHandle: %llu\n", (uint64)hObject);
 
     if (!RT_Unlock())
     {
@@ -435,9 +437,10 @@ HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData)
             success = false;
             break;
         }
-        printf_s("FindFirstFileA: %s\n", lpFileName);
         break;
     }
+
+    dbg_log("[resource]", "FindFirstFileA: %s\n", lpFileName);
 
     if (!RT_Unlock())
     {
@@ -480,9 +483,10 @@ HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData)
             success = false;
             break;
         }
-        printf_s("FindFirstFileW: %ls\n", lpFileName);
         break;
     }
+
+    dbg_log("[resource]", "FindFirstFileW: %ls\n", lpFileName);
 
     if (!RT_Unlock())
     {
@@ -518,9 +522,10 @@ BOOL RT_FindClose(HANDLE hFindFile)
             break;
         }
         delHandle(tracker, hFindFile, TYPE_FIND_CLOSE);
-        printf_s("CloseHandle: %llu\n", (uint64)hFindFile);
         break;
-    }    
+    }
+
+    dbg_log("[resource]", "CloseHandle: %llu\n", (uint64)hFindFile);
 
     if (!RT_Unlock())
     {
@@ -604,8 +609,9 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
     if (ret == 0)
     {
         tracker->Counters[CTR_WSA_STARTUP]++;
-        printf_s("ResourceTracker: WSAStartup\n");
     }
+
+    dbg_log("[resource]", "ResourceTracker: WSAStartup\n");
 
     if (!RT_Unlock())
     {
@@ -638,8 +644,9 @@ int RT_WSACleanup()
     if (ret == 0)
     {
         tracker->Counters[CTR_WSA_STARTUP]--;
-        printf_s("ResourceTracker: WSACleanup\n");
     }
+
+    dbg_log("[resource]", "ResourceTracker: WSACleanup\n");
 
     if (!RT_Unlock())
     {
@@ -670,14 +677,14 @@ errno RT_Encrypt()
 {
     ResourceTracker* tracker = getTrackerPointer();
 
-    printf_s("[Resource] handles: %llu\n", (uint64)(tracker->Handles.Len));
-
     List* list = &tracker->Handles;
     byte* key  = &tracker->HandlesKey[0];
     byte* iv   = &tracker->HandlesIV[0];
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
+
+    dbg_log("[resource]", "Num Handles: %llu\n", (uint64)(tracker->Handles.Len));
     return NO_ERROR;
 }
 
