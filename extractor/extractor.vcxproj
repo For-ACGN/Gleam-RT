@@ -59,7 +59,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir)include</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -83,7 +83,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir)include</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -100,8 +100,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+	<ClInclude Include="build.h" />
     <ClInclude Include="..\include\c_types.h" />
-    <ClInclude Include="..\include\debug.h" />
     <ClInclude Include="..\include\windows_t.h" />
     <ClInclude Include="..\include\lib_memory.h" />
     <ClInclude Include="..\include\lib_string.h" />
@@ -119,9 +119,9 @@
     <ClInclude Include="..\include\runtime.h" />
     <ClInclude Include="..\include\shield.h" />
     <ClInclude Include="..\include\epilogue.h" />
+	<ClInclude Include="..\include\debug.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\debug.c" />
     <ClCompile Include="extractor.c" />
     <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\lib_memory.c" />
@@ -138,6 +138,7 @@
     <ClCompile Include="..\src\resource.c" />
     <ClCompile Include="..\src\shield.c" />
     <ClCompile Include="..\src\epilogue.c" />
+	<ClCompile Include="..\src\debug.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
