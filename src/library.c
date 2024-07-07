@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include "c_types.h"
 #include "windows_t.h"
 #include "lib_memory.h"
@@ -10,6 +8,7 @@
 #include "crypto.h"
 #include "errno.h"
 #include "library.h"
+#include "debug.h"
 
 typedef struct {
     HMODULE hModule;
@@ -270,9 +269,10 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
             success = false;
             break;
         }
-        printf_s("LoadLibraryA: %llu\n", (uint64)hModule);
         break;
     }
+
+    dbg_log("[library]", "LoadLibraryA: %llu\n", (uint64)hModule);
 
     if (!LT_Unlock())
     {
@@ -315,9 +315,10 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
             success = false;
             break;
         }
-        printf_s("LoadLibraryW: %llu\n", (uint64)hModule);
         break;
     }
+
+    dbg_log("[library]", "LoadLibraryW: %llu\n", (uint64)hModule);
 
     if (!LT_Unlock())
     {
@@ -360,9 +361,10 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
             success = false;
             break;
         }
-        printf_s("LoadLibraryExA: %llu\n", (uint64)hModule);
         break;
     }
+
+    dbg_log("[library]", "LoadLibraryExA: %llu\n", (uint64)hModule);
 
     if (!LT_Unlock())
     {
@@ -405,9 +407,10 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
             success = false;
             break;
         }
-        printf_s("LoadLibraryExW: %llu\n", (uint64)hModule);
         break;
     }
+
+    dbg_log("[library]", "LoadLibraryExW: %llu\n", (uint64)hModule);
 
     if (!LT_Unlock())
     {
@@ -447,9 +450,10 @@ BOOL LT_FreeLibrary(HMODULE hLibModule)
             success = false;
             break;
         }
-        printf_s("FreeLibrary: %llu\n", (uint64)hLibModule);
         break;
     }
+
+    dbg_log("[library]", "FreeLibrary: %llu\n", (uint64)hLibModule);
 
     if (!LT_Unlock())
     {
@@ -469,7 +473,7 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode)
     }
 
     delModule(tracker, hLibModule);
-    printf_s("FreeLibraryAndExitThread: %llu\n", (uint64)hLibModule);
+    dbg_log("[library]", "FreeLibraryAndExitThread: %llu\n", (uint64)hLibModule);
 
     if (!LT_Unlock())
     {
@@ -564,6 +568,8 @@ errno LT_Encrypt()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
+
+    dbg_log("[library]", "Num DLL: %llu\n", list->Len);
     return NO_ERROR;
 }
 
