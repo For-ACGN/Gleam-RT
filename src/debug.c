@@ -9,12 +9,12 @@ void dbg_log(char* mod, char* fmt, ...){};
 #else
 
 #include <stdio.h>
-#include <varargs.h>
+#include <stdarg.h>
 
 void dbg_log(char* mod, char* fmt, ...)
 {
     va_list args;
-    va_start(args);
+    va_start(args, fmt);
 
     printf_s("%s ", mod);
     printf_s(fmt, args);
