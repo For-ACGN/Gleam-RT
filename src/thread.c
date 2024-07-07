@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include "c_types.h"
 #include "windows_t.h"
 #include "lib_memory.h"
@@ -11,6 +9,7 @@
 #include "crypto.h"
 #include "errno.h"
 #include "thread.h"
+#include "debug.h"
 
 typedef struct {
     uint32 threadID;
@@ -384,16 +383,16 @@ HANDLE tt_createThread(
         // skip return address and the second parameter
         // uintptr esp = ctx.ESP + 2*sizeof(uintptr);
         // *(uintptr*)esp = lpStartAddress;
-        printf_s("ctx: 0x%X\n", (uintptr)(&ctx));
+        dbg_log("[thread]", "ctx: 0x%llX\n", (uint64)(&ctx));
 
-        printf_s("start: 0x%X\n", (uintptr)lpStartAddress);
-        printf_s("param: 0x%X\n", (uintptr)lpParameter);
+        dbg_log("[thread]", "start: 0x%llX\n", (uint64)lpStartAddress);
+        dbg_log("[thread]", "param: 0x%llX\n", (uint64)lpParameter);
 
-        printf_s("EDX: 0x%X\n", ctx.EDX);
-        printf_s("ECX: 0x%X\n", ctx.ECX);
-        printf_s("EAX: 0x%X\n", ctx.EAX);
-        printf_s("ESP: 0x%X\n", ctx.ESP);
-        printf_s("EIP: 0x%X\n", ctx.EIP);
+        dbg_log("[thread]", "EDX: 0x%X\n", ctx.EDX);
+        dbg_log("[thread]", "ECX: 0x%X\n", ctx.ECX);
+        dbg_log("[thread]", "EAX: 0x%X\n", ctx.EAX);
+        dbg_log("[thread]", "ESP: 0x%X\n", ctx.ESP);
+        dbg_log("[thread]", "EIP: 0x%X\n", ctx.EIP);
 
         // the context data is ???????
         ctx.EAX = (DWORD)lpStartAddress;
@@ -402,11 +401,11 @@ HANDLE tt_createThread(
         addr += 11 * 16;
         *(uintptr*)addr = (uintptr)lpStartAddress;
 
-        printf_s("EDX: 0x%X\n", ctx.EDX);
-        printf_s("ECX: 0x%X\n", ctx.ECX);
-        printf_s("EAX: 0x%X\n", ctx.EAX);
-        printf_s("ESP: 0x%X\n", ctx.ESP);
-        printf_s("EIP: 0x%X\n", ctx.EIP);
+        dbg_log("[thread]", "EDX: 0x%X\n", ctx.EDX);
+        dbg_log("[thread]", "ECX: 0x%X\n", ctx.ECX);
+        dbg_log("[thread]", "EAX: 0x%X\n", ctx.EAX);
+        dbg_log("[thread]", "ESP: 0x%X\n", ctx.ESP);
+        dbg_log("[thread]", "EIP: 0x%X\n", ctx.EIP);
 
         // tracker->WaitForSingleObject(-1, INFINITE);
     #endif
@@ -427,8 +426,8 @@ HANDLE tt_createThread(
             success = false;
             break;
         }
-        printf_s("fake start: %llX\n", (uint64)fakeAddr);
-        printf_s("CreateThread: 0x%llX, %lu\n", (uint64)lpStartAddress, threadID);
+        dbg_log("[thread]", "fake start: %llX\n", (uint64)fakeAddr);
+        dbg_log("[thread]", "CreateThread: 0x%llX, %lu\n", (uint64)lpStartAddress, threadID);
         break;
     }
 
@@ -557,7 +556,7 @@ void TT_ExitThread(DWORD dwExitCode)
         delThread(tracker, threadID);
     }
 
-    printf_s("ExitThread: %lu\n", threadID);
+    dbg_log("[thread]", "ExitThread: %lu\n", threadID);
 
     if (!TT_Unlock())
     {
@@ -599,7 +598,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
     {
         tracker->numSuspend++;
     }
-    // printf_s("SuspendThread: %llu\n", hThread);
+    dbg_log("[thread]", "SuspendThread: %llu\n", (uint64)hThread);
 
     if (tracker->Unlock() != NO_ERROR)
     {
@@ -623,7 +622,7 @@ uint32 TT_ResumeThread(HANDLE hThread)
     {
         tracker->numSuspend--;
     }
-    // printf_s("ResumeThread: %llu\n", hThread);
+    dbg_log("[thread]", "ResumeThread: %llu\n", (uint64)hThread);
 
     if (tracker->Unlock() != NO_ERROR)
     {
@@ -643,7 +642,8 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
     }
 
     bool success = tracker->GetThreadContext(hThread, lpContext);
-    // printf_s("GetThreadContext: %llu\n", hThread);
+
+    dbg_log("[thread]", "GetThreadContext: %llu\n", (uint64)hThread);
 
     if (tracker->Unlock() != NO_ERROR)
     {
@@ -664,7 +664,7 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 
     bool success = tracker->SetThreadContext(hThread, lpContext);
 
-    // printf_s("SetThreadContext: %llu\n", hThread);
+    dbg_log("[thread]", "SetThreadContext: %llu\n", (uint64)hThread);
 
     if (tracker->Unlock() != NO_ERROR)
     {
@@ -685,7 +685,7 @@ bool TT_SwitchToThread()
 
     bool success = tracker->SwitchToThread();
 
-    // printf_s("SwitchToThread\n");
+    // dbg_log("[thread]", "SwitchToThread\n");
 
     if (!TT_Unlock())
     {
@@ -710,7 +710,7 @@ bool TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
         delThread(tracker, threadID);
     }
 
-    printf_s("TerminateThread: %lu\n", threadID);
+    dbg_log("[thread]", "TerminateThread: %lu\n", threadID);
 
     if (tracker->Unlock() != NO_ERROR)
     {
@@ -794,6 +794,8 @@ errno TT_Suspend()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
+
+    dbg_log("[thread]", "number: %llu\n", (uint64)(tracker->Threads.Len));
     return errno;
 }
 
