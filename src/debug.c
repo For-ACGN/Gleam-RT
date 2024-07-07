@@ -1,3 +1,7 @@
+#include "build.h"
+#include "c_types.h"
+#include "debug.h"
+
 #ifdef IS_RELEASE
 
 void dbg_log(char* mod, char* fmt, ...){};
@@ -6,8 +10,6 @@ void dbg_log(char* mod, char* fmt, ...){};
 
 #include <stdio.h>
 #include <varargs.h>
-#include "c_types.h"
-#include "debug.h"
 
 void dbg_log(char* mod, char* fmt, ...)
 {
