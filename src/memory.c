@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include "c_types.h"
 #include "windows_t.h"
 #include "lib_memory.h"
@@ -10,6 +8,7 @@
 #include "crypto.h"
 #include "errno.h"
 #include "memory.h"
+#include "debug.h"
 
 typedef struct {
     uintptr address;
@@ -281,6 +280,11 @@ LPVOID MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect)
         return NULL;
     }
 
+    dbg_log(
+        "[memory]", "VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n",
+        (uint64)address, (uint64)size, type, protect
+    );
+
     // adjust protect at sometime
     protect = replacePageProtect(protect);
 
@@ -327,7 +331,6 @@ static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32
     {
         return true;
     }
-    // printf_s("VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n", address, size, type, protect);
     switch (type&0xF000)
     {
     case MEM_COMMIT:
@@ -390,6 +393,11 @@ BOOL MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type)
         return false;
     }
 
+    dbg_log(
+        "[memory]", "VirtualFree: 0x%llX, %llu, 0x%X\n", 
+        (uint64)address, (uint64)size, type
+    );
+
     BOOL success = true;
     for (;;)
     {
@@ -415,7 +423,6 @@ BOOL MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type)
 
 static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 type)
 {
-    // printf_s("VirtualFree: 0x%llX, %llu, 0x%X\n", address, size, type);
     switch (type&0xF000)
     {
     case MEM_DECOMMIT:
@@ -541,6 +548,11 @@ BOOL MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old)
         return false;
     }
 
+    dbg_log(
+        "[memory]", "VirtualProtect: 0x%llX, %llu, 0x%X\n", 
+        (uint64)address, (uint64)size, new
+    );
+
     BOOL success = true;
     for (;;)
     {
@@ -566,7 +578,6 @@ BOOL MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old)
 
 static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect)
 {
-    // printf_s("VirtualProtect: 0x%llX, %llu, 0x%X\n", address, size, protect);
     register uint pageSize = tracker->PageSize;
 
     register List* pages = &tracker->Pages;
@@ -602,6 +613,8 @@ SIZE_T MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length)
     {
         return 0;
     }
+
+    dbg_log("[memory]", "VirtualQuery: 0x%llX\n", address);
 
     uint size = tracker->VirtualQuery(address, buffer, length);
 
@@ -786,8 +799,6 @@ errno MT_Encrypt()
         num++;
     }
 
-    printf_s("[Memory] pages: %llu\n", (uint64)(pages->Len));
-
     // encrypt region and page list
     List* list = &tracker->Regions;
     byte* key  = &tracker->RegionsKey[0];
@@ -802,6 +813,9 @@ errno MT_Encrypt()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
+
+    dbg_log("[memory]", "regions: %llu\n", (uint64)(tracker->Regions.Len));
+    dbg_log("[memory]", "pages:   %llu\n", (uint64)(tracker->Pages.Len));
     return NO_ERROR;
 }
 
