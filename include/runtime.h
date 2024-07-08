@@ -24,25 +24,26 @@ typedef void* (*GetProcAddressByHash_t)(uint hash, uint key, bool hook);
 typedef void* (*GetProcAddressOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
 
 // runtime core methods
-// it is NOT recommended use "Hide" and "Recover" these function
+// it is NOT recommended use "Hide" and "Recover", these functions
 // are used to test and research, if use them, runtime will loss
 // the shield protect and structure data encrypt.
 typedef errno (*SleepHR_t)(uint32 milliseconds);
-typedef errno (*Exit_t)();
 typedef errno (*Hide_t)();
 typedef errno (*Recover_t)();
+typedef errno (*Exit_t)();
 
 typedef struct {
-    // protect instructions like shellcode before runtime
-    void* InstAddress;
+    // protect instructions like shellcode before Runtime,
+    // if it is NULL, Runtime will only protect self.
+    void* BootAddress;
 
-    // not erase runtime instruction after call Stop
-    bool NotEraseInst;
+    // not erase runtime instructions after call Runtime_M.Exit
+    bool NotEraseInstruction;
 
-    // not adjust current memory page protect for change runtime data
+    // not adjust current memory page protect for erase runtime
     bool NotAdjustProtect;
 
-    // track current thread for some special executable file like Go
+    // track current thread for some special executable file like Golang
     bool TrackCurrentThread;
 } Runtime_Opts;
 
