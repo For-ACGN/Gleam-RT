@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include "c_types.h"
 #include "windows_t.h"
 #include "lib_memory.h"
@@ -33,8 +31,8 @@ typedef struct {
     Runtime_Opts* Options;
 
     // store options
-    void* InstAddress;
-    bool  NotEraseInst;
+    void* BootInstAddress;
+    bool  NotEraseInstruction;
 
     // API addresses
     GetSystemInfo_t         GetSystemInfo;
@@ -155,10 +153,21 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     mem_clean(runtime, sizeof(Runtime));
-    runtime->Options = opts;
-    runtime->InstAddress  = opts->InstAddress;
-    runtime->NotEraseInst = opts->NotEraseInst;
-    runtime->MainMemPage  = memPage;
+    // store runtime options
+    if (opts == NULL)
+    {
+        Runtime_Opts opt = {
+            .BootInstAddress     = NULL,
+            .NotEraseInstruction = false,
+            .NotAdjustProtect    = false,
+            .TrackCurrentThread  = false,
+        };
+        opts = &opt;
+    }
+    runtime->BootInstAddress     = opts->BootInstAddress;
+    runtime->NotEraseInstruction = opts->NotEraseInstruction;
+    runtime->Options     = opts;
+    runtime->MainMemPage = memPage;
     // initialize runtime
     errno errno = NO_ERROR;
     for (;;)
@@ -815,9 +824,11 @@ void* RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 __declspec(noinline)
 void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
 {
-    // get module file name
+    // use "mem_clean" for prevent incorrect compiler
+    // optimize and generate incorrect shellcode
     byte module[MAX_PATH];
-    mem_clean(&module[0], sizeof(module));
+    mem_clean(&module, sizeof(module));
+    // get module file name
     if (GetModuleFileName(hModule, &module[0], sizeof(module)) == 0)
     {
         return NULL;
@@ -1239,15 +1250,15 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     FlushInstructionCache_t flush = runtime->FlushInstructionCache;
     // build shield context before encrypt
     uintptr runtimeAddr = (uintptr)(&InitRuntime);
-    uintptr instAddress = (uintptr)(runtime->InstAddress);
-    if (instAddress == 0 || instAddress >= runtimeAddr)
+    uintptr beginAddress = (uintptr)(runtime->BootInstAddress);
+    if (beginAddress == 0 || beginAddress >= runtimeAddr)
     {
-        instAddress = runtimeAddr;
+        beginAddress = runtimeAddr;
     }
     Shield_Ctx ctx = {
-        .InstAddress = instAddress,
-        .SleepTime   = milliseconds,
-        .hProcess    = runtime->hProcess,
+        .BeginAddress = beginAddress,
+        .SleepTime    = milliseconds,
+        .hProcess     = runtime->hProcess,
 
         .WaitForSingleObject = runtime->WaitForSingleObject,
     };
@@ -1265,8 +1276,8 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         return ERR_RUNTIME_DEFENSE_RT;
     }
     // flush instruction cache after decrypt
-    void* baseAddr = (void*)instAddress;
-    uint  instSize = (uintptr)(&DefenseRT) - instAddress;
+    void* baseAddr = (void*)beginAddress;
+    uint  instSize = (uintptr)(&DefenseRT) - beginAddress;
     if (!flush(CURRENT_PROCESS, baseAddr, instSize))
     {
         return ERR_RUNTIME_FLUSH_INST_CACHE;
@@ -1355,7 +1366,7 @@ errno RT_Exit()
     }
 
     // must record options before clean runtime
-    bool notEraseInst = runtime->NotEraseInst;
+    bool notEraseInst = runtime->NotEraseInstruction;
 
     // clean runtime modules
     errno moden = NO_ERROR;
