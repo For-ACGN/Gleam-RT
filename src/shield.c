@@ -1,4 +1,5 @@
 #include "c_types.h"
+#include "lib_memory.h"
 #include "random.h"
 #include "shield.h"
 
@@ -13,8 +14,11 @@ void xorInstructions(Shield_Ctx* ctx, byte* key);
 __declspec(noinline)
 bool DefenseRT(Shield_Ctx* ctx)
 {
-    // generate random key
+    // use "mem_clean" for prevent incorrect compiler
+    // optimize and generate incorrect shellcode
     byte key[XOR_KEY_SIZE];
+    mem_clean(&key, sizeof(key));
+    // generate random key
     RandBuf(&key[0], XOR_KEY_SIZE);
     // hide runtime(or with shellcode) instructions
     xorInstructions(ctx, &key[0]);
@@ -28,7 +32,7 @@ bool DefenseRT(Shield_Ctx* ctx)
 void xorInstructions(Shield_Ctx* ctx, byte* key)
 {
     // calculate shellcode position
-    uintptr beginAddr = ctx->InstAddress;
+    uintptr beginAddr = ctx->BeginAddress;
     uintptr endAddr   = (uintptr)(&DefenseRT);
     // hide runtime(or with shellcode) instructions
     byte keyIdx = 0;
