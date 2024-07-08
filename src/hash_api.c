@@ -144,9 +144,11 @@ void* FindAPI(uint hash, uint key)
                 }
                 src++;
             }
+            // use "mem_clean" for prevent incorrect compiler
+            // optimize and generate incorrect shellcode
+            byte dllName[512];
+            mem_clean(&dllName, sizeof(dllName));
             // build DLL name
-            byte dllName[512];                    // prevent compiler incorrect optimize
-            mem_clean(&dllName, sizeof(dllName)); // and generate incorrect shellcode
             mem_copy(&dllName[0], exportName, dot + 1);
             dllName[dot+1] = 'd';
             dllName[dot+2] = 'l';

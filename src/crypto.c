@@ -30,10 +30,10 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
     if (size == 0)
     {
         return;
-    } 
+    }
+    // use "mem_clean" for prevent incorrect compiler
+    // optimize and generate incorrect shellcode
     byte sBox[256];
-    // prevent compiler incorrect optimize
-    // and generate incorrect shellcode
     mem_clean(&sBox, sizeof(sBox));
     initSBox(&sBox[0], key);
     byte last = 170;
@@ -111,10 +111,10 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
     {
         return;
     }
+    // use "mem_clean" for prevent incorrect compiler
+    // optimize and generate incorrect shellcode
     byte sBox[256];
-    // prevent compiler incorrect optimize
-    // and generate incorrect shellcode
-    mem_clean(&sBox, sizeof(sBox));
+    mem_clean(&sBox, sizeof(sBox)); 
     initSBox(&sBox[0], key);
     byte last = 170;
     initStatus(iv, &sBox[0], &last);
@@ -256,9 +256,9 @@ static void rotateSBox(byte* sBox, byte offset)
 
 static void permuteSBox(byte* sBox)
 {
+    // use "mem_clean" for prevent incorrect compiler
+    // optimize and generate incorrect shellcode
     byte sBox_cp[256];
-    // prevent compiler incorrect optimize
-    // and generate incorrect shellcode
     mem_clean(&sBox_cp, sizeof(sBox_cp));
     mem_copy(&sBox_cp[0], sBox, sizeof(sBox_cp));
     for (int i = 0; i < 256; i++)
