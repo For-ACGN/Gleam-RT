@@ -365,12 +365,16 @@ HANDLE tt_createThread(
             break;
         }
 
+        // use "mem_clean" for prevent incorrect compiler
+        // optimize and generate incorrect shellcode
+        CONTEXT ctx;
+        mem_clean(&ctx, sizeof(CONTEXT));
+
         // hijack RCX/EAX for set the actual thread start address
         // When use CREATE_SUSPENDED, the RIP/EIP will be set to
         // the RtlUserThreadStart(StartAddress, Parameter)
-        CONTEXT ctx = {
-            .ContextFlags = CONTEXT_CONTROL|CONTEXT_INTEGER,
-        };
+        ctx.ContextFlags = CONTEXT_CONTROL|CONTEXT_INTEGER;
+
         if (!tracker->GetThreadContext(hThread, &ctx))
         {
             success = false;
