@@ -35,7 +35,7 @@ typedef errno (*Exit_t)();
 typedef struct {
     // protect instructions like shellcode before Runtime,
     // if it is NULL, Runtime will only protect self.
-    void* BootAddress;
+    void* BootInstAddress;
 
     // not erase runtime instructions after call Runtime_M.Exit
     bool NotEraseInstruction;
