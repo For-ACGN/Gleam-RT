@@ -22,7 +22,8 @@ static byte swapBit(byte b, uint8 p1, uint8 p2);
 static byte ror(byte value, uint8 bits);
 static byte rol(byte value, uint8 bits);
 
-#pragma optimize("t", on)
+// TODO improve it
+#pragma optimize("", off)
 
 void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
 {
@@ -31,6 +32,9 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
         return;
     } 
     byte sBox[256];
+    // prevent compiler incorrect optimize
+    // and generate incorrect shellcode
+    mem_clean(&sBox, sizeof(sBox));
     initSBox(&sBox[0], key);
     byte last = 170;
     initStatus(iv, &sBox[0], &last);
@@ -108,6 +112,9 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
         return;
     }
     byte sBox[256];
+    // prevent compiler incorrect optimize
+    // and generate incorrect shellcode
+    mem_clean(&sBox, sizeof(sBox));
     initSBox(&sBox[0], key);
     byte last = 170;
     initStatus(iv, &sBox[0], &last);
@@ -250,6 +257,9 @@ static void rotateSBox(byte* sBox, byte offset)
 static void permuteSBox(byte* sBox)
 {
     byte sBox_cp[256];
+    // prevent compiler incorrect optimize
+    // and generate incorrect shellcode
+    mem_clean(&sBox_cp, sizeof(sBox_cp));
     mem_copy(&sBox_cp[0], sBox, sizeof(sBox_cp));
     for (int i = 0; i < 256; i++)
     {
@@ -288,4 +298,4 @@ static byte rol(byte value, uint8 bits)
     return value << bits | value >> (8 - bits);
 }
 
-#pragma optimize("t", off)
+#pragma optimize("", on)
