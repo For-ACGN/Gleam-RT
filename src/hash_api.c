@@ -146,6 +146,7 @@ void* FindAPI(uint hash, uint key)
             }
             // build DLL name
             byte dllName[512];
+            mem_clean(&dllName, sizeof(dllName));
             mem_copy(&dllName[0], exportName, dot + 1);
             dllName[dot+1] = 'd';
             dllName[dot+2] = 'l';
