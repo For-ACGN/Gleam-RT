@@ -832,7 +832,10 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page)
     // generate new key and IV
     RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
     RandBuf(&page->iv[0], CRYPTO_IV_SIZE);
+    // use "mem_clean" for prevent incorrect compiler
+    // optimize and generate incorrect shellcode
     byte key[CRYPTO_KEY_SIZE];
+    mem_clean(&key, sizeof(key));
     deriveKey(tracker, page, &key[0]);
     EncryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
     return true;
@@ -881,7 +884,10 @@ static bool decryptPage(MemoryTracker* tracker, memPage* page)
     {
         return true;
     }
+    // use "mem_clean" for prevent incorrect compiler
+    // optimize and generate incorrect shellcode
     byte key[CRYPTO_KEY_SIZE];
+    mem_clean(&key, sizeof(key));
     deriveKey(tracker, page, &key[0]);
     DecryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
     if (!recoverPageProtect(tracker, page))
