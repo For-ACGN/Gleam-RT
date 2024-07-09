@@ -22,8 +22,7 @@ static byte swapBit(byte b, uint8 p1, uint8 p2);
 static byte ror(byte value, uint8 bits);
 static byte rol(byte value, uint8 bits);
 
-// TODO improve it
-#pragma optimize("", off)
+#pragma optimize("t", on)
 
 void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
 {
@@ -188,6 +187,9 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
     *pLast = last;
 }
 
+// must disable compiler optimization for  
+// prevent generate incorrect shellcode
+#pragma optimize("", off)
 static void initSBox(byte* sBox, byte* key)
 {
     // initialize S-Box byte array
@@ -222,6 +224,7 @@ static void initSBox(byte* sBox, byte* key)
         }
     }
 }
+#pragma optimize("", on)
 
 static void initStatus(byte* iv, byte* sBox, byte* pLast)
 {
@@ -244,6 +247,9 @@ static void initStatus(byte* iv, byte* sBox, byte* pLast)
     }
 }
 
+// must disable compiler optimization for
+// prevent generate incorrect shellcode
+#pragma optimize("", off)
 static void rotateSBox(byte* sBox, byte offset)
 {
     byte first = sBox[0]+70;
@@ -253,6 +259,7 @@ static void rotateSBox(byte* sBox, byte offset)
     }
     sBox[255] = first;
 }
+#pragma optimize("", on)
 
 static void permuteSBox(byte* sBox)
 {
@@ -298,4 +305,4 @@ static byte rol(byte value, uint8 bits)
     return value << bits | value >> (8 - bits);
 }
 
-#pragma optimize("", on)
+#pragma optimize("t", off)
