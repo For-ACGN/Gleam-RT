@@ -5,7 +5,7 @@
 #include "windows_t.h"
 
 typedef struct {
-    uintptr InstAddress;
+    uintptr BeginAddress;
     uint32  SleepTime;
     HANDLE  hProcess;
 
