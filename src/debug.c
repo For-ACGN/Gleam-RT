@@ -1,20 +1,7 @@
 #include "build.h"
 #include "debug.h"
 
-#ifdef IS_RELEASE
-
-// use empty functions, the compiler will not process them
-
-bool InitDebugModule()
-{
-    return true;
-}
-
-void dbg_log(char* mod, char* fmt, ...)
-{
-}
-
-#else
+#ifndef IS_RELEASE
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -81,6 +68,20 @@ void dbg_log(char* mod, char* fmt, ...)
     va_end(args);
 
     dbg_ReleaseMutex(dbg_hMutex);
+}
+
+#else
+
+// use empty functions, the compiler will optimize them
+
+bool InitDebugModule()
+{
+    return true;
+}
+
+void dbg_log(char* mod, char* fmt, ...)
+{
+    return;
 }
 
 #endif
