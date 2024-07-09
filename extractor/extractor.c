@@ -3,7 +3,7 @@
 #include "runtime.h"
 #include "epilogue.h"
 
-int main()
+int __cdecl main()
 {
 #ifdef _WIN64
     FILE* file = fopen("../bin/GleamRT_x64.bin", "wb");
@@ -19,14 +19,16 @@ int main()
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
     uint64  size  = end - begin;
-
-    uint64 n = fwrite((byte*)begin, size, 1, file);
+    size_t n = fwrite((byte*)begin, (size_t)size, 1, file);
     if (n != 1)
     {
         printf_s("failed to save shellcode");
         return 2;
     }
     fclose(file);
+
+    Runtime_M* RuntimeM = InitRuntime(NULL);
+    printf_s("RuntimeM: 0x%llX\n", (uint64)RuntimeM);
 
     printf_s("save shellcode successfully");
     return 0;
