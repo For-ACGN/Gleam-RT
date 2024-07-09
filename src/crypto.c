@@ -187,15 +187,14 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
     *pLast = last;
 }
 
-// must disable compiler optimization for  
-// prevent generate incorrect shellcode
-#pragma optimize("", off)
 static void initSBox(byte* sBox, byte* key)
 {
     // initialize S-Box byte array
+    // "+key[0]" is used to prevent
+    // incorrect compiler optimization
     for (int i = 0; i < 256; i++)
     {
-        sBox[i] = i;
+        sBox[i] = i+key[0];
     }
     // initialize seed for LCG;
     uint seed = 1;
@@ -224,7 +223,6 @@ static void initSBox(byte* sBox, byte* key)
         }
     }
 }
-#pragma optimize("", on)
 
 static void initStatus(byte* iv, byte* sBox, byte* pLast)
 {
