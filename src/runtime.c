@@ -140,12 +140,18 @@ static void rt_epilogue();
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Opts* opts)
 {
+    if (!InitDebugModule())
+    {
+        SetLastErrno(ERR_RUNTIME_INIT_DEBUG_MODULE);
+        return NULL;
+    }
+    // alloc memory for store runtime structure
     void* memPage = allocateRuntimeMemory();
     if (memPage == NULL)
     {
+        SetLastErrno(ERR_RUNTIME_ALLOC_MEMORY);
         return NULL;
     }
-    dbg_log("[runtime]", "main page: 0x%llX\n", (uint64)memPage);
     // set structure address
     uintptr address = (uintptr)memPage;
     uintptr runtimeAddr = address + 1000 + RandUintN(address, 128);
@@ -164,9 +170,9 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         };
         opts = &opt;
     }
+    runtime->Options = opts;
     runtime->BootInstAddress     = opts->BootInstAddress;
     runtime->NotEraseInstruction = opts->NotEraseInstruction;
-    runtime->Options     = opts;
     runtime->MainMemPage = memPage;
     // initialize runtime
     errno errno = NO_ERROR;
@@ -266,6 +272,7 @@ static void* allocateRuntimeMemory()
         return NULL;
     }
     RandBuf(addr, MAIN_MEM_PAGE_SIZE);
+    dbg_log("[runtime]", "main page: 0x%llX\n", (uint64)addr);
     return addr;
 }
 
