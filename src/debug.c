@@ -3,12 +3,16 @@
 
 #ifdef IS_RELEASE
 
+// use empty functions, the compiler will not process them
+
 bool InitDebugModule()
 {
     return true;
 }
 
-void dbg_log(char* mod, char* fmt, ...){};
+void dbg_log(char* mod, char* fmt, ...)
+{
+}
 
 #else
 
@@ -18,11 +22,11 @@ void dbg_log(char* mod, char* fmt, ...){};
 #include "windows_t.h"
 #include "hash_api.h"
 
-HANDLE dbg_hMutex;
+static HANDLE dbg_hMutex;
 
-CreateMutexA_t        dbg_CreateMutexA;
-WaitForSingleObject_t dbg_WaitForSingleObject;
-ReleaseMutex_t        dbg_ReleaseMutex;
+static CreateMutexA_t        dbg_CreateMutexA;
+static ReleaseMutex_t        dbg_ReleaseMutex;
+static WaitForSingleObject_t dbg_WaitForSingleObject;
 
 bool InitDebugModule()
 {
@@ -53,12 +57,14 @@ bool InitDebugModule()
         list[i].proc = proc;
     }
     dbg_CreateMutexA        = list[0].proc;
-    dbg_WaitForSingleObject = list[1].proc;
-    dbg_ReleaseMutex        = list[2].proc;
+    dbg_ReleaseMutex        = list[1].proc;
+    dbg_WaitForSingleObject = list[2].proc;
 
     dbg_hMutex = dbg_CreateMutexA(NULL, false, NULL);
-
-
+    if (dbg_hMutex == NULL)
+    {
+        return false;
+    }
     return true;
 }
 
