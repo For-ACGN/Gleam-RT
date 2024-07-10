@@ -6,9 +6,9 @@
 int __cdecl main()
 {
 #ifdef _WIN64
-    FILE* file = fopen("../bin/GleamRT_x64.bin", "wb");
+    FILE* file = fopen("../dist/GleamRT_x64.bin", "wb");
 #elif _WIN32
-    FILE* file = fopen("../bin/GleamRT_x86.bin", "wb");
+    FILE* file = fopen("../dist/GleamRT_x86.bin", "wb");
 #endif
     if (file == NULL)
     {
