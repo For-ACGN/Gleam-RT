@@ -15,6 +15,7 @@ static CreateMutexA_t        dbg_CreateMutexA;
 static ReleaseMutex_t        dbg_ReleaseMutex;
 static WaitForSingleObject_t dbg_WaitForSingleObject;
 
+__declspec(noinline)
 bool InitDebugModule()
 {
     typedef struct { 
@@ -55,6 +56,7 @@ bool InitDebugModule()
     return true;
 }
 
+__declspec(noinline)
 void dbg_log(char* mod, char* fmt, ...)
 {
     dbg_WaitForSingleObject(dbg_hMutex, INFINITE);
