@@ -394,7 +394,7 @@ BOOL MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type)
     }
 
     dbg_log(
-        "[memory]", "VirtualFree: 0x%llX, %llu, 0x%X\n", 
+        "[memory]", "VirtualFree: 0x%llX, %llu, 0x%X\n",
         (uint64)address, (uint64)size, type
     );
 
@@ -444,11 +444,9 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
     register List* regions = &tracker->Regions;
     register uint  len     = regions->Len;
     register uint  index   = 0;
-    register memRegion* region;
-    bool found = false;
     for (uint num = 0; num < len; index++)
     {
-        region = List_Get(regions, index);
+        memRegion* region = List_Get(regions, index);
         if (region->address == 0)
         {
             continue;
@@ -458,14 +456,9 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size)
             num++;
             continue;
         }
-        found = true;
-        break;
+        return deletePages(tracker, region->address, region->size);
     }
-    if (!found)
-    {
-        return false;
-    }
-    return deletePages(tracker, region->address, region->size);
+    return false;
 }
 
 static bool releasePage(MemoryTracker* tracker, uintptr address, uint size)
