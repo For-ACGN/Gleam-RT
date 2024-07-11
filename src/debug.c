@@ -1,7 +1,7 @@
 #include "build.h"
 #include "debug.h"
 
-#ifndef IS_RELEASE
+#ifndef RELEASE_MODE
 
 #include <stdio.h>
 #include <stdarg.h>
