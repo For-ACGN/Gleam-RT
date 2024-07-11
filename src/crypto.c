@@ -1,3 +1,4 @@
+#include "build.h"
 #include "c_types.h"
 #include "lib_memory.h"
 #include "crypto.h"
@@ -10,6 +11,8 @@
 // 
 // It's main design goal is to be as small as possible and 
 // not to use a simple XOR encryption.
+
+#ifndef FAST_CRYPTO
 
 static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
 static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
@@ -304,3 +307,25 @@ static byte rol(byte value, uint8 bits)
 }
 
 #pragma optimize("t", off)
+
+#else
+
+void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
+{
+    for (uint i = 0; i < size; i++)
+    {
+        *buf ^= 0xFF;
+        buf++;
+    }
+}
+
+void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
+{
+    for (uint i = 0; i < size; i++)
+    {
+        *buf ^= 0xFF;
+        buf++;
+    }
+}
+
+#endif
