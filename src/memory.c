@@ -245,8 +245,8 @@ static void eraseTrackerMethods()
 {
     uintptr begin = (uintptr)(&initTrackerAPI);
     uintptr end   = (uintptr)(&eraseTrackerMethods);
-    int64   size  = end - begin;
-    RandBuf((byte*)begin, size);
+    uintptr size  = end - begin;
+    RandBuf((byte*)begin, (int64)size);
 }
 
 __declspec(noinline)
