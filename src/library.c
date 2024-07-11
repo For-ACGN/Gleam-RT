@@ -272,7 +272,7 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryA: %llu\n", (uint64)hModule);
+    dbg_log("[library]", "LoadLibraryA: 0x%zX\n", hModule);
 
     if (!LT_Unlock())
     {
@@ -318,7 +318,7 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryW: %llu\n", (uint64)hModule);
+    dbg_log("[library]", "LoadLibraryW: 0x%zX\n", hModule);
 
     if (!LT_Unlock())
     {
@@ -364,7 +364,7 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryExA: %llu\n", (uint64)hModule);
+    dbg_log("[library]", "LoadLibraryExA: 0x%zX\n", hModule);
 
     if (!LT_Unlock())
     {
@@ -410,7 +410,7 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryExW: %llu\n", (uint64)hModule);
+    dbg_log("[library]", "LoadLibraryExW: 0x%zX\n", hModule);
 
     if (!LT_Unlock())
     {
@@ -453,7 +453,7 @@ BOOL LT_FreeLibrary(HMODULE hLibModule)
         break;
     }
 
-    dbg_log("[library]", "FreeLibrary: %llu\n", (uint64)hLibModule);
+    dbg_log("[library]", "FreeLibrary: 0x%zX\n", hLibModule);
 
     if (!LT_Unlock())
     {
@@ -473,7 +473,7 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode)
     }
 
     delModule(tracker, hLibModule);
-    dbg_log("[library]", "FreeLibraryAndExitThread: %llu\n", (uint64)hLibModule);
+    dbg_log("[library]", "FreeLibraryAndExitThread: 0x%zX\n", hLibModule);
 
     if (!LT_Unlock())
     {
@@ -568,8 +568,6 @@ errno LT_Encrypt()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
-
-    dbg_log("[library]", "Num DLL: %zu\n", list->Len);
     return NO_ERROR;
 }
 
@@ -582,6 +580,8 @@ errno LT_Decrypt()
     byte* key  = &tracker->ModulesKey[0];
     byte* iv   = &tracker->ModulesIV[0];
     DecryptBuf(list->Data, List_Size(list), key, iv);
+
+    dbg_log("[library]", "modules: %zu\n", list->Len);
     return NO_ERROR;
 }
 
