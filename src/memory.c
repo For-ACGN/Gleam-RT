@@ -308,17 +308,17 @@ LPVOID MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect)
 
     if (!MT_Unlock())
     {
-        if (address != NULL)
+        if (page != NULL)
         {
-            tracker->VirtualFree(address, 0, MEM_RELEASE);
+            tracker->VirtualFree(page, 0, MEM_RELEASE);
         }
         return NULL;
     }
     if (!success)
     {
-        if (address != NULL)
+        if (page != NULL)
         {
-            tracker->VirtualFree(address, 0, MEM_RELEASE);
+            tracker->VirtualFree(page, 0, MEM_RELEASE);
         }
         return NULL;
     }
