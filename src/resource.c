@@ -717,9 +717,23 @@ errno RT_Clean()
         {
             continue;
         }
-        if (!tracker->CloseHandle(handle->handle))
+        switch (handle->source & 0xFF00)
         {
-            errno = ERR_RESOURCE_CLOSE_HANDLE;
+        case TYPE_CLOSE_HANDLE:
+            if (!tracker->CloseHandle(handle->handle))
+            {
+                errno = ERR_RESOURCE_CLOSE_HANDLE;
+            }
+            break;
+        case TYPE_FIND_CLOSE:
+            if (!tracker->FindClose(handle->handle))
+            {
+                errno = ERR_RESOURCE_FIND_CLOSE;
+            }
+            break;
+        default:
+            errno = ERR_RESOURCE_INVALID_SRC_TYPE;
+            break;
         }
         num++;
     }
