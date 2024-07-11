@@ -134,7 +134,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds);
 
 static void eraseRuntimeMethods();
 static void cleanRuntime(Runtime* runtime);
-static void eraseMemory(uintptr address, int64 size);
+static void eraseMemory(uintptr address, uintptr size);
 static void rt_epilogue();
 
 __declspec(noinline)
@@ -592,8 +592,8 @@ static void eraseRuntimeMethods()
 {
     uintptr begin = (uintptr)(&allocateRuntimeMemory);
     uintptr end   = (uintptr)(&eraseRuntimeMethods);
-    int64   size  = end - begin;
-    RandBuf((byte*)begin, size);
+    uintptr size  = end - begin;
+    RandBuf((byte*)begin, (int64)size);
 }
 
 __declspec(noinline)
@@ -602,7 +602,7 @@ static bool flushInstructionCache(Runtime* runtime)
     void*   addr  = &InitRuntime;
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
-    uint    size  = end - begin;
+    uintptr size  = end - begin;
     if (!runtime->FlushInstructionCache(CURRENT_PROCESS, addr, size))
     {
         return false;
@@ -1376,28 +1376,28 @@ errno RT_Exit()
     bool notEraseInst = runtime->NotEraseInstruction;
 
     // clean runtime modules
-    errno moden = NO_ERROR;
+    errno enmod = NO_ERROR;
     errno errno = NO_ERROR;
     
-    moden = runtime->ThreadTracker->Clean();
-    if (moden != NO_ERROR && errno == NO_ERROR)
+    enmod = runtime->ThreadTracker->Clean();
+    if (enmod != NO_ERROR && errno == NO_ERROR)
     {
-        errno = moden;
+        errno = enmod;
     }
-    moden = runtime->ResourceTracker->Clean();
-    if (moden != NO_ERROR && errno == NO_ERROR)
+    enmod = runtime->ResourceTracker->Clean();
+    if (enmod != NO_ERROR && errno == NO_ERROR)
     {
-        errno = moden;
+        errno = enmod;
     }
-    moden = runtime->MemoryTracker->Clean();
-    if (moden != NO_ERROR && errno == NO_ERROR)
+    enmod = runtime->MemoryTracker->Clean();
+    if (enmod != NO_ERROR && errno == NO_ERROR)
     {
-        errno = moden;
+        errno = enmod;
     }
-    moden = runtime->LibraryTracker->Clean();
-    if (moden != NO_ERROR && errno == NO_ERROR)
+    enmod = runtime->LibraryTracker->Clean();
+    if (enmod != NO_ERROR && errno == NO_ERROR)
     {
-        errno = moden;
+        errno = enmod;
     }
     cleanRuntime(runtime);
 
@@ -1406,7 +1406,7 @@ errno RT_Exit()
     {
         uintptr begin = (uintptr)(&InitRuntime);
         uintptr end   = (uintptr)(&RT_Exit);
-        int64   size  = end - begin;
+        uintptr size  = end - begin;
         eraseMemory(begin, size);
         begin = (uintptr)(&rt_epilogue);
         end   = (uintptr)(&Epilogue);
@@ -1419,10 +1419,10 @@ errno RT_Exit()
 // must disable compiler optimize, otherwise eraseMemory()
 // will be replaced to the mem_set() in lib_memory.c.
 #pragma optimize("", off)
-static void eraseMemory(uintptr address, int64 size)
+static void eraseMemory(uintptr address, uintptr size)
 {
     byte* addr = (byte*)address;
-    for (int64 i = 0; i < size; i++)
+    for (uintptr i = 0; i < size; i++)
     {
         *addr = 0xFF;
         addr++;
