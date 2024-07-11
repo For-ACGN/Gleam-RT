@@ -219,8 +219,8 @@ static void eraseTrackerMethods()
 {
     uintptr begin = (uintptr)(&initTrackerAPI);
     uintptr end   = (uintptr)(&eraseTrackerMethods);
-    int64   size  = end - begin;
-    RandBuf((byte*)begin, size);
+    uintptr size  = end - begin;
+    RandBuf((byte*)begin, (int64)size);
 }
 
 __declspec(noinline)
@@ -569,7 +569,7 @@ errno LT_Encrypt()
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
 
-    dbg_log("[library]", "Num DLL: %llu\n", list->Len);
+    dbg_log("[library]", "Num DLL: %zu\n", list->Len);
     return NO_ERROR;
 }
 
