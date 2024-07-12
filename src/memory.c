@@ -281,8 +281,8 @@ LPVOID MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect)
     }
 
     dbg_log(
-        "[memory]", "VirtualAlloc: 0x%llX, %llu, 0x%X, 0x%X\n",
-        (uint64)address, (uint64)size, type, protect
+        "[memory]", "VirtualAlloc: 0x%zX, 0x%zX, 0x%X, 0x%X\n",
+        address, size, type, protect
     );
 
     // adjust protect at sometime
@@ -394,8 +394,8 @@ BOOL MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type)
     }
 
     dbg_log(
-        "[memory]", "VirtualFree: 0x%llX, %llu, 0x%X\n",
-        (uint64)address, (uint64)size, type
+        "[memory]", "VirtualFree: 0x%zX, 0x%zX, 0x%X\n",
+        address, size, type
     );
 
     BOOL success = true;
@@ -542,8 +542,8 @@ BOOL MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old)
     }
 
     dbg_log(
-        "[memory]", "VirtualProtect: 0x%llX, %llu, 0x%X\n", 
-        (uint64)address, (uint64)size, new
+        "[memory]", "VirtualProtect: 0x%zX, 0x%zX, 0x%X\n", 
+        address, size, new
     );
 
     BOOL success = true;
@@ -607,7 +607,7 @@ SIZE_T MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length)
         return 0;
     }
 
-    dbg_log("[memory]", "VirtualQuery: 0x%llX\n", address);
+    dbg_log("[memory]", "VirtualQuery: 0x%zX\n", address);
 
     uint size = tracker->VirtualQuery(address, buffer, length);
 
@@ -806,9 +806,6 @@ errno MT_Encrypt()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
-
-    dbg_log("[memory]", "regions: %llu\n", (uint64)(tracker->Regions.Len));
-    dbg_log("[memory]", "pages:   %llu\n", (uint64)(tracker->Pages.Len));
     return NO_ERROR;
 }
 
@@ -868,6 +865,8 @@ errno MT_Decrypt()
         }
         num++;
     }
+    dbg_log("[memory]", "regions: %zu\n", tracker->Regions.Len);
+    dbg_log("[memory]", "pages:   %zu\n", tracker->Pages.Len);
     return NO_ERROR;
 }
 
