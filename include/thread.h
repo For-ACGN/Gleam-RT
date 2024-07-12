@@ -21,7 +21,6 @@ typedef struct {
     ResumeThread_t     ResumeThread;
     GetThreadContext_t GetThreadContext;
     SetThreadContext_t SetThreadContext;
-    SwitchToThread_t   SwitchToThread;
     TerminateThread_t  TerminateThread;
 
     ThdNew_t     New;
