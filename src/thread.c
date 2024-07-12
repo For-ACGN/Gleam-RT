@@ -24,7 +24,6 @@ typedef struct {
     ResumeThread_t        ResumeThread;
     GetThreadContext_t    GetThreadContext;
     SetThreadContext_t    SetThreadContext;
-    SwitchToThread_t      SwitchToThread;
     GetThreadID_t         GetThreadID;
     GetCurrentThreadID_t  GetCurrentThreadID;
     TerminateThread_t     TerminateThread;
@@ -59,7 +58,6 @@ uint32 TT_SuspendThread(HANDLE hThread);
 uint32 TT_ResumeThread(HANDLE hThread);
 bool   TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext);
 bool   TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext);
-bool   TT_SwitchToThread();
 bool   TT_TerminateThread(HANDLE hThread, DWORD dwExitCode);
 
 // methods for runtime
@@ -139,7 +137,6 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     module->ResumeThread     = &TT_ResumeThread;
     module->GetThreadContext = &TT_GetThreadContext;
     module->SetThreadContext = &TT_SetThreadContext;
-    module->SwitchToThread   = &TT_SwitchToThread;
     module->TerminateThread  = &TT_TerminateThread;
     // methods for runtime
     module->New     = &TT_ThdNew;
@@ -167,7 +164,6 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0xB1917786CE5B5A94, 0x6BC3328C112C6DDA }, // ResumeThread
         { 0x59361F47711B4B27, 0xB97411CC715D4940 }, // GetThreadContext
         { 0xFB9A4AF393D77518, 0xA0CA2E8823A27560 }, // SetThreadContext
-        { 0x57E7340503265A2F, 0x0318A4D79F9670AC }, // SwitchToThread
         { 0x5133BE509803E44E, 0x20498B6AFFAED91B }, // GetThreadId
         { 0x9AF119F551D952CF, 0x5A1B9D61A26B22D7 }, // GetCurrentThreadId
         { 0xFB891A810F1ABF9A, 0x253BBD721EBD81F0 }, // TerminateThread
@@ -180,7 +176,6 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0x20FFDC31, 0x1D4EA347 }, // ResumeThread
         { 0x25EF3A63, 0xAFA67C4F }, // GetThreadContext
         { 0x2729A1C9, 0x3A57FF5D }, // SetThreadContext
-        { 0xAA143570, 0x2398ADFB }, // SwitchToThread
         { 0xFE77EB3E, 0x81CB68B1 }, // GetThreadId
         { 0x2884E5D9, 0xA933632C }, // GetCurrentThreadId
         { 0xBA134972, 0x295F9DD2 }, // TerminateThread
@@ -201,10 +196,9 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
     tracker->ResumeThread       = list[3].proc;
     tracker->GetThreadContext   = list[4].proc;
     tracker->SetThreadContext   = list[5].proc;
-    tracker->SwitchToThread     = list[6].proc;
-    tracker->GetThreadID        = list[7].proc;
-    tracker->GetCurrentThreadID = list[8].proc;
-    tracker->TerminateThread    = list[9].proc;
+    tracker->GetThreadID        = list[6].proc;
+    tracker->GetCurrentThreadID = list[7].proc;
+    tracker->TerminateThread    = list[8].proc;
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
@@ -671,27 +665,6 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
     dbg_log("[thread]", "SetThreadContext: 0x%zX\n", hThread);
 
     if (tracker->Unlock() != NO_ERROR)
-    {
-        return false;
-    }
-    return success;
-}
-
-__declspec(noinline)
-bool TT_SwitchToThread()
-{
-    ThreadTracker* tracker = getTrackerPointer();
-
-    if (!TT_Lock())
-    {
-        return false;
-    }
-
-    bool success = tracker->SwitchToThread();
-
-    // dbg_log("[thread]", "SwitchToThread\n");
-
-    if (!TT_Unlock())
     {
         return false;
     }
