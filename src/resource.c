@@ -246,8 +246,8 @@ static void eraseTrackerMethods()
 {
     uintptr begin = (uintptr)(&initTrackerAPI);
     uintptr end   = (uintptr)(&eraseTrackerMethods);
-    int64   size  = end - begin;
-    RandBuf((byte*)begin, size);
+    uintptr size  = end - begin;
+    RandBuf((byte*)begin, (int64)size);
 }
 
 __declspec(noinline)
@@ -402,7 +402,7 @@ BOOL RT_CloseHandle(HANDLE hObject)
         break;
     }    
 
-    dbg_log("[resource]", "CloseHandle: %llu\n", (uint64)hObject);
+    dbg_log("[resource]", "CloseHandle: 0x%zX\n", hObject);
 
     if (!RT_Unlock())
     {
@@ -525,7 +525,7 @@ BOOL RT_FindClose(HANDLE hFindFile)
         break;
     }
 
-    dbg_log("[resource]", "CloseHandle: %llu\n", (uint64)hFindFile);
+    dbg_log("[resource]", "FindClose: 0x%zX\n", hFindFile);
 
     if (!RT_Unlock())
     {
@@ -611,7 +611,7 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
         tracker->Counters[CTR_WSA_STARTUP]++;
     }
 
-    dbg_log("[resource]", "ResourceTracker: WSAStartup\n");
+    dbg_log("[resource]", "WSAStartup is called\n");
 
     if (!RT_Unlock())
     {
@@ -646,7 +646,7 @@ int RT_WSACleanup()
         tracker->Counters[CTR_WSA_STARTUP]--;
     }
 
-    dbg_log("[resource]", "ResourceTracker: WSACleanup\n");
+    dbg_log("[resource]", "WSACleanup is called\n");
 
     if (!RT_Unlock())
     {
@@ -683,8 +683,6 @@ errno RT_Encrypt()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
-
-    dbg_log("[resource]", "Num Handles: %llu\n", (uint64)(tracker->Handles.Len));
     return NO_ERROR;
 }
 
@@ -697,6 +695,8 @@ errno RT_Decrypt()
     byte* key  = &tracker->HandlesKey[0];
     byte* iv   = &tracker->HandlesIV[0];
     DecryptBuf(list->Data, List_Size(list), key, iv);
+
+    dbg_log("[resource]", "handles: %zu\n", list->Len);
     return NO_ERROR;
 }
 
