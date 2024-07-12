@@ -277,8 +277,8 @@ static void eraseTrackerMethods()
 {
     uintptr begin = (uintptr)(&initTrackerAPI);
     uintptr end   = (uintptr)(&eraseTrackerMethods);
-    int64   size  = end - begin;
-    RandBuf((byte*)begin, size);
+    uintptr size  = end - begin;
+    RandBuf((byte*)begin, (int64)size);
 }
 
 __declspec(noinline)
@@ -387,16 +387,16 @@ HANDLE tt_createThread(
         // skip return address and the second parameter
         // uintptr esp = ctx.ESP + 2*sizeof(uintptr);
         // *(uintptr*)esp = lpStartAddress;
-        dbg_log("[thread]", "ctx: 0x%llX\n", (uint64)(&ctx));
+        dbg_log("[thread]", "ctx: 0x%zX\n", &ctx);
 
-        dbg_log("[thread]", "start: 0x%llX\n", (uint64)lpStartAddress);
-        dbg_log("[thread]", "param: 0x%llX\n", (uint64)lpParameter);
+        dbg_log("[thread]", "start: 0x%zX\n", lpStartAddress);
+        dbg_log("[thread]", "param: 0x%zX\n", lpParameter);
 
-        dbg_log("[thread]", "EDX: 0x%X\n", ctx.EDX);
-        dbg_log("[thread]", "ECX: 0x%X\n", ctx.ECX);
-        dbg_log("[thread]", "EAX: 0x%X\n", ctx.EAX);
-        dbg_log("[thread]", "ESP: 0x%X\n", ctx.ESP);
-        dbg_log("[thread]", "EIP: 0x%X\n", ctx.EIP);
+        dbg_log("[thread]", "EDX: 0x%zX\n", ctx.EDX);
+        dbg_log("[thread]", "ECX: 0x%zX\n", ctx.ECX);
+        dbg_log("[thread]", "EAX: 0x%zX\n", ctx.EAX);
+        dbg_log("[thread]", "ESP: 0x%zX\n", ctx.ESP);
+        dbg_log("[thread]", "EIP: 0x%zX\n", ctx.EIP);
 
         // the context data is ???????
         ctx.EAX = (DWORD)lpStartAddress;
@@ -405,11 +405,11 @@ HANDLE tt_createThread(
         addr += 11 * 16;
         *(uintptr*)addr = (uintptr)lpStartAddress;
 
-        dbg_log("[thread]", "EDX: 0x%X\n", ctx.EDX);
-        dbg_log("[thread]", "ECX: 0x%X\n", ctx.ECX);
-        dbg_log("[thread]", "EAX: 0x%X\n", ctx.EAX);
-        dbg_log("[thread]", "ESP: 0x%X\n", ctx.ESP);
-        dbg_log("[thread]", "EIP: 0x%X\n", ctx.EIP);
+        dbg_log("[thread]", "EDX: 0x%zX\n", ctx.EDX);
+        dbg_log("[thread]", "ECX: 0x%zX\n", ctx.ECX);
+        dbg_log("[thread]", "EAX: 0x%zX\n", ctx.EAX);
+        dbg_log("[thread]", "ESP: 0x%zX\n", ctx.ESP);
+        dbg_log("[thread]", "EIP: 0x%zX\n", ctx.EIP);
 
         // tracker->WaitForSingleObject(-1, INFINITE);
     #endif
@@ -430,8 +430,8 @@ HANDLE tt_createThread(
             success = false;
             break;
         }
-        dbg_log("[thread]", "fake start: %llX\n", (uint64)fakeAddr);
-        dbg_log("[thread]", "CreateThread: 0x%llX, %lu\n", (uint64)lpStartAddress, threadID);
+        dbg_log("[thread]", "Fake Address: 0x%zX\n", fakeAddr);
+        dbg_log("[thread]", "CreateThread: 0x%zX, %lu\n", lpStartAddress, threadID);
         break;
     }
 
@@ -602,7 +602,7 @@ uint32 TT_SuspendThread(HANDLE hThread)
     {
         tracker->numSuspend++;
     }
-    dbg_log("[thread]", "SuspendThread: %llu\n", (uint64)hThread);
+    dbg_log("[thread]", "SuspendThread: 0x%zX\n", hThread);
 
     if (tracker->Unlock() != NO_ERROR)
     {
@@ -626,7 +626,7 @@ uint32 TT_ResumeThread(HANDLE hThread)
     {
         tracker->numSuspend--;
     }
-    dbg_log("[thread]", "ResumeThread: %llu\n", (uint64)hThread);
+    dbg_log("[thread]", "ResumeThread: 0x%zX\n", hThread);
 
     if (tracker->Unlock() != NO_ERROR)
     {
@@ -647,7 +647,7 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 
     bool success = tracker->GetThreadContext(hThread, lpContext);
 
-    dbg_log("[thread]", "GetThreadContext: %llu\n", (uint64)hThread);
+    dbg_log("[thread]", "GetThreadContext: 0x%zX\n", hThread);
 
     if (tracker->Unlock() != NO_ERROR)
     {
@@ -668,7 +668,7 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 
     bool success = tracker->SetThreadContext(hThread, lpContext);
 
-    dbg_log("[thread]", "SetThreadContext: %llu\n", (uint64)hThread);
+    dbg_log("[thread]", "SetThreadContext: 0x%zX\n", hThread);
 
     if (tracker->Unlock() != NO_ERROR)
     {
@@ -799,7 +799,7 @@ errno TT_Suspend()
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
 
-    dbg_log("[thread]", "number: %llu\n", (uint64)(tracker->Threads.Len));
+    dbg_log("[thread]", "threads: %zu\n", list->Len);
     return errno;
 }
 
