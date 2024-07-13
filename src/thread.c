@@ -771,8 +771,6 @@ errno TT_Suspend()
     RandBuf(key, CRYPTO_KEY_SIZE);
     RandBuf(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
-
-    dbg_log("[thread]", "threads: %zu\n", list->Len);
     return errno;
 }
 
@@ -820,6 +818,8 @@ errno TT_Resume()
         }
         num++;
     }
+
+    dbg_log("[thread]", "threads: %zu\n", list->Len);
     return errno;
 }
 
