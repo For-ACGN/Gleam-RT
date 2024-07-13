@@ -272,7 +272,7 @@ static void* allocateRuntimeMemory()
         return NULL;
     }
     RandBuf(addr, MAIN_MEM_PAGE_SIZE);
-    dbg_log("[runtime]", "main page: 0x%llX\n", (uint64)addr);
+    dbg_log("[runtime]", "Main Page: 0x%zX\n", addr);
     return addr;
 }
 
@@ -547,7 +547,6 @@ static bool initIATHooks(Runtime* runtime)
         { 0x226860209E13A99A, 0xE1BD9D8C64FAF97D, runtime->ThreadTracker->ResumeThread },
         { 0x374E149C710B1006, 0xE5D0E3FA417FA6CF, runtime->ThreadTracker->GetThreadContext },
         { 0xCFE3FFD5F0023AE3, 0x9044E42F1C020CF5, runtime->ThreadTracker->SetThreadContext },
-        // { 0xF0587A11F433BC0C, 0x9AB5CF006BC5744A, runtime->ThreadTracker->SwitchToThread },
         { 0x248E1CDD11AB444F, 0x195932EA70030929, runtime->ThreadTracker->TerminateThread },
     };
 #elif _WIN32
@@ -570,7 +569,6 @@ static bool initIATHooks(Runtime* runtime)
         { 0xA02B4251, 0x5287173F, runtime->ThreadTracker->ResumeThread },
         { 0xCF0EC7B7, 0xBAC33715, runtime->ThreadTracker->GetThreadContext },
         { 0xC59EF832, 0xEF75D2EA, runtime->ThreadTracker->SetThreadContext },
-        // { 0xA031E829, 0xDD1BB334, runtime->ThreadTracker->SwitchToThread },
         { 0x6EF0E2AA, 0xE014E29F, runtime->ThreadTracker->TerminateThread },
     };
 #endif
