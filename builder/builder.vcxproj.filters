@@ -60,7 +60,7 @@
     <ClCompile Include="..\src\errno.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="extractor.c">
+    <ClCompile Include="builder.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\src\debug.c">
