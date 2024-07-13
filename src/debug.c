@@ -81,9 +81,4 @@ bool InitDebugModule()
     return true;
 }
 
-void dbg_log(char* mod, char* fmt, ...)
-{
-    return;
-}
-
 #endif
