@@ -18,7 +18,7 @@ int __cdecl main()
 
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
-    uint64  size  = end - begin;
+    uintptr size  = end - begin;
     size_t n = fwrite((byte*)begin, (size_t)size, 1, file);
     if (n != 1)
     {
