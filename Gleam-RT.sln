@@ -7,7 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test", "test\test.vcxproj",
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pe_loader", "pe_loader\pe_loader.vcxproj", "{F50B9D94-8879-4ACC-89B9-E91698C4611A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "extractor", "extractor\extractor.vcxproj", "{F6F189C8-EB91-4470-855B-5C1E53E78359}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "builder", "builder\builder.vcxproj", "{F6F189C8-EB91-4470-855B-5C1E53E78359}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
