@@ -4,7 +4,7 @@
 #pragma warning(push)
 #pragma warning(disable: 4276)
 // Epilogue is used to calculate the total size of runtime instruction.
-void Epilogue();
+extern void Epilogue();
 #pragma warning(pop)
 
 #endif // EPILOGUE_H
