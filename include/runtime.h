@@ -6,7 +6,7 @@
 #include "hash_api.h"
 #include "errno.h"
 
-// for common shellcode development.
+// for generic shellcode development.
 typedef void*  (*MemAlloc_t)(uint size);
 typedef void*  (*MemRealloc_t)(void* address, uint size);
 typedef bool   (*MemFree_t)(void* address);

@@ -272,8 +272,6 @@ typedef BOOL (*SetThreadContext_t)
     HANDLE hThread, CONTEXT* lpContext
 );
 
-typedef BOOL (*SwitchToThread_t)();
-
 typedef DWORD (*GetThreadID_t)
 (
     HANDLE hThread
