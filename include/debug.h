@@ -12,7 +12,7 @@ void dbg_log(char* mod, char* fmt, ...);
 
 #else
 
-bool InitDebugModule();
+#define InitDebugModule() (true)
 
 #define dbg_log(mod, fmt, ...)
 
