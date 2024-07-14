@@ -72,13 +72,4 @@ void dbg_log(char* mod, char* fmt, ...)
     dbg_ReleaseMutex(dbg_hMutex);
 }
 
-#else
-
-// use empty functions, the compiler will optimize them
-
-bool InitDebugModule()
-{
-    return true;
-}
-
 #endif
