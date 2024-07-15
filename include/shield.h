@@ -14,4 +14,7 @@ typedef struct {
 
 bool DefenseRT(Shield_Ctx* ctx);
 
+// reserve stub for generate random shield instructions
+extern void Shield_Stub();
+
 #endif // SHIELD_H
