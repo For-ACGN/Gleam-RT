@@ -10,7 +10,7 @@
 static printBannerBegin(byte* name, uint len);
 static printBannerEnd  (byte* name, uint len, bool pass);
 
-int main()
+int __cdecl main()
 {
     // calculate the banner length
     uint maxNameLen = 0;
