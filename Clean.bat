@@ -1,3 +1,4 @@
+del /S /Q ".vs\Gleam-RT\v17\Solution.VC.db"
 del /S /Q ".vs\Gleam-RT\v17\Browse.VC.db"
 rd  /S /Q ".vs\Gleam-RT\v17\ipch"
 
