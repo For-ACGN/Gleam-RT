@@ -5,6 +5,7 @@
 #include "random.h"
 #include "crypto.h"
 #include "win_api.h"
+#include "argument.h"
 #include "context.h"
 #include "errno.h"
 #include "library.h"
@@ -118,6 +119,7 @@ static errno initLibraryTracker(Runtime* runtime, Context* context);
 static errno initMemoryTracker(Runtime* runtime, Context* context);
 static errno initThreadTracker(Runtime* runtime, Context* context);
 static errno initResourceTracker(Runtime* runtime, Context* context);
+static errno loadArguments(Runtime* runtime);
 static bool  initIATHooks(Runtime* runtime);
 static bool  flushInstructionCache(Runtime* runtime);
 
@@ -198,6 +200,11 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         {
             break;
         }
+        errno = loadArguments(runtime);
+        if (errno != NO_ERROR)
+        {
+            break;
+        }
         if (!initIATHooks(runtime))
         {
             errno = ERR_RUNTIME_INIT_IAT_HOOKS;
@@ -231,13 +238,14 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
-    module->MemAlloc   = runtime->MemoryTracker->Alloc;
-    module->MemRealloc = runtime->MemoryTracker->Realloc;
-    module->MemFree    = runtime->MemoryTracker->Free;
-    module->NewThread  = runtime->ThreadTracker->New;
-    module->ExitThread = runtime->ThreadTracker->Exit;
-    module->FindAPI    = &RT_FindAPI;
-    module->Sleep      = &RT_Sleep;
+    module->FindAPI     = &RT_FindAPI;
+    module->GetArgument = NULL;
+    module->Sleep       = &RT_Sleep;
+    module->MemAlloc    = runtime->MemoryTracker->Alloc;
+    module->MemRealloc  = runtime->MemoryTracker->Realloc;
+    module->MemFree     = runtime->MemoryTracker->Free;
+    module->NewThread   = runtime->ThreadTracker->New;
+    module->ExitThread  = runtime->ThreadTracker->Exit;
     // for IAT hooks
     module->GetProcAddress         = &RT_GetProcAddress;
     module->GetProcAddressByName   = &RT_GetProcAddressByName;
@@ -519,6 +527,16 @@ static errno initResourceTracker(Runtime* runtime, Context* context)
     }
     runtime->ResourceTracker = tracker;
     return NO_ERROR;
+}
+
+static errno loadArguments(Runtime* runtime)
+{
+    uintptr stub = (uintptr)(&Args_Stub);
+    byte*   key  = (byte*)(stub+ARG_OFFSET_CRYPTO_KEY);
+    uint32  size = *(uint32*)(stub+ARG_OFFSET_TOTAL_SIZE);
+    // uint32  size = *(uint32*)(stub+ARG_OFFSET_TOTAL_SIZE);
+
+     return NO_ERROR;
 }
 
 static bool initIATHooks(Runtime* runtime)
