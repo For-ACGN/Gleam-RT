@@ -9,10 +9,10 @@ static bool TestRuntimeMemory(Runtime_M* runtime);
 bool TestRuntime()
 {
     Runtime_Opts opts = {
-        .InstAddress        = NULL,
-        .NotEraseInst       = true,
-        .NotAdjustProtect   = false,
-        .TrackCurrentThread = false,
+        .BootInstAddress     = NULL,
+        .NotEraseInstruction = true,
+        .NotAdjustProtect    = false,
+        .TrackCurrentThread  = false,
     };
     Runtime_M* runtime = InitRuntime(&opts);
     if (runtime == NULL)
