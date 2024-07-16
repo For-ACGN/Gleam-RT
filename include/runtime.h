@@ -7,12 +7,13 @@
 #include "errno.h"
 
 // for generic shellcode development.
+typedef void*  (*GetArgument_t)(uint index);
+typedef void   (*Sleep_t)(uint32 milliseconds);
 typedef void*  (*MemAlloc_t)(uint size);
 typedef void*  (*MemRealloc_t)(void* address, uint size);
 typedef bool   (*MemFree_t)(void* address);
 typedef HANDLE (*ThdNew_t)(void* address, void* parameter, bool track);
 typedef void   (*ThdExit_t)();
-typedef void   (*Sleep_t)(uint32 milliseconds);
 
 // GetProcAddress, GetProcAddressByName and GetProcAddressByHash
 // are use Hash API module for implement original GetProcAddress.
@@ -49,13 +50,15 @@ typedef struct {
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
+    FindAPI_t     FindAPI;
+    GetArgument_t GetArgument;
+    Sleep_t       Sleep;
+
     MemAlloc_t   MemAlloc;
     MemRealloc_t MemRealloc;
     MemFree_t    MemFree;
     ThdNew_t     NewThread;
     ThdExit_t    ExitThread;
-    FindAPI_t    FindAPI;
-    Sleep_t      Sleep;
 
     GetProcAddress_t         GetProcAddress;
     GetProcAddressByName_t   GetProcAddressByName;
