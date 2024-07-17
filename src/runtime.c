@@ -5,15 +5,15 @@
 #include "random.h"
 #include "crypto.h"
 #include "win_api.h"
-#include "argument.h"
 #include "context.h"
 #include "errno.h"
 #include "library.h"
 #include "memory.h"
 #include "thread.h"
 #include "resource.h"
-#include "runtime.h"
+#include "argument.h"
 #include "shield.h"
+#include "runtime.h"
 #include "epilogue.h"
 #include "debug.h"
 
@@ -75,6 +75,7 @@ typedef struct {
     MemoryTracker_M*   MemoryTracker;
     ThreadTracker_M*   ThreadTracker;
     ResourceTracker_M* ResourceTracker;
+    ArgumentStore_M*   ArgumentStore;
 } Runtime;
 
 // export methods about Runtime
@@ -119,7 +120,6 @@ static errno initLibraryTracker(Runtime* runtime, Context* context);
 static errno initMemoryTracker(Runtime* runtime, Context* context);
 static errno initThreadTracker(Runtime* runtime, Context* context);
 static errno initResourceTracker(Runtime* runtime, Context* context);
-static errno loadArguments(Runtime* runtime);
 static bool  initIATHooks(Runtime* runtime);
 static bool  flushInstructionCache(Runtime* runtime);
 
@@ -196,11 +196,6 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
             break;
         }
         errno = initRuntimeEnvironment(runtime);
-        if (errno != NO_ERROR)
-        {
-            break;
-        }
-        errno = loadArguments(runtime);
         if (errno != NO_ERROR)
         {
             break;
@@ -478,6 +473,11 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     {
         return errno;
     }
+    errno = initArgumentStore(runtime, &context);
+    if (errno != NO_ERROR)
+    {
+        return errno;
+    }
     // clean useless API functions in runtime structure
     RandBuf((byte*)(&runtime->GetSystemInfo), sizeof(uintptr));
     RandBuf((byte*)(&runtime->CreateMutexA),  sizeof(uintptr));
@@ -529,14 +529,15 @@ static errno initResourceTracker(Runtime* runtime, Context* context)
     return NO_ERROR;
 }
 
-static errno loadArguments(Runtime* runtime)
+static errno initArgumentStore(Runtime* runtime, Context* context)
 {
-    uintptr stub = (uintptr)(&Args_Stub);
-    byte*   key  = (byte*)(stub+ARG_OFFSET_CRYPTO_KEY);
-    uint32  size = *(uint32*)(stub+ARG_OFFSET_TOTAL_SIZE);
-    // uint32  size = *(uint32*)(stub+ARG_OFFSET_TOTAL_SIZE);
-
-     return NO_ERROR;
+    ArgumentStore_M* store = InitArgumentStore(context);
+    if (store == NULL)
+    {
+        return GetLastErrno();
+    }
+    runtime->ArgumentStore = store;
+    return NO_ERROR;
 }
 
 static bool initIATHooks(Runtime* runtime)
