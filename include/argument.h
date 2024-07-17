@@ -23,7 +23,7 @@ ArgumentStore_M* InitArgumentStore(Context* context);
 #pragma warning(push)
 #pragma warning(disable: 4276)
 // reserve stub for store arguments
-extern void Args_Stub();
+extern void Argument_Stub();
 #pragma warning(pop)
 
 #endif // ARGUMENT_H
