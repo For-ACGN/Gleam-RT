@@ -116,16 +116,16 @@
     <ClInclude Include="..\include\random.h" />
     <ClInclude Include="..\include\crypto.h" />
     <ClInclude Include="..\include\win_api.h" />
-	<ClInclude Include="..\include\argument.h" />
     <ClInclude Include="..\include\context.h" />
     <ClInclude Include="..\include\errno.h" />
     <ClInclude Include="..\include\library.h" />
     <ClInclude Include="..\include\memory.h" />
     <ClInclude Include="..\include\thread.h" />
     <ClInclude Include="..\include\resource.h" />
+    <ClInclude Include="..\include\argument.h" />
     <ClInclude Include="..\include\runtime.h" />
     <ClInclude Include="..\include\shield.h" />
-	<ClInclude Include="..\include\debug.h" />
+    <ClInclude Include="..\include\debug.h" />
     <ClInclude Include="..\include\epilogue.h" />
   </ItemGroup>
   <ItemGroup>
@@ -143,6 +143,7 @@
     <ClCompile Include="..\src\memory.c" />
     <ClCompile Include="..\src\thread.c" />
     <ClCompile Include="..\src\resource.c" />
+    <ClCompile Include="..\src\argument.c" />
     <ClCompile Include="..\src\shield.c" />
   </ItemGroup>
   <ItemGroup>
