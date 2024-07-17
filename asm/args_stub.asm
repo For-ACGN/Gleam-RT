@@ -12,7 +12,12 @@ ENDIF
 
 .code
 
-Args_Stub proc
+IFDEF _WIN32
+  _Argument_Stub@0 proc
+ELSE
+  Argument_Stub proc
+ENDIF
+
   db 11h, 11h, 11h, 11h  ; 32 bytes decrypt key
   db 11h, 11h, 11h, 11h
   db 11h, 11h, 11h, 11h
@@ -32,6 +37,10 @@ Args_Stub proc
   db 09h, 00h, 00h, 00h  ; record the size of the argument-2
   db "aaaabbbbccc", 00h  ; argument-2 data
 
-Args_Stub endp
+IFDEF _WIN32
+  _Argument_Stub@0 endp
+ELSE
+  Argument_Stub endp
+ENDIF
 
 end
