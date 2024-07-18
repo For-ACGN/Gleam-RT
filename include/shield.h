@@ -6,6 +6,9 @@
 
 typedef struct {
     uintptr BeginAddress;
+    uintptr EndAddress;
+    byte    CryptoKey[32];
+
     uint32  SleepTime;
     HANDLE  hProcess;
 
