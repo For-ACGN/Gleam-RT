@@ -1209,12 +1209,17 @@ static errno hide(Runtime* runtime)
         {
             break;
         }
-        errno = runtime->MemoryTracker->Encrypt();
+        errno = runtime->ArgumentStore->Encrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
         errno = runtime->ResourceTracker->Encrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->MemoryTracker->Encrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
@@ -1240,12 +1245,17 @@ static errno recover(Runtime* runtime)
         {
             break;
         }
+        errno = runtime->MemoryTracker->Decrypt();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
         errno = runtime->ResourceTracker->Decrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
-        errno = runtime->MemoryTracker->Decrypt();
+        errno = runtime->ArgumentStore->Decrypt();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
@@ -1274,11 +1284,13 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     }
     Shield_Ctx ctx = {
         .BeginAddress = beginAddress,
+        .EndAddress   = (uintptr)(&Shield_Stub),
         .SleepTime    = milliseconds,
         .hProcess     = runtime->hProcess,
 
         .WaitForSingleObject = runtime->WaitForSingleObject,
     };
+    RandBuf(&ctx.CryptoKey[0], sizeof(ctx.CryptoKey));
     // build crypto context
     byte key[CRYPTO_KEY_SIZE];
     byte iv [CRYPTO_IV_SIZE];
