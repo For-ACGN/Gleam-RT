@@ -27,6 +27,7 @@ typedef struct {
     // store arguments
     byte* Address;
     uint  Size;
+    uint  NumArgs;
 
     byte Key[CRYPTO_KEY_SIZE];
     byte IV [CRYPTO_IV_SIZE];
@@ -38,7 +39,7 @@ errno AS_Encrypt();
 errno AS_Decrypt();
 errno AS_Clean();
 
-// hard encoded address in getTrackerPointer for replacement
+// hard encoded address in getStorePointer for replacement
 #ifdef _WIN64
     #define STORE_POINTER 0x7FABCDEF11111105
 #elif _WIN32
@@ -60,7 +61,7 @@ ArgumentStore_M* InitArgumentStore(Context* context)
     uintptr address = context->MainMemPage;
     uintptr storeAddr  = address + 7000 + RandUintN(address, 128);
     uintptr moduleAddr = address + 7700 + RandUintN(address, 128);
-    // initialize tracker
+    // initialize store
     ArgumentStore* store = (ArgumentStore*)storeAddr;
     mem_clean(store, sizeof(ArgumentStore));
     errno errno = NO_ERROR;
@@ -146,6 +147,7 @@ static errno loadArguments(ArgumentStore* store)
     // uintptr stub = (uintptr)(&Argument_Stub);
     // byte*   key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
     // uint32  size = *(uint32*)(stub + ARG_OFFSET_TOTAL_SIZE);
+    dbg_log("[argument]", "arguments: %zu\n", store->NumArgs);
     return NO_ERROR;
 }
 
@@ -190,6 +192,11 @@ errno AS_Encrypt()
 {
     ArgumentStore* store = getStorePointer();
 
+    byte* key = &store->Key[0];
+    byte* iv  = &store->IV[0];
+    RandBuf(key, CRYPTO_KEY_SIZE);
+    RandBuf(iv, CRYPTO_IV_SIZE);
+    EncryptBuf(store->Address, store->Size, key, iv);
     return NO_ERROR;
 }
 
@@ -198,6 +205,9 @@ errno AS_Decrypt()
 {
     ArgumentStore* store = getStorePointer();
 
+    byte* key = &store->Key[0];
+    byte* iv  = &store->IV[0];
+    DecryptBuf(store->Address, store->Size, key, iv);
     return NO_ERROR;
 }
 
@@ -206,5 +216,12 @@ errno AS_Clean()
 {
     ArgumentStore* store = getStorePointer();
 
-    return NO_ERROR;
+    errno errno = NO_ERROR;
+
+    RandBuf(store->Address, store->Size);
+    if (!store->VirtualFree(store->Address, 0, MEM_RELEASE))
+    {
+        errno = ERR_ARGUMENT_FREE_MEM;
+    }
+    return errno;
 }
