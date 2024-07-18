@@ -4,8 +4,13 @@ ENDIF
 
 .code
 
-; reverse 512 bytes for store generated stub
-Shield_Stub proc
+IFDEF _WIN32
+  _Shield_Stub@0 proc
+ELSE
+  Shield_Stub proc
+ENDIF
+
+  ; reverse 512 bytes for store generated stub
   db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
   db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
   db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
@@ -70,6 +75,11 @@ Shield_Stub proc
   db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
   db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
   db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
-Shield_Stub endp
+
+IFDEF _WIN32
+  _Shield_Stub@0 endp
+ELSE
+  Shield_Stub endp
+ENDIF
 
 end
