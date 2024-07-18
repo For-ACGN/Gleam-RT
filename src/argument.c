@@ -33,7 +33,7 @@ typedef struct {
 } ArgumentStore;
 
 // methods for runtime
-void* AS_Get();
+void* AS_Get(uint index);
 errno AS_Encrypt();
 errno AS_Decrypt();
 errno AS_Clean();
@@ -46,9 +46,10 @@ errno AS_Clean();
 #endif
 static ArgumentStore* getStorePointer();
 
-static bool initStoreAPI(ArgumentStore* store, Context* context);
-static bool updateStorePointer(ArgumentStore* store);
-static bool initStoreEnvironment(ArgumentStore* store, Context* context);
+static bool  initStoreAPI(ArgumentStore* store, Context* context);
+static bool  updateStorePointer(ArgumentStore* store);
+static bool  initStoreEnvironment(ArgumentStore* store);
+static errno loadArguments(ArgumentStore* store);
 
 static void eraseStoreMethods();
 static void cleanStore(ArgumentStore* store);
@@ -75,9 +76,14 @@ ArgumentStore_M* InitArgumentStore(Context* context)
             errno = ERR_ARGUMENT_UPDATE_PTR;
             break;
         }
-        if (!initStoreEnvironment(store, context))
+        if (!initStoreEnvironment(store))
         {
             errno = ERR_ARGUMENT_INIT_ENV;
+            break;
+        }
+        errno = loadArguments(store);
+        if (errno != NO_ERROR)
+        {
             break;
         }
         break;
@@ -127,17 +133,38 @@ static bool updateStorePointer(ArgumentStore* store)
     return success;
 }
 
-static bool initStoreEnvironment(ArgumentStore* store, Context* context)
+static bool initStoreEnvironment(ArgumentStore* store)
 {
+    // set crypto context data
+    RandBuf(&store->Key[0], CRYPTO_KEY_SIZE);
+    RandBuf(&store->IV[0], CRYPTO_IV_SIZE);
+    return true;
+}
 
-
-
+static errno loadArguments(ArgumentStore* store)
+{
     // uintptr stub = (uintptr)(&Argument_Stub);
     // byte*   key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
     // uint32  size = *(uint32*)(stub + ARG_OFFSET_TOTAL_SIZE);
-
-
     return NO_ERROR;
+}
+
+__declspec(noinline)
+static void eraseStoreMethods()
+{
+    uintptr begin = (uintptr)(&initStoreAPI);
+    uintptr end   = (uintptr)(&eraseStoreMethods);
+    uintptr size  = end - begin;
+    RandBuf((byte*)begin, (int64)size);
+}
+
+__declspec(noinline)
+static void cleanStore(ArgumentStore* store)
+{
+    if (store->VirtualFree != NULL && store->Address != NULL)
+    {
+        store->VirtualFree(store->Address, 0, MEM_RELEASE);
+    }
 }
 
 // updateStorePointer will replace hard encode address to the actual address.
@@ -150,3 +177,34 @@ static ArgumentStore* getStorePointer()
 }
 #pragma optimize("", on)
 
+__declspec(noinline)
+void* AS_Get(uint index)
+{
+    ArgumentStore* store = getStorePointer();
+
+    return NULL;
+}
+
+__declspec(noinline)
+errno AS_Encrypt()
+{
+    ArgumentStore* store = getStorePointer();
+
+    return NO_ERROR;
+}
+
+__declspec(noinline)
+errno AS_Decrypt()
+{
+    ArgumentStore* store = getStorePointer();
+
+    return NO_ERROR;
+}
+
+__declspec(noinline)
+errno AS_Clean()
+{
+    ArgumentStore* store = getStorePointer();
+
+    return NO_ERROR;
+}
