@@ -120,6 +120,7 @@ static errno initLibraryTracker(Runtime* runtime, Context* context);
 static errno initMemoryTracker(Runtime* runtime, Context* context);
 static errno initThreadTracker(Runtime* runtime, Context* context);
 static errno initResourceTracker(Runtime* runtime, Context* context);
+static errno initArgumentStore(Runtime* runtime, Context* context);
 static bool  initIATHooks(Runtime* runtime);
 static bool  flushInstructionCache(Runtime* runtime);
 
@@ -452,31 +453,23 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         .lock    = &RT_lock_mods,
         .unlock  = &RT_unlock_mods,
     };
+    typedef errno (*submodule_t)(Runtime* runtime, Context* context);
+    submodule_t submodules[] = 
+    {
+        &initLibraryTracker,
+        &initMemoryTracker,
+        &initThreadTracker,
+        &initResourceTracker,
+        &initArgumentStore,
+    };
     errno errno;
-    errno = initLibraryTracker(runtime, &context);
-    if (errno != NO_ERROR)
+    for (int i = 0; i < arrlen(submodules); i++)
     {
-        return errno;
-    }
-    errno = initMemoryTracker(runtime, &context);
-    if (errno != NO_ERROR)
-    {
-        return errno;
-    }
-    errno = initThreadTracker(runtime, &context);
-    if (errno != NO_ERROR)
-    {
-        return errno;
-    }
-    errno = initResourceTracker(runtime, &context);
-    if (errno != NO_ERROR)
-    {
-        return errno;
-    }
-    errno = initArgumentStore(runtime, &context);
-    if (errno != NO_ERROR)
-    {
-        return errno;
+        errno = submodules[i](runtime, &context);
+        if (errno != NO_ERROR)
+        {
+            return errno;
+        }
     }
     // clean useless API functions in runtime structure
     RandBuf((byte*)(&runtime->GetSystemInfo), sizeof(uintptr));
@@ -1393,29 +1386,27 @@ errno RT_Exit()
     bool notEraseInst = runtime->NotEraseInstruction;
 
     // clean runtime modules
+    typedef errno (*submodule_t)();
+    submodule_t submodules[] = 
+    {
+        runtime->ThreadTracker->Clean,
+        runtime->ArgumentStore->Clean,
+        runtime->ResourceTracker->Clean,
+        runtime->MemoryTracker->Clean,
+        runtime->LibraryTracker->Clean,
+    };
     errno enmod = NO_ERROR;
     errno errno = NO_ERROR;
-    
-    enmod = runtime->ThreadTracker->Clean();
-    if (enmod != NO_ERROR && errno == NO_ERROR)
+    for (int i = 0; i < arrlen(submodules); i++)
     {
-        errno = enmod;
+        enmod = submodules[i]();
+        if (enmod != NO_ERROR && errno == NO_ERROR)
+        {
+            errno = enmod;
+        }
     }
-    enmod = runtime->ResourceTracker->Clean();
-    if (enmod != NO_ERROR && errno == NO_ERROR)
-    {
-        errno = enmod;
-    }
-    enmod = runtime->MemoryTracker->Clean();
-    if (enmod != NO_ERROR && errno == NO_ERROR)
-    {
-        errno = enmod;
-    }
-    enmod = runtime->LibraryTracker->Clean();
-    if (enmod != NO_ERROR && errno == NO_ERROR)
-    {
-        errno = enmod;
-    }
+
+    // clean runtime resource
     cleanRuntime(runtime);
 
     // erase runtime instructions except this function
