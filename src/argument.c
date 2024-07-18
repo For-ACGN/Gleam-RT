@@ -20,8 +20,11 @@
 #define ARG_OFFSET_FIRST_ARG  (36+4)
 
 typedef struct {
-    VirtualFree_t VirtualFree;
+    // API addresses
+    VirtualAlloc_t VirtualAlloc;
+    VirtualFree_t  VirtualFree;
 
+    // store arguments
     byte* Address;
     uint  Size;
 
@@ -35,9 +38,20 @@ errno AS_Encrypt();
 errno AS_Decrypt();
 errno AS_Clean();
 
+// hard encoded address in getTrackerPointer for replacement
+#ifdef _WIN64
+    #define STORE_POINTER 0x7FABCDEF11111105
+#elif _WIN32
+    #define STORE_POINTER 0x7FABCD05
+#endif
+static ArgumentStore* getStorePointer();
+
 static bool initStoreAPI(ArgumentStore* store, Context* context);
 static bool updateStorePointer(ArgumentStore* store);
 static bool initStoreEnvironment(ArgumentStore* store, Context* context);
+
+static void eraseStoreMethods();
+static void cleanStore(ArgumentStore* store);
 
 ArgumentStore_M* InitArgumentStore(Context* context)
 {
@@ -53,32 +67,86 @@ ArgumentStore_M* InitArgumentStore(Context* context)
     {
         if (!initStoreAPI(store, context))
         {
-            errno = ERR_RESOURCE_INIT_API;
+            errno = ERR_ARGUMENT_INIT_API;
             break;
         }
         if (!updateStorePointer(store))
         {
-            errno = ERR_RESOURCE_UPDATE_PTR;
+            errno = ERR_ARGUMENT_UPDATE_PTR;
             break;
         }
         if (!initStoreEnvironment(store, context))
         {
-            errno = ERR_RESOURCE_INIT_ENV;
+            errno = ERR_ARGUMENT_INIT_ENV;
             break;
         }
         break;
     }
-
+    eraseStoreMethods();
+    if (errno != NO_ERROR)
+    {
+        cleanStore(store);
+        SetLastErrno(errno);
+        return NULL;
+    }
+    // create methods for store
+    ArgumentStore_M* module = (ArgumentStore_M*)moduleAddr;
+    // methods for runtime
+    module->Get     = &AS_Get;
+    module->Encrypt = &AS_Encrypt;
+    module->Decrypt = &AS_Decrypt;
+    module->Clean   = &AS_Clean;
+    return module;
 }
 
-static errno loadArguments()
+__declspec(noinline)
+static bool initStoreAPI(ArgumentStore* store, Context* context)
 {
-    uintptr stub = (uintptr)(&Argument_Stub);
-    byte*   key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
-    uint32  size = *(uint32*)(stub + ARG_OFFSET_TOTAL_SIZE);
+    store->VirtualAlloc = context->VirtualAlloc;
+    store->VirtualFree  = context->VirtualFree;
+    return true;
+}
+
+__declspec(noinline)
+static bool updateStorePointer(ArgumentStore* store)
+{
+    bool success = false;
+    uintptr target = (uintptr)(&getStorePointer);
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != STORE_POINTER)
+        {
+            target++;
+            continue;
+        }
+        *pointer = (uintptr)store;
+        success = true;
+        break;
+    }
+    return success;
+}
+
+static bool initStoreEnvironment(ArgumentStore* store, Context* context)
+{
 
 
+
+    // uintptr stub = (uintptr)(&Argument_Stub);
+    // byte*   key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
+    // uint32  size = *(uint32*)(stub + ARG_OFFSET_TOTAL_SIZE);
 
 
     return NO_ERROR;
 }
+
+// updateStorePointer will replace hard encode address to the actual address.
+// Must disable compiler optimize, otherwise updateStorePointer will fail.
+#pragma optimize("", off)
+static ArgumentStore* getStorePointer()
+{
+    uint pointer = STORE_POINTER;
+    return (ArgumentStore*)(pointer);
+}
+#pragma optimize("", on)
+
