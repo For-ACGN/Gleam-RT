@@ -8,16 +8,16 @@
 #include "argument.h"
 #include "debug.h"
 
-// +----------+----------+----------+----------+----------+
-// |    key   |   size   | num args | arg size | arg data |
-// +----------+----------+----------+----------+----------+
-// | 32 bytes |  uint32  |  uint32  |  uint32  |    var   |
-// +----------+----------+----------+----------+----------+
+// +---------+----------+-----------+----------+----------+
+// |   key   | num args | args size | arg size | arg data |
+// +---------+----------+-----------+----------+----------+
+// | 32 byte |  uint32  |  uint32   |  uint32  |    var   |
+// +---------+----------+-----------+----------+----------+
 
-#define ARG_OFFSET_CRYPTO_KEY (0+0)
-#define ARG_OFFSET_TOTAL_SIZE (0+32)
-#define ARG_OFFSET_NUM_ARGS   (32+4)
-#define ARG_OFFSET_FIRST_ARG  (36+4)
+#define ARG_OFFSET_CRYPTO_KEY (0 + 0)
+#define ARG_OFFSET_NUM_ARGS   (0 + 32)
+#define ARG_OFFSET_ARGS_SIZE  (32 + 4)
+#define ARG_OFFSET_FIRST_ARG  (36 + 4)
 
 typedef struct {
     // API addresses
@@ -25,9 +25,9 @@ typedef struct {
     VirtualFree_t  VirtualFree;
 
     // store arguments
-    byte* Address;
-    uint  Size;
-    uint  NumArgs;
+    byte*  Address;
+    uint   Size;
+    uint32 NumArgs;
 
     byte Key[CRYPTO_KEY_SIZE];
     byte IV [CRYPTO_IV_SIZE];
@@ -50,7 +50,7 @@ static ArgumentStore* getStorePointer();
 static bool  initStoreAPI(ArgumentStore* store, Context* context);
 static bool  updateStorePointer(ArgumentStore* store);
 static bool  initStoreEnvironment(ArgumentStore* store);
-static errno loadArguments(ArgumentStore* store);
+static errno loadArguments(ArgumentStore* store, Context* context);
 
 static void eraseStoreMethods();
 static void cleanStore(ArgumentStore* store);
@@ -82,7 +82,7 @@ ArgumentStore_M* InitArgumentStore(Context* context)
             errno = ERR_ARGUMENT_INIT_ENV;
             break;
         }
-        errno = loadArguments(store);
+        errno = loadArguments(store, context);
         if (errno != NO_ERROR)
         {
             break;
@@ -142,12 +142,30 @@ static bool initStoreEnvironment(ArgumentStore* store)
     return true;
 }
 
-static errno loadArguments(ArgumentStore* store)
+static errno loadArguments(ArgumentStore* store, Context* context)
 {
-    // uintptr stub = (uintptr)(&Argument_Stub);
-    // byte*   key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
-    // uint32  size = *(uint32*)(stub + ARG_OFFSET_TOTAL_SIZE);
-    dbg_log("[argument]", "arguments: %zu\n", store->NumArgs);
+    uintptr stub = (uintptr)(&Argument_Stub);
+    byte*   addr = (byte*)(stub + ARG_OFFSET_FIRST_ARG);
+    uint32  size = *(uint32*)(stub + ARG_OFFSET_ARGS_SIZE);
+    // allocate memory page for store them
+    uint32 pageSize = ((size / context->PageSize) + 1) * context->PageSize;
+    void* mem = store->VirtualAlloc(NULL, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    if (mem == NULL)
+    {
+        return ERR_ARGUMENT_ALLOC_MEM;
+    }
+    store->Address = mem;
+    store->Size    = pageSize;
+    store->NumArgs = *(uint32*)(stub + ARG_OFFSET_NUM_ARGS);
+    // copy encrypted arguments to new memory page
+    mem_copy(mem, addr, size);
+    // decrypted arguments
+    byte* key = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
+
+
+    
+    dbg_log("[argument]", "mem page: 0x%zX\n", store->Address);
+    dbg_log("[argument]", "num args: %zu\n", store->NumArgs);
     return NO_ERROR;
 }
 
@@ -163,6 +181,10 @@ static void eraseStoreMethods()
 __declspec(noinline)
 static void cleanStore(ArgumentStore* store)
 {
+    if (store->Address != NULL)
+    {
+        RandBuf(store->Address, (int64)(store->Size));
+    }
     if (store->VirtualFree != NULL && store->Address != NULL)
     {
         store->VirtualFree(store->Address, 0, MEM_RELEASE);
