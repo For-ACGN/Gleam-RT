@@ -1,0 +1,1 @@
+go build -v -trimpath -ldflags "-s -w" -o gen-args.exe generator.go
