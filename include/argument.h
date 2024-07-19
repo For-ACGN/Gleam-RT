@@ -20,9 +20,9 @@ typedef struct {
 
 ArgumentStore_M* InitArgumentStore(Context* context);
 
+// reserve stub for store arguments
 #pragma warning(push)
 #pragma warning(disable: 4276)
-// reserve stub for store arguments
 extern void Argument_Stub();
 #pragma warning(pop)
 
