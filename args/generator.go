@@ -21,6 +21,8 @@ func main() {
 		return
 	}
 	fmt.Println(dumpBytesHex(output))
+
+	fmt.Println(DecodeArguments(output))
 }
 
 func dumpBytesHex(b []byte) string {
@@ -91,13 +93,36 @@ func EncodeArguments(args [][]byte) ([]byte, error) {
 		// write argument data
 		buf.Write(args[i])
 	}
-	output := encryptArguments(buf.Bytes(), key)
-	output = decryptArguments(output, key)
+	output := buf.Bytes()
+	encryptArguments(output)
 	return output, nil
 }
 
-func encryptArguments(args, key []byte) []byte {
-	data := args[offsetFirstArg:]
+// DecodeArguments is used to decode and decrypt arguments from raw stub.
+func DecodeArguments(stub []byte) ([][]byte, error) {
+	if len(stub) < offsetFirstArg {
+		return nil, errors.New("stub is too short")
+	}
+	numArgs := binary.LittleEndian.Uint32(stub[cryptoKeySize:])
+	if numArgs == 0 {
+		return nil, nil
+	}
+	decryptArguments(stub)
+	args := make([][]byte, 0, numArgs)
+	offset := offsetFirstArg
+	for i := 0; i < int(numArgs); i++ {
+		l := binary.LittleEndian.Uint32(stub[offset:])
+		arg := make([]byte, l)
+		copy(arg, stub[offset+4:offset+4+int(l)])
+		args = append(args, arg)
+		offset += 4 + int(l)
+	}
+	return args, nil
+}
+
+func encryptArguments(stub []byte) {
+	key := stub[:cryptoKeySize]
+	data := stub[offsetFirstArg:]
 	last := byte(0xFF)
 	var keyIdx = 0
 	for i := 0; i < len(data); i++ {
@@ -111,11 +136,11 @@ func encryptArguments(args, key []byte) []byte {
 			keyIdx = 0
 		}
 	}
-	return args
 }
 
-func decryptArguments(args, key []byte) []byte {
-	data := args[offsetFirstArg:]
+func decryptArguments(stub []byte) {
+	key := stub[:cryptoKeySize]
+	data := stub[offsetFirstArg:]
 	last := byte(0xFF)
 	var keyIdx = 0
 	for i := 0; i < len(data); i++ {
@@ -129,5 +154,4 @@ func decryptArguments(args, key []byte) []byte {
 			keyIdx = 0
 		}
 	}
-	return args
 }
