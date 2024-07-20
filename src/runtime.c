@@ -354,8 +354,12 @@ static bool adjustPageProtect(Runtime* runtime)
     {
         return true;
     }
-    void*   addr  = &InitRuntime;
-    uintptr begin = (uintptr)(&InitRuntime);
+    void* addr = runtime->BootInstAddress;
+    if (addr == NULL)
+    {
+        addr = &InitRuntime;
+    }
+    uintptr begin = (uintptr)(addr);
     uintptr end   = (uintptr)(&Epilogue);
     uint    size  = end - begin;
     uint32  old;
