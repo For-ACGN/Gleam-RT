@@ -92,14 +92,37 @@ func EncodeArguments(args [][]byte) ([]byte, error) {
 		buf.Write(args[i])
 	}
 	output := encryptArguments(buf.Bytes(), key)
+	output = decryptArguments(output, key)
 	return output, nil
 }
 
 func encryptArguments(args, key []byte) []byte {
 	data := args[offsetFirstArg:]
+	last := byte(0xFF)
 	var keyIdx = 0
 	for i := 0; i < len(data); i++ {
-		data[i] ^= key[keyIdx]
+		b := data[i] ^ last
+		b ^= key[keyIdx]
+		last = data[i]
+		data[i] = b
+		// update key index
+		keyIdx++
+		if keyIdx >= cryptoKeySize {
+			keyIdx = 0
+		}
+	}
+	return args
+}
+
+func decryptArguments(args, key []byte) []byte {
+	data := args[offsetFirstArg:]
+	last := byte(0xFF)
+	var keyIdx = 0
+	for i := 0; i < len(data); i++ {
+		b := data[i] ^ last
+		b ^= key[keyIdx]
+		data[i] = b
+		last = b
 		// update key index
 		keyIdx++
 		if keyIdx >= cryptoKeySize {
