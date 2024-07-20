@@ -15,14 +15,14 @@ func main() {
 		{0x78, 0x56, 0x34, 0x12},
 		[]byte("aaaabbbbccc\x00"),
 	}
-	output, err := EncodeArguments(args)
+	output, err := EncodeArgStub(args)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	fmt.Println(dumpBytesHex(output))
 
-	fmt.Println(DecodeArguments(output))
+	fmt.Println(DecodeArgStub(output))
 }
 
 func dumpBytesHex(b []byte) string {
@@ -64,8 +64,8 @@ const (
 	offsetFirstArg = 32 + 4 + 4
 )
 
-// EncodeArguments is used to encode and encrypt arguments for runtime
-func EncodeArguments(args [][]byte) ([]byte, error) {
+// EncodeArgStub is used to encode and encrypt arguments for runtime
+func EncodeArgStub(args [][]byte) ([]byte, error) {
 	key := make([]byte, cryptoKeySize)
 	_, err := rand.Read(key)
 	if err != nil {
@@ -94,12 +94,12 @@ func EncodeArguments(args [][]byte) ([]byte, error) {
 		buf.Write(args[i])
 	}
 	output := buf.Bytes()
-	encryptArguments(output)
+	encryptArgStub(output)
 	return output, nil
 }
 
-// DecodeArguments is used to decode and decrypt arguments from raw stub.
-func DecodeArguments(stub []byte) ([][]byte, error) {
+// DecodeArgStub is used to decode and decrypt arguments from raw stub.
+func DecodeArgStub(stub []byte) ([][]byte, error) {
 	if len(stub) < offsetFirstArg {
 		return nil, errors.New("stub is too short")
 	}
@@ -107,7 +107,7 @@ func DecodeArguments(stub []byte) ([][]byte, error) {
 	if numArgs == 0 {
 		return nil, nil
 	}
-	decryptArguments(stub)
+	decryptArgStub(stub)
 	args := make([][]byte, 0, numArgs)
 	offset := offsetFirstArg
 	for i := 0; i < int(numArgs); i++ {
@@ -120,7 +120,7 @@ func DecodeArguments(stub []byte) ([][]byte, error) {
 	return args, nil
 }
 
-func encryptArguments(stub []byte) {
+func encryptArgStub(stub []byte) {
 	key := stub[:cryptoKeySize]
 	data := stub[offsetFirstArg:]
 	last := byte(0xFF)
@@ -138,7 +138,7 @@ func encryptArguments(stub []byte) {
 	}
 }
 
-func decryptArguments(stub []byte) {
+func decryptArgStub(stub []byte) {
 	key := stub[:cryptoKeySize]
 	data := stub[offsetFirstArg:]
 	last := byte(0xFF)
