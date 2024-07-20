@@ -19,14 +19,14 @@ ELSE
 ENDIF
 
   ; 32 bytes decrypt key
-  db 0B3h, 0D9h, 0CDh, 034h
-  db 0AAh, 09Dh, 066h, 06Dh
-  db 03Eh, 08Eh, 047h, 056h
-  db 043h, 000h, 046h, 0BBh
-  db 0A2h, 014h, 03Dh, 040h
-  db 097h, 090h, 02Eh, 0F7h
-  db 032h, 008h, 0BAh, 0CCh
-  db 031h, 0FDh, 0F8h, 060h
+  db 0BBh, 0DEh, 0F5h, 00Ah
+  db 0E1h, 0CFh, 0B8h, 022h
+  db 06Dh, 065h, 0CCh, 06Dh
+  db 067h, 0FFh, 0F5h, 0EBh
+  db 02Ah, 095h, 0A2h, 0F3h
+  db 025h, 09Ah, 055h, 0B7h
+  db 03Eh, 051h, 0F8h, 005h
+  db 03Ah, 0F5h, 076h, 00Eh
 
   ; record the number of the arguments
   db 002h, 000h, 000h, 000h
@@ -34,16 +34,16 @@ ENDIF
   db 018h, 000h, 000h, 000h
 
   ; record the size of the argument-1
-  db 0B7h, 0D9h, 0CDh, 034h
+  db 040h, 0DAh, 0F5h, 00Ah
   ; argument-1 data
-  db 0D2h, 0CBh, 052h, 07Fh
+  db 099h, 0E1h, 0DAh, 004h
 
   ; record the size of the argument-2
-  db 032h, 08Eh, 047h, 056h
+  db 073h, 069h, 0CCh, 06Dh
   ; argument-2 data
-  db 022h, 061h, 027h, 0DAh
-  db 0C0h, 076h, 05Fh, 022h
-  db 0F4h, 0F3h, 04Dh, 0F7h
+  db 006h, 0FFh, 0F5h, 0EBh
+  db 029h, 095h, 0A2h, 0F3h
+  db 024h, 09Ah, 055h, 0D4h
 
 IFDEF _WIN32
   _Argument_Stub@0 endp
