@@ -11,8 +11,10 @@
 // +---------+----------+-----------+----------+----------+
 // |   key   | num args | args size | arg size | arg data |
 // +---------+----------+-----------+----------+----------+
-// | 32 byte |  uint32  |  uint32   |  uint32  |    var   |
+// | 32 byte |  uint32  |  uint32   |  uint32  |   var    |
 // +---------+----------+-----------+----------+----------+
+
+#define ARG_CRYPTO_KEY_SIZE 32
 
 #define ARG_OFFSET_CRYPTO_KEY (0 + 0)
 #define ARG_OFFSET_NUM_ARGS   (0 + 32)
@@ -34,7 +36,8 @@ typedef struct {
 } ArgumentStore;
 
 // methods for runtime
-void* AS_Get(uint index);
+void* AS_Get(uint index); // receive size
+void* AS_Erase(uint index);
 errno AS_Encrypt();
 errno AS_Decrypt();
 errno AS_Clean();
@@ -160,10 +163,24 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     // copy encrypted arguments to new memory page
     mem_copy(mem, addr, size);
     // decrypted arguments
-    byte* key = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
-
-
-    
+    byte* key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
+    byte* data = (byte*)mem;
+    byte  last = 0xFF;
+    uint  keyIdx = 0;
+    for (uint32 i = 0; i < size; i++)
+    {
+        byte b = *data ^ last;
+        b ^= *(key + keyIdx);
+        *data = b;
+        last = b;
+        // update key index
+        keyIdx++;
+        if (keyIdx >= ARG_CRYPTO_KEY_SIZE)
+        {
+            keyIdx = 0;
+        }
+        data++;
+    }
     dbg_log("[argument]", "mem page: 0x%zX\n", store->Address);
     dbg_log("[argument]", "num args: %zu\n", store->NumArgs);
     return NO_ERROR;
