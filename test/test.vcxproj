@@ -41,6 +41,7 @@
     <ClCompile Include="runtime_test.c" />
     <ClCompile Include="memory_test.c" />
     <ClCompile Include="thread_test.c" />
+    <ClCompile Include="argument_test.c" />
     <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\lib_memory.c" />
     <ClCompile Include="..\src\lib_string.c" />
