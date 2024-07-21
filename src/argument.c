@@ -36,8 +36,9 @@ typedef struct {
 } ArgumentStore;
 
 // methods for runtime
-void* AS_Get(uint index); // receive size
-void* AS_Erase(uint index);
+bool  AS_Get(uint index, void** data, uint32* size);
+bool  AS_Erase(uint index);
+void  AS_EraseAll();
 errno AS_Encrypt();
 errno AS_Decrypt();
 errno AS_Clean();
@@ -219,11 +220,34 @@ static ArgumentStore* getStorePointer()
 #pragma optimize("", on)
 
 __declspec(noinline)
-void* AS_Get(uint index)
+bool AS_Get(uint index, void** data, uint32* size)
 {
     ArgumentStore* store = getStorePointer();
 
-    return NULL;
+    // check argument index is valid
+    if (index + 1 > store->NumArgs)
+    {
+        return false;
+    }
+    // calculate the offset to target argument
+    uint32 offset = 0;
+    for (uint32 i = 0; i < store->NumArgs; i++)
+    {
+        if (i != index)
+        {
+            // skip argument size and data
+            offset += 4 + *(uint32*)(store->Address + offset);
+            continue;
+        }
+        if (size != NULL)
+        {
+            *size = *(uint32*)(store->Address + offset);
+        }
+        *data = (void*)(store->Address + offset + 4);
+        return true;
+    }
+    panic(PANIC_UNREACHABLE_CODE);
+    return false;
 }
 
 __declspec(noinline)
