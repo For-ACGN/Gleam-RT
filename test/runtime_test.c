@@ -4,9 +4,9 @@
 #include "runtime.h"
 #include "test.h"
 
-static bool TestRuntimeMemory(Runtime_M* runtime);
+static Runtime_M* runtime;
 
-bool TestRuntime()
+bool TestInitRuntime()
 {
     Runtime_Opts opts = {
         .BootInstAddress     = NULL,
@@ -14,31 +14,17 @@ bool TestRuntime()
         .NotAdjustProtect    = false,
         .TrackCurrentThread  = false,
     };
-    Runtime_M* runtime = InitRuntime(&opts);
+    runtime = InitRuntime(&opts);
     if (runtime == NULL)
     {
-        printf_s("failed to initialize runtime: %lX\n", GetLastErrno());
-        return false;
-    }
-
-    if (!TestRuntimeMemory(runtime))
-    {
-        return false;
-    }
-
-    errno errno = runtime->Exit();
-    if (errno != NO_ERROR)
-    {
-        printf_s("error: %X\n", errno);
+        printf_s("failed to initialize runtime: 0x%lX\n", GetLastErrno());
         return false;
     }
     return true;
 }
 
-static bool TestRuntimeMemory(Runtime_M* runtime)
+ bool TestRuntime_Memory()
 {
-    printf_s("======TestRuntimeAlloc begin=======\n");
-
     uint64* test1 = (uint64*)runtime->MemAlloc(sizeof(uint64));
     if (test1 == NULL)
     {
@@ -130,6 +116,24 @@ static bool TestRuntimeMemory(Runtime_M* runtime)
         return -1;
     }
 
-    printf_s("======TestRuntimeAlloc passed======\n\n");
+    return true;
+}
+
+bool TestRuntime_Argument()
+{
+
+
+
+    return true;
+}
+
+bool TestRuntime_Exit()
+{
+    errno errno = runtime->Exit();
+    if (errno != NO_ERROR)
+    {
+        printf_s("failed to exit runtime: 0x%lX\n", errno);
+        return false;
+    }
     return true;
 }
