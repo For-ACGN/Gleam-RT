@@ -25,8 +25,8 @@ bool TestLibString()
 
 bool TestStrlen()
 {
-    byte*   str_a = "ascii";
-    uint16* str_w = L"unicode";
+    ascii str_a = "ascii";
+    utf16 str_w = L"unicode";
 
     if (strlen_a(str_a) != 5)
     {
@@ -63,8 +63,31 @@ bool TestStrlen()
 
 bool TestStrcmp()
 {
+    ascii s0 = "abc";
+    ascii s1 = "abc";
+    if (strcmp_a(s0, s1) != 0)
+    {
+        printf_s("strcmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test strcmp_a with s0=s1 passed\n");
 
+    s0 = "acc";
+    s1 = "abc";
+    if (strcmp_a(s0, s1) != 1)
+    {
+        printf_s("strcmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test strcmp_a with s0>s1 passed\n");
 
-
+    s0 = "aac";
+    s1 = "abc";
+    if (strcmp_a(s0, s1) != -1)
+    {
+        printf_s("strcmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test strcmp_a with s0<s1 passed\n");
     return true;
 }
