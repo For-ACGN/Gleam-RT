@@ -3,15 +3,19 @@
 #include "lib_string.h"
 #include "test.h"
 
-static bool TestStrlen();
-static bool TestStrcmp();
+static bool TestStrlen_a();
+static bool TestStrlen_w();
+static bool TestStrcmp_a();
+static bool TestStrcmp_w();
 
 bool TestLibString()
 {
     test_t tests[] = 
     {
-        { TestStrlen },
-        { TestStrcmp },
+        { TestStrlen_a },
+        { TestStrlen_w },
+        { TestStrcmp_a },
+        { TestStrcmp_w },
     };
     for (int i = 0; i < arrlen(tests); i++)
     {
@@ -23,36 +27,40 @@ bool TestLibString()
     return true;
 }
 
-bool TestStrlen()
+bool TestStrlen_a()
 {
-    ascii str_a = "ascii";
-    utf16 str_w = L"unicode";
+    ascii str = "ascii";
 
-    if (strlen_a(str_a) != 5)
+    if (strlen_a(str) != 5)
     {
         printf_s("strlen_a return incorrect length\n");
         return false;
     }
     printf_s("test strlen_a passed\n");
 
-    if (strlen_w(str_w) != 7)
+    str = "";
+    if (strlen_a(str) != 0)
+    {
+        printf_s("strlen_a return incorrect length\n");
+        return false;
+    }
+    printf_s("test strlen_a with null passed\n");
+    return true;
+}
+
+bool TestStrlen_w()
+{
+    utf16 str = L"unicode";
+
+    if (strlen_w(str) != 7)
     {
         printf_s("strlen_w return incorrect length\n");
         return false;
     }
     printf_s("test strlen_w passed\n");
 
-    str_a = "";
-    str_w = L"";
-
-    if (strlen_a(str_a) != 0)
-    {
-        printf_s("strlen_a return incorrect length\n");
-        return false;
-    }
-    printf_s("test strlen_a with null passed\n");
-
-    if (strlen_w(str_w) != 0)
+    str = L"";
+    if (strlen_w(str) != 0)
     {
         printf_s("strlen_w return incorrect length\n");
         return false;
@@ -61,7 +69,7 @@ bool TestStrlen()
     return true;
 }
 
-bool TestStrcmp()
+bool TestStrcmp_a()
 {
     ascii s0 = "abc";
     ascii s1 = "abc";
@@ -89,5 +97,11 @@ bool TestStrcmp()
         return false;
     }
     printf_s("test strcmp_a with s0<s1 passed\n");
+    return true;
+}
+
+bool TestStrcmp_w()
+{
+
     return true;
 }
