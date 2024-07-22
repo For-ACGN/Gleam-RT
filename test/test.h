@@ -8,6 +8,7 @@
 Runtime_M* runtime;
 
 // define unit tests
+bool TestLibString();
 bool TestRandom();
 bool TestCrypto();
 
@@ -19,9 +20,11 @@ bool TestRuntime_Exit();
 typedef bool (*test_t)();
 typedef struct { byte* Name; test_t Test; } unit;
 
-static unit tests[] = {
-    { "Random", TestRandom },
-    { "Crypto", TestCrypto },
+static unit tests[] = 
+{
+    { "Lib_String", TestLibString },
+    { "Random",     TestRandom    },
+    { "Crypto",     TestCrypto    },
 
     { "InitRuntime",      TestInitRuntime      },
     { "Runtime_Memory",   TestRuntime_Memory   },
