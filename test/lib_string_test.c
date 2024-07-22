@@ -102,6 +102,31 @@ bool TestStrcmp_a()
 
 bool TestStrcmp_w()
 {
+    utf16 s0 = L"abc";
+    utf16 s1 = L"abc";
+    if (strcmp_w(s0, s1) != 0)
+    {
+        printf_s("strcmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test strcmp_w with s0=s1 passed\n");
 
+    s0 = L"acc";
+    s1 = L"abc";
+    if (strcmp_w(s0, s1) != 1)
+    {
+        printf_s("strcmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test strcmp_w with s0>s1 passed\n");
+
+    s0 = L"aac";
+    s1 = L"abc";
+    if (strcmp_w(s0, s1) != -1)
+    {
+        printf_s("strcmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test strcmp_w with s0<s1 passed\n");
     return true;
 }
