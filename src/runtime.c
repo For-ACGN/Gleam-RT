@@ -235,13 +235,13 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
     module->FindAPI     = &RT_FindAPI;
-    module->GetArgument = NULL;
     module->Sleep       = &RT_Sleep;
     module->MemAlloc    = runtime->MemoryTracker->Alloc;
     module->MemRealloc  = runtime->MemoryTracker->Realloc;
     module->MemFree     = runtime->MemoryTracker->Free;
     module->NewThread   = runtime->ThreadTracker->New;
     module->ExitThread  = runtime->ThreadTracker->Exit;
+    module->GetArgument = runtime->ArgumentStore->Get;
     // for IAT hooks
     module->GetProcAddress         = &RT_GetProcAddress;
     module->GetProcAddressByName   = &RT_GetProcAddressByName;
@@ -354,10 +354,11 @@ static bool adjustPageProtect(Runtime* runtime)
     {
         return true;
     }
+    uintptr rt = (uintptr)(&InitRuntime);  // TODO think more
     void* addr = runtime->BootInstAddress;
-    if (addr == NULL)
+    if (addr == NULL || (uintptr)addr > rt)
     {
-        addr = &InitRuntime;
+        addr = (void*)rt;
     }
     uintptr begin = (uintptr)(addr);
     uintptr end   = (uintptr)(&Epilogue);
@@ -613,8 +614,8 @@ static void eraseRuntimeMethods()
 __declspec(noinline)
 static bool flushInstructionCache(Runtime* runtime)
 {
-    void*   addr  = &InitRuntime;
-    uintptr begin = (uintptr)(&InitRuntime);
+    void*   addr  = &InitRuntime; // TODO think more
+    uintptr begin = (uintptr)(addr);
     uintptr end   = (uintptr)(&Epilogue);
     uintptr size  = end - begin;
     if (!runtime->FlushInstructionCache(CURRENT_PROCESS, addr, size))
