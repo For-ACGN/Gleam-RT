@@ -13,13 +13,21 @@ static void TestRandUint64();
 
 bool TestRandom()
 {
-    TestRandBuf();
-    TestRandByte();
-    TestRandBool();
-    TestRandInt();
-    TestRandUint();
-    TestRandInt64();
-    TestRandUint64();
+    typedef void (*test_t)();
+    test_t tests[] = 
+    {
+        { TestRandBuf    },
+        { TestRandByte   },
+        { TestRandBool   },
+        { TestRandInt    },
+        { TestRandUint   },
+        { TestRandInt64  },
+        { TestRandUint64 },
+    };
+    for (int i = 0; i < arrlen(tests); i++)
+    {
+        tests[i]();
+    }
     return true;
 }
 
