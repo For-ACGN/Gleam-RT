@@ -18,7 +18,7 @@ uint strlen_w(utf16 s);
 // if a < b, return -1
 int strcmp_a(ascii a, ascii b);
 
-// strcmp_a is used to compare two Unicode strings.
+// strcmp_w is used to compare two Unicode strings.
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
