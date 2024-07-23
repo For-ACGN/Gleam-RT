@@ -7,17 +7,22 @@
 
 static bool TestEncryptBuf();
 static bool TestDecryptBuf();
+
 static void printHexBytes(byte* buf, uint size);
 
 bool TestCrypto()
 {
-    if (!TestEncryptBuf())
+    test_t tests[] = 
     {
-        return false;    
-    }
-    if (!TestDecryptBuf())
+        { TestEncryptBuf },
+        { TestDecryptBuf },
+    };
+    for (int i = 0; i < arrlen(tests); i++)
     {
-        return false;
+        if (!tests[i]())
+        {
+            return false;
+        }
     }
     return true;
 }
