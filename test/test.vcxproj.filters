@@ -83,6 +83,9 @@
     <ClCompile Include="argument_test.c">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="lib_string_test.c">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\crypto.h">

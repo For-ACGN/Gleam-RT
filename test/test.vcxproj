@@ -36,6 +36,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test_main.c" />
+    <ClCompile Include="lib_string_test.c" />
     <ClCompile Include="crypto_test.c" />
     <ClCompile Include="random_test.c" />
     <ClCompile Include="runtime_test.c" />
