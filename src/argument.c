@@ -14,7 +14,8 @@
 // | 32 byte |  uint32  |  uint32   |  uint32  |   var    |
 // +---------+----------+-----------+----------+----------+
 
-#define ARG_CRYPTO_KEY_SIZE 32
+#define ARG_CRYPTO_KEY_SIZE   32
+#define ARG_HEADER_DATA_SIZE (32 + 4 + 4)
 
 #define ARG_OFFSET_CRYPTO_KEY (0 + 0)
 #define ARG_OFFSET_NUM_ARGS   (0 + 32)
@@ -182,6 +183,8 @@ static errno loadArguments(ArgumentStore* store, Context* context)
         }
         data++;
     }
+    // clean stub data after decrypt
+    RandBuf((byte*)stub, ARG_HEADER_DATA_SIZE + size);
     dbg_log("[argument]", "mem page: 0x%zX\n", store->Address);
     dbg_log("[argument]", "num args: %zu\n", store->NumArgs);
     return NO_ERROR;
