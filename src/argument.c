@@ -276,9 +276,9 @@ bool AS_Erase(uint index)
             offset += 4 + *(uint32*)(store->Address + offset);
             continue;
         }
+        byte*  addr = store->Address + offset;
         uint32 size = *(uint32*)(store->Address + offset);
-        byte*  addr = store->Address + offset + 4;
-        RandBuf(addr, size);
+        RandBuf(addr, (int64)(4+size));
         return true;
     }
     panic(PANIC_UNREACHABLE_CODE);
@@ -290,6 +290,7 @@ void AS_EraseAll()
 {
     ArgumentStore* store = getStorePointer();
 
+    RandBuf(store->Address, store->Size);
 }
 
 __declspec(noinline)
