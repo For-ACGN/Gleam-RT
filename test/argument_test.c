@@ -82,7 +82,7 @@ static bool TestArgument_Get()
     printf_s("arg0: 0x%X\n", *arg0);
 
     // invalid index
-    if (runtime->GetArgument(123, &arg0, NULL))
+    if (runtime->GetArgument(3, &arg0, NULL))
     {
         printf_s("get argument with invalid index\n");
         return false;
@@ -92,10 +92,37 @@ static bool TestArgument_Get()
 
 static bool TestArgument_Erase()
 {
+    if (!runtime->EraseArgument(0))
+    {
+        printf_s("failed to earse argument 0\n");
+        return false;
+    }
+    printf_s("earse argument 0\n");
 
+    uint32* arg0 = NULL;
+    uint32  size = 0;
+    if (!runtime->GetArgument(0, &arg0, &size))
+    {
+        printf_s("failed to get argument 0\n");
+        return false;
+    }
+    if (*arg0 == 0x12345678)
+    {
+        printf_s("argument 0 is not be erased\n");
+        return false;
+    }
+    if (size == 4)
+    {
+        printf_s("argument 0 size is not be erased\n");
+        return false;
+    }
+    printf_s("check erased argument 0\n");
+    return true;
 }
 
 static bool TestArgument_EraseAll()
 {
-
+    runtime->EraseAllArgs();
+    printf_s("earse all arguments\n");
+    return true;
 }
