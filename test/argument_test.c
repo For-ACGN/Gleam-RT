@@ -92,12 +92,38 @@ static bool TestArgument_Get()
 
 static bool TestArgument_Erase()
 {
-    if (!runtime->EraseArgument(0))
+    if (!runtime->EraseArgument(1))
     {
-        printf_s("failed to earse argument 0\n");
+        printf_s("failed to earse argument 1\n");
         return false;
     }
-    printf_s("earse argument 0\n");
+    printf_s("earse argument 1\n");
+
+    byte*  arg1 = NULL;
+    uint32 size = 0;
+    if (!runtime->GetArgument(1, &arg1, &size))
+    {
+        printf_s("failed to get argument 1\n");
+        return false;
+    }
+    if (strcmp_a(arg1, "aaaabbbbccc") == 0)
+    {
+        printf_s("argument 1 is not be erased\n");
+        return false;
+    }
+    if (size == 12)
+    {
+        printf_s("argument 1 size is not be erased\n");
+        return false;
+    }
+    printf_s("check erased argument 1\n");
+    return true;
+}
+
+static bool TestArgument_EraseAll()
+{
+    runtime->EraseAllArgs();
+    printf_s("earse all arguments\n");
 
     uint32* arg0 = NULL;
     uint32  size = 0;
@@ -117,12 +143,5 @@ static bool TestArgument_Erase()
         return false;
     }
     printf_s("check erased argument 0\n");
-    return true;
-}
-
-static bool TestArgument_EraseAll()
-{
-    runtime->EraseAllArgs();
-    printf_s("earse all arguments\n");
     return true;
 }
