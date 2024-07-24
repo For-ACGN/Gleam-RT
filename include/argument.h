@@ -5,9 +5,9 @@
 #include "context.h"
 #include "errno.h"
 
-typedef bool  (*ArgGet_t)(uint index, void** data, uint32* size);
-typedef bool  (*ArgErase_t)(uint index);
-typedef void  (*ArgEraseAll_t)();
+typedef bool (*ArgGet_t)(uint index, void** data, uint32* size);
+typedef bool (*ArgErase_t)(uint index);
+typedef void (*ArgEraseAll_t)();
 
 typedef errno (*ArgEncrypt_t)();
 typedef errno (*ArgDecrypt_t)();
