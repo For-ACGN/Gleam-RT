@@ -103,8 +103,11 @@ ArgumentStore_M* InitArgumentStore(Context* context)
     }
     // create methods for store
     ArgumentStore_M* module = (ArgumentStore_M*)moduleAddr;
+    // methods for upper module
+    module->Get      = &AS_Get;
+    module->Erase    = &AS_Erase;
+    module->EraseAll = &AS_EraseAll;
     // methods for runtime
-    module->Get     = &AS_Get;
     module->Encrypt = &AS_Encrypt;
     module->Decrypt = &AS_Decrypt;
     module->Clean   = &AS_Clean;
@@ -251,6 +254,42 @@ bool AS_Get(uint index, void** data, uint32* size)
     }
     panic(PANIC_UNREACHABLE_CODE);
     return false;
+}
+
+__declspec(noinline)
+bool AS_Erase(uint index)
+{
+    ArgumentStore* store = getStorePointer();
+
+    // check argument index is valid
+    if (index + 1 > store->NumArgs)
+    {
+        return false;
+    }
+    // calculate the offset to target argument
+    uint32 offset = 0;
+    for (uint32 i = 0; i < store->NumArgs; i++)
+    {
+        if (i != index)
+        {
+            // skip argument size and data
+            offset += 4 + *(uint32*)(store->Address + offset);
+            continue;
+        }
+        uint32 size = *(uint32*)(store->Address + offset);
+        byte*  addr = store->Address + offset + 4;
+        RandBuf(addr, size);
+        return true;
+    }
+    panic(PANIC_UNREACHABLE_CODE);
+    return false;
+}
+
+__declspec(noinline)
+void AS_EraseAll()
+{
+    ArgumentStore* store = getStorePointer();
+
 }
 
 __declspec(noinline)
