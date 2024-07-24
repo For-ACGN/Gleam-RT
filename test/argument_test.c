@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "c_types.h"
+#include "lib_string.h"
 #include "errno.h"
 #include "runtime.h"
 #include "test.h"
@@ -35,16 +36,16 @@ bool TestRuntime_Argument()
         printf_s("failed to get argument 1\n");
         return false;
     }
-    // if (*arg0 != 0x12345678)
-    // {
-    //     printf_s("argument 1 is invalid data\n");
-    //     return false;
-    // }
-    // if (size != 4)
-    // {
-    //     printf_s("argument 1 size is invalid\n");
-    //     return false;
-    // }
+    if (strcmp_a(arg1, "aaaabbbbccc") != 0)
+    {
+        printf_s("argument 1 is invalid data\n");
+        return false;
+    }
+    if (size != 12)
+    {
+        printf_s("argument 1 size is invalid\n");
+        return false;
+    }
     printf_s("arg1: %s, size: %d\n", arg1, size);
 
     // not receive argument size
