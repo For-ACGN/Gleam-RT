@@ -5,13 +5,33 @@
 #include "runtime.h"
 #include "test.h"
 
+static bool TestArgument_Get();
+static bool TestArgument_Erase();
+static bool TestArgument_EraseAll();
+
 bool TestRuntime_Argument()
+{
+    test_t tests[] = {
+        { TestArgument_Get      },
+        { TestArgument_Erase    },
+        { TestArgument_EraseAll },
+    };
+    for (int i = 0; i < arrlen(tests); i++)
+    {
+        if (!tests[i]())
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool TestArgument_Get()
 {
     // get argument 0 pointer with size
     uint32* arg0 = NULL;
     uint32  size = 0;
-    bool ok = runtime->GetArgument(0, &arg0, &size);
-    if (!ok)
+    if (!runtime->GetArgument(0, &arg0, &size))
     {
         printf_s("failed to get argument 0\n");
         return false;
@@ -30,8 +50,7 @@ bool TestRuntime_Argument()
 
     // get argument 1 pointer with size
     byte* arg1 = NULL;
-    ok = runtime->GetArgument(1, &arg1, &size);
-    if (!ok)
+    if (!runtime->GetArgument(1, &arg1, &size))
     {
         printf_s("failed to get argument 1\n");
         return false;
@@ -50,8 +69,7 @@ bool TestRuntime_Argument()
 
     // not receive argument size
     arg0 = NULL;
-    ok = runtime->GetArgument(0, &arg0, NULL);
-    if (!ok)
+    if (!runtime->GetArgument(0, &arg0, NULL))
     {
         printf_s("failed to get argument 0\n");
         return false;
@@ -62,5 +80,22 @@ bool TestRuntime_Argument()
         return false;
     }
     printf_s("arg0: 0x%X\n", *arg0);
+
+    // invalid index
+    if (runtime->GetArgument(123, &arg0, NULL))
+    {
+        printf_s("get argument with invalid index\n");
+        return false;
+    }
     return true;
+}
+
+static bool TestArgument_Erase()
+{
+
+}
+
+static bool TestArgument_EraseAll()
+{
+
 }
