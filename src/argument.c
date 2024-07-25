@@ -260,15 +260,14 @@ bool AS_Get(uint index, void** data, uint32* size)
         return false;
     }
 
-    if (!LT_Lock())
+    if (!AS_Lock())
     {
         return false;
     }
 
-    bool found = false;
-
     // calculate the offset to target argument
     uint32 offset = 0;
+    bool   found = false;
     for (uint32 i = 0; i < store->NumArgs; i++)
     {
         if (i != index)
@@ -286,11 +285,10 @@ bool AS_Get(uint index, void** data, uint32* size)
         break;
     }
 
-    if (!LT_Unlock())
+    if (!AS_Unlock())
     {
         return false;
     }
-
     return found;
 }
 
@@ -304,8 +302,15 @@ bool AS_Erase(uint index)
     {
         return false;
     }
+
+    if (!AS_Lock())
+    {
+        return false;
+    }
+
     // calculate the offset to target argument
     uint32 offset = 0;
+    bool   found  = false;
     for (uint32 i = 0; i < store->NumArgs; i++)
     {
         if (i != index)
@@ -317,10 +322,15 @@ bool AS_Erase(uint index)
         byte*  addr = store->Address + offset;
         uint32 size = *(uint32*)(store->Address + offset);
         RandBuf(addr, (int64)(4+size));
-        return true;
+        found = true;
+        break;
     }
 
-    return false;
+    if (!AS_Unlock())
+    {
+        return false;
+    }
+    return found;
 }
 
 __declspec(noinline)
