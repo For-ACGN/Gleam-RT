@@ -40,10 +40,14 @@ typedef struct {
     byte IV [CRYPTO_IV_SIZE];
 } ArgumentStore;
 
-// methods for runtime
+// methods for upper module
 bool  AS_Get(uint index, void** data, uint32* size);
 bool  AS_Erase(uint index);
 void  AS_EraseAll();
+
+// methods for runtime
+bool  AS_Lock();
+bool  AS_Unlock();
 errno AS_Encrypt();
 errno AS_Decrypt();
 errno AS_Clean();
@@ -112,6 +116,8 @@ ArgumentStore_M* InitArgumentStore(Context* context)
     module->Erase    = &AS_Erase;
     module->EraseAll = &AS_EraseAll;
     // methods for runtime
+    module->Lock    = &AS_Lock;
+    module->Unlock  = &AS_Unlock;
     module->Encrypt = &AS_Encrypt;
     module->Decrypt = &AS_Decrypt;
     module->Clean   = &AS_Clean;
@@ -253,6 +259,14 @@ bool AS_Get(uint index, void** data, uint32* size)
     {
         return false;
     }
+
+    if (!LT_Lock())
+    {
+        return false;
+    }
+
+    bool found = false;
+
     // calculate the offset to target argument
     uint32 offset = 0;
     for (uint32 i = 0; i < store->NumArgs; i++)
@@ -268,10 +282,16 @@ bool AS_Get(uint index, void** data, uint32* size)
             *size = *(uint32*)(store->Address + offset);
         }
         *data = (void*)(store->Address + offset + 4);
-        return true;
+        found = true;
+        break;
     }
-    panic(PANIC_UNREACHABLE_CODE);
-    return false;
+
+    if (!LT_Unlock())
+    {
+        return false;
+    }
+
+    return found;
 }
 
 __declspec(noinline)
@@ -299,7 +319,7 @@ bool AS_Erase(uint index)
         RandBuf(addr, (int64)(4+size));
         return true;
     }
-    panic(PANIC_UNREACHABLE_CODE);
+
     return false;
 }
 
@@ -309,6 +329,23 @@ void AS_EraseAll()
     ArgumentStore* store = getStorePointer();
 
     RandBuf(store->Address, store->Size);
+}
+
+__declspec(noinline)
+bool AS_Lock()
+{
+    ArgumentStore* store = getStorePointer();
+
+    uint32 event = store->WaitForSingleObject(store->hMutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+__declspec(noinline)
+bool AS_Unlock()
+{
+    ArgumentStore* store = getStorePointer();
+
+    return store->ReleaseMutex(store->hMutex);
 }
 
 __declspec(noinline)
