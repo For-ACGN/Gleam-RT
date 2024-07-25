@@ -24,13 +24,17 @@
 
 typedef struct {
     // API addresses
-    VirtualAlloc_t VirtualAlloc;
-    VirtualFree_t  VirtualFree;
+    VirtualAlloc_t        VirtualAlloc;
+    VirtualFree_t         VirtualFree;
+    ReleaseMutex_t        ReleaseMutex;
+    WaitForSingleObject_t WaitForSingleObject;
+    CloseHandle_t         CloseHandle;
 
     // store arguments
     byte*  Address;
     uint   Size;
     uint32 NumArgs;
+    HANDLE hMutex;
 
     byte Key[CRYPTO_KEY_SIZE];
     byte IV [CRYPTO_IV_SIZE];
@@ -54,7 +58,7 @@ static ArgumentStore* getStorePointer();
 
 static bool  initStoreAPI(ArgumentStore* store, Context* context);
 static bool  updateStorePointer(ArgumentStore* store);
-static bool  initStoreEnvironment(ArgumentStore* store);
+static bool  initStoreEnvironment(ArgumentStore* store, Context* context);
 static errno loadArguments(ArgumentStore* store, Context* context);
 
 static void eraseStoreMethods();
@@ -82,7 +86,7 @@ ArgumentStore_M* InitArgumentStore(Context* context)
             errno = ERR_ARGUMENT_UPDATE_PTR;
             break;
         }
-        if (!initStoreEnvironment(store))
+        if (!initStoreEnvironment(store, context))
         {
             errno = ERR_ARGUMENT_INIT_ENV;
             break;
@@ -117,8 +121,11 @@ ArgumentStore_M* InitArgumentStore(Context* context)
 __declspec(noinline)
 static bool initStoreAPI(ArgumentStore* store, Context* context)
 {
-    store->VirtualAlloc = context->VirtualAlloc;
-    store->VirtualFree  = context->VirtualFree;
+    store->VirtualAlloc        = context->VirtualAlloc;
+    store->VirtualFree         = context->VirtualFree;
+    store->ReleaseMutex        = context->ReleaseMutex;
+    store->WaitForSingleObject = context->WaitForSingleObject;
+    store->CloseHandle         = context->CloseHandle;
     return true;
 }
 
@@ -142,8 +149,15 @@ static bool updateStorePointer(ArgumentStore* store)
     return success;
 }
 
-static bool initStoreEnvironment(ArgumentStore* store)
+static bool initStoreEnvironment(ArgumentStore* store, Context* context)
 {
+    // create mutex
+    HANDLE hMutex = context->CreateMutexA(NULL, false, NULL);
+    if (hMutex == NULL)
+    {
+        return false;
+    }
+    store->hMutex = hMutex;
     // set crypto context data
     RandBuf(&store->Key[0], CRYPTO_KEY_SIZE);
     RandBuf(&store->IV[0], CRYPTO_IV_SIZE);
@@ -212,6 +226,10 @@ static void cleanStore(ArgumentStore* store)
     if (store->VirtualFree != NULL && store->Address != NULL)
     {
         store->VirtualFree(store->Address, 0, MEM_RELEASE);
+    }
+    if (store->CloseHandle != NULL && store->hMutex != NULL)
+    {
+        store->CloseHandle(store->hMutex);
     }
 }
 
@@ -324,10 +342,16 @@ errno AS_Clean()
 
     errno errno = NO_ERROR;
 
+    // free memory page
     RandBuf(store->Address, store->Size);
     if (!store->VirtualFree(store->Address, 0, MEM_RELEASE))
     {
         errno = ERR_ARGUMENT_FREE_MEM;
+    }
+    // close mutex
+    if (!store->CloseHandle(store->hMutex))
+    {
+        errno = ERR_ARGUMENT_CLOSE_MUTEX;
     }
     return errno;
 }
