@@ -542,6 +542,10 @@ static errno initArgumentStore(Runtime* runtime, Context* context)
 
 static bool initIATHooks(Runtime* runtime)
 {
+    LibraryTracker_M* libraryTracker = runtime->LibraryTracker;
+    MemoryTracker_M*  memoryTracker  = runtime->MemoryTracker;
+    ThreadTracker_M*  threadTracker  = runtime->ThreadTracker;
+
     typedef struct {
         uint hash; uint key; void* hook;
     } item;
@@ -550,45 +554,45 @@ static bool initIATHooks(Runtime* runtime)
     {
         { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, &RT_GetProcAddress },
         { 0xCED5CC955152CD43, 0xAA22C83C068CB037, &RT_SleepHR },
-        { 0xD823D640CA9D87C3, 0x15821AE3463EFBE8, runtime->LibraryTracker->LoadLibraryA },
-        { 0xDE75B0371B7500C0, 0x2A1CF678FC737D0F, runtime->LibraryTracker->LoadLibraryW },
-        { 0x448751B1385751E8, 0x3AE522A4E9435111, runtime->LibraryTracker->LoadLibraryExA },
-        { 0x7539E619D8B4166E, 0xE52EE8B2C2D15D9B, runtime->LibraryTracker->LoadLibraryExW },
-        { 0x80B0A97C97E9FE79, 0x675B0BA55C1758F9, runtime->LibraryTracker->FreeLibrary },
-        { 0x66F288FB8CF6CADD, 0xC48D2119FF3ADC6A, runtime->LibraryTracker->FreeLibraryAndExitThread },
-        { 0x18A3895F35B741C8, 0x96C9890F48D55E7E, runtime->MemoryTracker->VirtualAlloc },
-        { 0xDB54AA6683574A8B, 0x3137DE2D71D3FF3E, runtime->MemoryTracker->VirtualFree },
-        { 0xF5469C21B43D23E5, 0xF80028997F625A05, runtime->MemoryTracker->VirtualProtect },
-        { 0xE9ECDC63F6D3DC53, 0x815C2FDFE640307E, runtime->MemoryTracker->VirtualQuery },
-        { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, runtime->ThreadTracker->CreateThread },
-        { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, runtime->ThreadTracker->ExitThread },
-        { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, runtime->ThreadTracker->SuspendThread },
-        { 0x226860209E13A99A, 0xE1BD9D8C64FAF97D, runtime->ThreadTracker->ResumeThread },
-        { 0x374E149C710B1006, 0xE5D0E3FA417FA6CF, runtime->ThreadTracker->GetThreadContext },
-        { 0xCFE3FFD5F0023AE3, 0x9044E42F1C020CF5, runtime->ThreadTracker->SetThreadContext },
-        { 0x248E1CDD11AB444F, 0x195932EA70030929, runtime->ThreadTracker->TerminateThread },
+        { 0xD823D640CA9D87C3, 0x15821AE3463EFBE8, libraryTracker->LoadLibraryA },
+        { 0xDE75B0371B7500C0, 0x2A1CF678FC737D0F, libraryTracker->LoadLibraryW },
+        { 0x448751B1385751E8, 0x3AE522A4E9435111, libraryTracker->LoadLibraryExA },
+        { 0x7539E619D8B4166E, 0xE52EE8B2C2D15D9B, libraryTracker->LoadLibraryExW },
+        { 0x80B0A97C97E9FE79, 0x675B0BA55C1758F9, libraryTracker->FreeLibrary },
+        { 0x66F288FB8CF6CADD, 0xC48D2119FF3ADC6A, libraryTracker->FreeLibraryAndExitThread },
+        { 0x18A3895F35B741C8, 0x96C9890F48D55E7E, memoryTracker->VirtualAlloc },
+        { 0xDB54AA6683574A8B, 0x3137DE2D71D3FF3E, memoryTracker->VirtualFree },
+        { 0xF5469C21B43D23E5, 0xF80028997F625A05, memoryTracker->VirtualProtect },
+        { 0xE9ECDC63F6D3DC53, 0x815C2FDFE640307E, memoryTracker->VirtualQuery },
+        { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, threadTracker->CreateThread },
+        { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, threadTracker->ExitThread },
+        { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, threadTracker->SuspendThread },
+        { 0x226860209E13A99A, 0xE1BD9D8C64FAF97D, threadTracker->ResumeThread },
+        { 0x374E149C710B1006, 0xE5D0E3FA417FA6CF, threadTracker->GetThreadContext },
+        { 0xCFE3FFD5F0023AE3, 0x9044E42F1C020CF5, threadTracker->SetThreadContext },
+        { 0x248E1CDD11AB444F, 0x195932EA70030929, threadTracker->TerminateThread },
     };
 #elif _WIN32
     {
         { 0x5E5065D4, 0x63CDAD01, &RT_GetProcAddress },
         { 0x705D4FAD, 0x94CF33BF, &RT_SleepHR },
-        { 0x0149E478, 0x86A603D3, runtime->LibraryTracker->LoadLibraryA },
-        { 0x90E21596, 0xEBEA7D19, runtime->LibraryTracker->LoadLibraryW },
-        { 0xD6C482CE, 0xC6063014, runtime->LibraryTracker->LoadLibraryExA },
-        { 0x158D5700, 0x24540418, runtime->LibraryTracker->LoadLibraryExW },
-        { 0x5CDBC79F, 0xA1B99CF2, runtime->LibraryTracker->FreeLibrary },
-        { 0x929869F4, 0x7D668185, runtime->LibraryTracker->FreeLibraryAndExitThread },
-        { 0xD5B65767, 0xF3A27766, runtime->MemoryTracker->VirtualAlloc },
-        { 0x4F0FC063, 0x182F3CC6, runtime->MemoryTracker->VirtualFree },
-        { 0xEBD60441, 0x280A4A9F, runtime->MemoryTracker->VirtualProtect },
-        { 0xD17B0461, 0xFB4E5DB5, runtime->MemoryTracker->VirtualQuery },
-        { 0x20744CA1, 0x4FA1647D, runtime->ThreadTracker->CreateThread },
-        { 0xED42C0F0, 0xC59EBA39, runtime->ThreadTracker->ExitThread },
-        { 0x133B00D5, 0x48E02627, runtime->ThreadTracker->SuspendThread },
-        { 0xA02B4251, 0x5287173F, runtime->ThreadTracker->ResumeThread },
-        { 0xCF0EC7B7, 0xBAC33715, runtime->ThreadTracker->GetThreadContext },
-        { 0xC59EF832, 0xEF75D2EA, runtime->ThreadTracker->SetThreadContext },
-        { 0x6EF0E2AA, 0xE014E29F, runtime->ThreadTracker->TerminateThread },
+        { 0x0149E478, 0x86A603D3, libraryTracker->LoadLibraryA },
+        { 0x90E21596, 0xEBEA7D19, libraryTracker->LoadLibraryW },
+        { 0xD6C482CE, 0xC6063014, libraryTracker->LoadLibraryExA },
+        { 0x158D5700, 0x24540418, libraryTracker->LoadLibraryExW },
+        { 0x5CDBC79F, 0xA1B99CF2, libraryTracker->FreeLibrary },
+        { 0x929869F4, 0x7D668185, libraryTracker->FreeLibraryAndExitThread },
+        { 0xD5B65767, 0xF3A27766, memoryTracker->VirtualAlloc },
+        { 0x4F0FC063, 0x182F3CC6, memoryTracker->VirtualFree },
+        { 0xEBD60441, 0x280A4A9F, memoryTracker->VirtualProtect },
+        { 0xD17B0461, 0xFB4E5DB5, memoryTracker->VirtualQuery },
+        { 0x20744CA1, 0x4FA1647D, threadTracker->CreateThread },
+        { 0xED42C0F0, 0xC59EBA39, threadTracker->ExitThread },
+        { 0x133B00D5, 0x48E02627, threadTracker->SuspendThread },
+        { 0xA02B4251, 0x5287173F, threadTracker->ResumeThread },
+        { 0xCF0EC7B7, 0xBAC33715, threadTracker->GetThreadContext },
+        { 0xC59EF832, 0xEF75D2EA, threadTracker->SetThreadContext },
+        { 0x6EF0E2AA, 0xE014E29F, threadTracker->TerminateThread },
     };
 #endif
     for (int i = 0; i < arrlen(items); i++)
