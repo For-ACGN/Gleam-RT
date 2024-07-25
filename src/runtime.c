@@ -778,11 +778,14 @@ errno RT_lock_mods()
     {
         return ERR_RUNTIME_LOCK_RESOURCE;
     }
+    if (!runtime->ArgumentStore->Lock())
+    {
+        return ERR_RUNTIME_LOCK_ARGUMENT;
+    }
     if (!runtime->ThreadTracker->Lock())
     {
         return ERR_RUNTIME_LOCK_THREAD;
     }
-
     return NO_ERROR;
 }
 
@@ -794,6 +797,10 @@ errno RT_unlock_mods()
     if (!runtime->ThreadTracker->Unlock())
     {
         return ERR_RUNTIME_UNLOCK_THREAD;
+    }
+    if (!runtime->ArgumentStore->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_ARGUMENT;
     }
     if (!runtime->ResourceTracker->Unlock())
     {
@@ -807,7 +814,6 @@ errno RT_unlock_mods()
     {
         return ERR_RUNTIME_UNLOCK_LIBRARY;
     }
-
     return NO_ERROR;
 }
 
