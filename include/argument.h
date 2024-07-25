@@ -9,6 +9,8 @@ typedef bool (*ArgGet_t)(uint index, void** data, uint32* size);
 typedef bool (*ArgErase_t)(uint index);
 typedef void (*ArgEraseAll_t)();
 
+typedef bool  (*ArgLock_t)();
+typedef bool  (*ArgUnlock_t)();
 typedef errno (*ArgEncrypt_t)();
 typedef errno (*ArgDecrypt_t)();
 typedef errno (*ArgClean_t)();
@@ -18,6 +20,8 @@ typedef struct {
     ArgErase_t    Erase;
     ArgEraseAll_t EraseAll;
 
+    ArgLock_t    Lock;
+    ArgUnlock_t  Unlock;
     ArgEncrypt_t Encrypt;
     ArgDecrypt_t Decrypt;
     ArgClean_t   Clean;
