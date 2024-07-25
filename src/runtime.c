@@ -910,21 +910,31 @@ void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 
 static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
 {
+    Runtime* runtime = getRuntimePointer();
+
+    ArgumentStore_M* argumentStore = runtime->ArgumentStore;
+
     typedef struct {
         uint hash; uint key; void* method;
     } method;
     method methods[] =
 #ifdef _WIN64
     {
-        { 0xA23FAC0E6398838A, 0xE4990D7D4933EE6A, &RT_GetProcAddressByName },
-        { 0xABD1E8F0D28E9F46, 0xAF34F5979D300C70, &RT_GetProcAddressByHash },
+        { 0xA23FAC0E6398838A, 0xE4990D7D4933EE6A, &RT_GetProcAddressByName   },
+        { 0xABD1E8F0D28E9F46, 0xAF34F5979D300C70, &RT_GetProcAddressByHash   },
         { 0xC9C5D350BB118FAE, 0x061A602F681F2636, &RT_GetProcAddressOriginal },
+        { 0x126369AAC565B208, 0xEA01652E5DDE482E, argumentStore->Get         },
+        { 0x2FEB65B0CF6A233A, 0x24B8204DA5F3FA2F, argumentStore->Erase       },
+        { 0x2AE3C13B09353949, 0x2FDD5041391C2A93, argumentStore->EraseAll    },
     };
 #elif _WIN32
     {
-        { 0xCF983018, 0x3ECBF2DF, &RT_GetProcAddressByName },
-        { 0x40D5BD08, 0x302D5D2B, &RT_GetProcAddressByHash },
+        { 0xCF983018, 0x3ECBF2DF, &RT_GetProcAddressByName   },
+        { 0x40D5BD08, 0x302D5D2B, &RT_GetProcAddressByHash   },
         { 0x45556AA5, 0xB3BEF31D, &RT_GetProcAddressOriginal },
+        { 0x7D57C76D, 0xD67871A6, argumentStore->Get         },
+        { 0xC33C2108, 0x8A90E020, argumentStore->Erase       },
+        { 0x9BD86FED, 0xFEA640B8, argumentStore->EraseAll    },
     };
 #endif
     for (int i = 0; i < arrlen(methods); i++)
@@ -943,31 +953,33 @@ static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
 // hooks in initIATHooks are all in kernel32.dll
 static void* getResTrackerHook(Runtime* runtime, void* proc)
 {
+    ResourceTracker_M* resourceTracker = runtime->ResourceTracker;
+
     typedef struct {
         uint hash; uint key; void* hook;
     } hook;
     hook hooks[] =
 #ifdef _WIN64
     {
-        { 0x94DAFAE03484102D, 0x300F881516DC2FF5, runtime->ResourceTracker->CreateFileA },
-        { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, runtime->ResourceTracker->CreateFileW },
-        { 0x78AEE64CADBBC72F, 0x480A328AEFFB1A39, runtime->ResourceTracker->CloseHandle },
-        { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, runtime->ResourceTracker->FindFirstFileA },
-        { 0x7C520EB61A85181B, 0x933C760F029EF1DD, runtime->ResourceTracker->FindFirstFileW },
-        { 0x3D3A73632A3BCEDA, 0x72E6CA3A0850F779, runtime->ResourceTracker->FindClose },
-        { 0x7749934E33C18703, 0xCFB41E32B03DC637, runtime->ResourceTracker->WSAStartup },
-        { 0x46C76E87C13DF670, 0x37B6B54E4B2FBECC, runtime->ResourceTracker->WSACleanup },
+        { 0x94DAFAE03484102D, 0x300F881516DC2FF5, resourceTracker->CreateFileA    },
+        { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, resourceTracker->CreateFileW    },
+        { 0x78AEE64CADBBC72F, 0x480A328AEFFB1A39, resourceTracker->CloseHandle    },
+        { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, resourceTracker->FindFirstFileA },
+        { 0x7C520EB61A85181B, 0x933C760F029EF1DD, resourceTracker->FindFirstFileW },
+        { 0x3D3A73632A3BCEDA, 0x72E6CA3A0850F779, resourceTracker->FindClose      },
+        { 0x7749934E33C18703, 0xCFB41E32B03DC637, resourceTracker->WSAStartup     },
+        { 0x46C76E87C13DF670, 0x37B6B54E4B2FBECC, resourceTracker->WSACleanup     },
     };
 #elif _WIN32
     {
-        { 0x79796D6E, 0x6DBBA55C, runtime->ResourceTracker->CreateFileA },
-        { 0x0370C4B8, 0x76254EF3, runtime->ResourceTracker->CreateFileW },
-        { 0xCB5BD447, 0x49A6FC78, runtime->ResourceTracker->CloseHandle },
-        { 0x629ADDFA, 0x749D1CC9, runtime->ResourceTracker->FindFirstFileA },
-        { 0x612273CD, 0x563EDF55, runtime->ResourceTracker->FindFirstFileW },
-        { 0x6CD807C4, 0x812C40E9, runtime->ResourceTracker->FindClose },
-        { 0xE487BC0B, 0x283C1684, runtime->ResourceTracker->WSAStartup },
-        { 0x175B553E, 0x541A996E, runtime->ResourceTracker->WSACleanup },
+        { 0x79796D6E, 0x6DBBA55C, resourceTracker->CreateFileA    },
+        { 0x0370C4B8, 0x76254EF3, resourceTracker->CreateFileW    },
+        { 0xCB5BD447, 0x49A6FC78, resourceTracker->CloseHandle    },
+        { 0x629ADDFA, 0x749D1CC9, resourceTracker->FindFirstFileA },
+        { 0x612273CD, 0x563EDF55, resourceTracker->FindFirstFileW },
+        { 0x6CD807C4, 0x812C40E9, resourceTracker->FindClose      },
+        { 0xE487BC0B, 0x283C1684, resourceTracker->WSAStartup     },
+        { 0x175B553E, 0x541A996E, resourceTracker->WSACleanup     },
     };
 #endif
     for (int i = 0; i < arrlen(hooks); i++)
