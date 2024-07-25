@@ -5,6 +5,8 @@ echo Build HashAPI tool from https://github.com/For-ACGN/hash_api
 echo ============================================================
 echo.
 
+echo ------------------------x64------------------------
+
 echo [Runtime Core]
 hash_api -fmt 64 -conc -func GetSystemInfo
 hash_api -fmt 64 -conc -func FlushInstructionCache
@@ -18,11 +20,17 @@ hash_api -fmt 64 -conc -func DuplicateHandle
 hash_api -fmt 64 -conc -func CloseHandle
 echo.
 
-echo [Runtime IAT Hooks]
-hash_api -fmt 64 -conc -func GetProcAddress
+echo [Runtime Methods]
 hash_api -fmt 64 -conc -func RT_GetProcAddressByName
 hash_api -fmt 64 -conc -func RT_GetProcAddressByHash
 hash_api -fmt 64 -conc -func RT_GetProcAddressOriginal
+hash_api -fmt 64 -conc -func RT_GetArgument
+hash_api -fmt 64 -conc -func RT_EraseArgument
+hash_api -fmt 64 -conc -func RT_EraseAllArgs
+echo.
+
+echo [Runtime IAT Hooks]
+hash_api -fmt 64 -conc -func GetProcAddress
 hash_api -fmt 64 -conc -func Sleep
 echo.
 
@@ -65,7 +73,7 @@ hash_api -fmt 64 -conc -mod ws2_32.dll -func WSAStartup
 hash_api -fmt 64 -conc -mod ws2_32.dll -func WSACleanup
 echo.
 
-echo.
+echo ------------------------x86------------------------
 
 echo [Runtime Core]
 hash_api -fmt 32 -conc -func GetSystemInfo
@@ -80,11 +88,17 @@ hash_api -fmt 32 -conc -func DuplicateHandle
 hash_api -fmt 32 -conc -func CloseHandle
 echo.
 
-echo [Runtime IAT Hooks]
-hash_api -fmt 32 -conc -func GetProcAddress
+echo [Runtime Methods]
 hash_api -fmt 32 -conc -func RT_GetProcAddressByName
 hash_api -fmt 32 -conc -func RT_GetProcAddressByHash
 hash_api -fmt 32 -conc -func RT_GetProcAddressOriginal
+hash_api -fmt 32 -conc -func RT_GetArgument
+hash_api -fmt 32 -conc -func RT_EraseArgument
+hash_api -fmt 32 -conc -func RT_EraseAllArgs
+echo.
+
+echo [Runtime IAT Hooks]
+hash_api -fmt 32 -conc -func GetProcAddress
 hash_api -fmt 32 -conc -func Sleep
 echo.
 
