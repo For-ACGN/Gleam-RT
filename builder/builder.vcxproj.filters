@@ -62,6 +62,9 @@
     <ClCompile Include="..\src\argument.c">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\rel_addr.c">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\crypto.h">
@@ -125,6 +128,9 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="..\include\argument.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\rel_addr.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>
