@@ -17,6 +17,7 @@
     <ClInclude Include="..\include\windows_t.h" />
     <ClInclude Include="..\include\lib_memory.h" />
     <ClInclude Include="..\include\lib_string.h" />
+    <ClInclude Include="..\include\rel_addr.h" />
     <ClInclude Include="..\include\hash_api.h" />
     <ClInclude Include="..\include\list_md.h" />
     <ClInclude Include="..\include\random.h" />
@@ -46,6 +47,7 @@
     <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\lib_memory.c" />
     <ClCompile Include="..\src\lib_string.c" />
+    <ClCompile Include="..\src\rel_addr.c" />
     <ClCompile Include="..\src\hash_api.c" />
     <ClCompile Include="..\src\list_md.c" />
     <ClCompile Include="..\src\random.c" />
