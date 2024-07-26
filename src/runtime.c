@@ -1,5 +1,6 @@
 #include "c_types.h"
 #include "windows_t.h"
+#include "rel_addr.h"
 #include "lib_memory.h"
 #include "hash_api.h"
 #include "random.h"
@@ -146,6 +147,12 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     if (!InitDebugModule())
     {
         SetLastErrno(ERR_RUNTIME_INIT_DEBUG_MODULE);
+        return NULL;
+    }
+    // TODO remove it
+    void* func_addr = GetFuncAddr(&RT_FindAPI);
+    if (func_addr != &RT_FindAPI)
+    {
         return NULL;
     }
     // alloc memory for store runtime structure
