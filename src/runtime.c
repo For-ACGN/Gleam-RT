@@ -358,14 +358,14 @@ static bool adjustPageProtect(Runtime* runtime)
     {
         return true;
     }
-    uintptr rt = (uintptr)(&InitRuntime);  // TODO think more
+    void* init = GetFuncAddr(&InitRuntime);
     void* addr = runtime->BootInstAddress;
-    if (addr == NULL || (uintptr)addr > rt)
+    if (addr == NULL || (uintptr)addr > (uintptr)init)
     {
-        addr = (void*)rt;
+        addr = init;
     }
     uintptr begin = (uintptr)(addr);
-    uintptr end   = (uintptr)(&Epilogue);
+    uintptr end   = (uintptr)(GetFuncAddr(&Epilogue));
     uint    size  = end - begin;
     uint32  old;
     return runtime->VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &old);
@@ -374,7 +374,7 @@ static bool adjustPageProtect(Runtime* runtime)
 static bool updateRuntimePointer(Runtime* runtime)
 {
     bool success = false;
-    uintptr target = (uintptr)(&getRuntimePointer);
+    uintptr target = (uintptr)(GetFuncAddr(&getRuntimePointer));
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
@@ -456,20 +456,20 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         .DuplicateHandle       = runtime->DuplicateHandle,
         .CloseHandle           = runtime->CloseHandle,
 
-        .malloc  = &RT_malloc,
-        .realloc = &RT_realloc,
-        .free    = &RT_free,
-        .lock    = &RT_lock_mods,
-        .unlock  = &RT_unlock_mods,
+        .malloc  = GetFuncAddr(&RT_malloc),
+        .realloc = GetFuncAddr(&RT_realloc),
+        .free    = GetFuncAddr(&RT_free),
+        .lock    = GetFuncAddr(&RT_lock_mods),
+        .unlock  = GetFuncAddr(&RT_unlock_mods),
     };
     typedef errno (*submodule_t)(Runtime* runtime, Context* context);
     submodule_t submodules[] = 
     {
-        &initLibraryTracker,
-        &initMemoryTracker,
-        &initThreadTracker,
-        &initResourceTracker,
-        &initArgumentStore,
+        GetFuncAddr(&initLibraryTracker),
+        GetFuncAddr(&initMemoryTracker),
+        GetFuncAddr(&initThreadTracker),
+        GetFuncAddr(&initResourceTracker),
+        GetFuncAddr(&initArgumentStore),
     };
     errno errno;
     for (int i = 0; i < arrlen(submodules); i++)
