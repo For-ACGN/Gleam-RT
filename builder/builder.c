@@ -36,10 +36,11 @@ int __cdecl main()
 int fixFuncOffset()
 {
 #ifndef _WIN64
-    uintptr stub = (uintptr)(&GetFuncAddr);
-    // search the instructions about "call GetFuncAddr"
+    uintptr stub  = (uintptr)(&GetFuncAddr);
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
+    // search the instructions about "call GetFuncAddr"
+    uint counter = 0;
     for (uintptr eip = begin; eip < end; eip++)
     {
         // EIP + call rel + len(call)
@@ -59,8 +60,15 @@ int fixFuncOffset()
             }
             // replace the absolute address to relative address
             *(uintptr*)addr = func - stub;
+            counter++;
             break;
         }
+    }
+    printf_s("total fix: %zu\n", counter);
+    if (counter != 2)
+    {
+        printf_s("invalid fix counter\n");
+        return 1;
     }
 #endif
     return 0;
