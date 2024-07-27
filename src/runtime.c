@@ -554,8 +554,8 @@ static bool initIATHooks(Runtime* runtime)
     item items[] =
 #ifdef _WIN64
     {
-        { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, &RT_GetProcAddress },
-        { 0xCED5CC955152CD43, 0xAA22C83C068CB037, &RT_SleepHR },
+        { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, GetFuncAddr(&RT_GetProcAddress) },
+        { 0xCED5CC955152CD43, 0xAA22C83C068CB037, GetFuncAddr(&RT_SleepHR) },
         { 0xD823D640CA9D87C3, 0x15821AE3463EFBE8, libraryTracker->LoadLibraryA },
         { 0xDE75B0371B7500C0, 0x2A1CF678FC737D0F, libraryTracker->LoadLibraryW },
         { 0x448751B1385751E8, 0x3AE522A4E9435111, libraryTracker->LoadLibraryExA },
@@ -576,8 +576,8 @@ static bool initIATHooks(Runtime* runtime)
     };
 #elif _WIN32
     {
-        { 0x5E5065D4, 0x63CDAD01, &RT_GetProcAddress },
-        { 0x705D4FAD, 0x94CF33BF, &RT_SleepHR },
+        { 0x5E5065D4, 0x63CDAD01, GetFuncAddr(&RT_GetProcAddress) },
+        { 0x705D4FAD, 0x94CF33BF, GetFuncAddr(&RT_SleepHR) },
         { 0x0149E478, 0x86A603D3, libraryTracker->LoadLibraryA },
         { 0x90E21596, 0xEBEA7D19, libraryTracker->LoadLibraryW },
         { 0xD6C482CE, 0xC6063014, libraryTracker->LoadLibraryExA },
@@ -613,8 +613,8 @@ static bool initIATHooks(Runtime* runtime)
 __declspec(noinline)
 static void eraseRuntimeMethods()
 {
-    uintptr begin = (uintptr)(&allocateRuntimeMemory);
-    uintptr end   = (uintptr)(&eraseRuntimeMethods);
+    uintptr begin = (uintptr)(GetFuncAddr(&allocateRuntimeMemory));
+    uintptr end   = (uintptr)(GetFuncAddr(&eraseRuntimeMethods));
     uintptr size  = end - begin;
     RandBuf((byte*)begin, (int64)size);
 }
@@ -622,9 +622,9 @@ static void eraseRuntimeMethods()
 __declspec(noinline)
 static bool flushInstructionCache(Runtime* runtime)
 {
-    void*   addr  = &InitRuntime; // TODO think more
+    void*   addr  = GetFuncAddr(&InitRuntime);
     uintptr begin = (uintptr)(addr);
-    uintptr end   = (uintptr)(&Epilogue);
+    uintptr end   = (uintptr)(GetFuncAddr(&Epilogue));
     uintptr size  = end - begin;
     if (!runtime->FlushInstructionCache(CURRENT_PROCESS, addr, size))
     {
@@ -926,21 +926,21 @@ static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
     method methods[] =
 #ifdef _WIN64
     {
-        { 0xA23FAC0E6398838A, 0xE4990D7D4933EE6A, &RT_GetProcAddressByName   },
-        { 0xABD1E8F0D28E9F46, 0xAF34F5979D300C70, &RT_GetProcAddressByHash   },
-        { 0xC9C5D350BB118FAE, 0x061A602F681F2636, &RT_GetProcAddressOriginal },
+        { 0xA23FAC0E6398838A, 0xE4990D7D4933EE6A, GetFuncAddr(&RT_GetProcAddressByName)   },
+        { 0xABD1E8F0D28E9F46, 0xAF34F5979D300C70, GetFuncAddr(&RT_GetProcAddressByHash)   },
+        { 0xC9C5D350BB118FAE, 0x061A602F681F2636, GetFuncAddr(&RT_GetProcAddressOriginal) },
         { 0x126369AAC565B208, 0xEA01652E5DDE482E, argumentStore->Get         },
         { 0x2FEB65B0CF6A233A, 0x24B8204DA5F3FA2F, argumentStore->Erase       },
         { 0x2AE3C13B09353949, 0x2FDD5041391C2A93, argumentStore->EraseAll    },
     };
 #elif _WIN32
     {
-        { 0xCF983018, 0x3ECBF2DF, &RT_GetProcAddressByName   },
-        { 0x40D5BD08, 0x302D5D2B, &RT_GetProcAddressByHash   },
-        { 0x45556AA5, 0xB3BEF31D, &RT_GetProcAddressOriginal },
-        { 0x7D57C76D, 0xD67871A6, argumentStore->Get         },
-        { 0xC33C2108, 0x8A90E020, argumentStore->Erase       },
-        { 0x9BD86FED, 0xFEA640B8, argumentStore->EraseAll    },
+        { 0xCF983018, 0x3ECBF2DF, GetFuncAddr(&RT_GetProcAddressByName)   },
+        { 0x40D5BD08, 0x302D5D2B, GetFuncAddr(&RT_GetProcAddressByHash)   },
+        { 0x45556AA5, 0xB3BEF31D, GetFuncAddr(&RT_GetProcAddressOriginal) },
+        { 0x7D57C76D, 0xD67871A6, argumentStore->Get      },
+        { 0xC33C2108, 0x8A90E020, argumentStore->Erase    },
+        { 0x9BD86FED, 0xFEA640B8, argumentStore->EraseAll },
     };
 #endif
     for (int i = 0; i < arrlen(methods); i++)
@@ -1307,7 +1307,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     // store core Windows API before encrypt
     FlushInstructionCache_t flush = runtime->FlushInstructionCache;
     // build shield context before encrypt
-    uintptr runtimeAddr = (uintptr)(&InitRuntime);
+    uintptr runtimeAddr  = (uintptr)(GetFuncAddr(&InitRuntime));
     uintptr beginAddress = (uintptr)(runtime->BootInstAddress);
     if (beginAddress == 0 || beginAddress >= runtimeAddr)
     {
@@ -1315,7 +1315,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     }
     Shield_Ctx ctx = {
         .BeginAddress = beginAddress,
-        .EndAddress   = (uintptr)(&Shield_Stub),
+        .EndAddress   = (uintptr)(GetFuncAddr(&Shield_Stub)),
         .SleepTime    = milliseconds,
         .hProcess     = runtime->hProcess,
 
@@ -1337,7 +1337,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     }
     // flush instruction cache after decrypt
     void* baseAddr = (void*)beginAddress;
-    uint  instSize = (uintptr)(&DefenseRT) - beginAddress;
+    uint  instSize = (uintptr)(GetFuncAddr(&DefenseRT)) - beginAddress;
     if (!flush(CURRENT_PROCESS, baseAddr, instSize))
     {
         return ERR_RUNTIME_FLUSH_INST_CACHE;
@@ -1455,12 +1455,12 @@ errno RT_Exit()
     // erase runtime instructions except this function
     if (!notEraseInst)
     {
-        uintptr begin = (uintptr)(&InitRuntime);
-        uintptr end   = (uintptr)(&RT_Exit);
+        uintptr begin = (uintptr)(GetFuncAddr(&InitRuntime));
+        uintptr end   = (uintptr)(GetFuncAddr(&RT_Exit));
         uintptr size  = end - begin;
         eraseMemory(begin, size);
-        begin = (uintptr)(&rt_epilogue);
-        end   = (uintptr)(&Epilogue);
+        begin = (uintptr)(GetFuncAddr(&rt_epilogue));
+        end   = (uintptr)(GetFuncAddr(&Epilogue));
         size  = end - begin;
         eraseMemory(begin, size);
     }
