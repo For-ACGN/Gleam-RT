@@ -1,5 +1,8 @@
 ﻿#include <stdio.h>
 #include "c_types.h"
+#include "windows_t.h"
+#include "hash_api.h"
+#include "errno.h"
 #include "runtime.h"
 #include "rel_addr.h"
 #include "epilogue.h"
@@ -23,7 +26,7 @@ int __cdecl main()
     {
         return ret;
     }
-    // test shellcode
+    // test initialize runtime
     ret = testShellcode();
     if (ret != 0)
     {
@@ -39,6 +42,14 @@ int fixFuncOffset()
     uintptr stub  = (uintptr)(&GetFuncAddr);
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
+    // adjust memory page protect
+    VirtualProtect_t VirtualProtect = FindAPI(0xB4365E5D, 0x46833E39);
+    SIZE_T size = end - begin;
+    DWORD old;
+    if (!VirtualProtect(&InitRuntime, size, PAGE_EXECUTE_READWRITE, &old))
+    {
+        return 1;
+    }
     // search the instructions about "call GetFuncAddr"
     uint counter = 0;
     for (uintptr eip = begin; eip < end; eip++)
@@ -68,7 +79,7 @@ int fixFuncOffset()
     if (counter != 2)
     {
         printf_s("invalid fix counter\n");
-        return 1;
+        return 2;
     }
 #endif
     return 0;
@@ -84,7 +95,7 @@ int saveShellcode()
     if (file == NULL)
     {
         printf_s("failed to open file");
-        return 1;
+        return 3;
     }
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
@@ -93,7 +104,7 @@ int saveShellcode()
     if (n != 1)
     {
         printf_s("failed to save shellcode");
-        return 2;
+        return 4;
     }
     fclose(file);
     return 0;
@@ -105,8 +116,8 @@ int testShellcode()
     printf_s("RuntimeM: 0x%llX\n", (uint64)RuntimeM);
     if (RuntimeM == NULL)
     {
-        printf_s("failed to test shellcode");
-        return 3;
+        printf_s("failed to test shellcode: 0x%lX\n", GetLastErrno());
+        return 5;
     }
     return 0;
 }
