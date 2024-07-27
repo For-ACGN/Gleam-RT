@@ -1,6 +1,7 @@
 ﻿#include <stdio.h>
 #include "c_types.h"
 #include "runtime.h"
+#include "rel_addr.h"
 #include "epilogue.h"
 
 int fixFuncOffset();
@@ -17,7 +18,7 @@ int __cdecl main()
         return ret;
     }
     // create file for save shellcode 
-    int ret = saveShellcode();
+    ret = saveShellcode();
     if (ret != 0)
     {
         return ret;
@@ -35,7 +36,32 @@ int __cdecl main()
 int fixFuncOffset()
 {
 #ifndef _WIN64
-
+    uintptr stub = (uintptr)(&GetFuncAddr);
+    // search the instructions about "call GetFuncAddr"
+    uintptr begin = (uintptr)(&InitRuntime);
+    uintptr end   = (uintptr)(&Epilogue);
+    for (uintptr eip = begin; eip < end; eip++)
+    {
+        // EIP + call rel + len(call)
+        if (eip + *(uint32*)(eip + 1) + 5 != stub)
+        {
+            continue;
+        }
+        // search the instruction that store function absolute address
+        uintptr target = eip - 5;
+        for (int offset = 0; offset < 8; offset++)
+        {
+            uintptr addr = target - offset;
+            uintptr func = *(uintptr*)addr;
+            if (func < begin || func > end)
+            {
+                continue;
+            }
+            // replace the absolute address to relative address
+            *(uintptr*)addr = func - stub;
+            break;
+        }
+    }
 #endif
     return 0;
 }
@@ -53,8 +79,8 @@ int saveShellcode()
         return 1;
     }
     uintptr begin = (uintptr)(&InitRuntime);
-    uintptr end = (uintptr)(&Epilogue);
-    uintptr size = end - begin;
+    uintptr end   = (uintptr)(&Epilogue);
+    uintptr size  = end - begin;
     size_t  n = fwrite((byte*)begin, (size_t)size, 1, file);
     if (n != 1)
     {
