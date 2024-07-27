@@ -149,12 +149,6 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         SetLastErrno(ERR_RUNTIME_INIT_DEBUG_MODULE);
         return NULL;
     }
-    // TODO remove it
-    void* func_addr = GetFuncAddr(&RT_FindAPI);
-    if (func_addr != &RT_FindAPI)
-    {
-        return NULL;
-    }
     // alloc memory for store runtime structure
     void* memPage = allocateRuntimeMemory();
     if (memPage == NULL)
@@ -226,7 +220,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // start sleep event trigger
     if (errno == NO_ERROR)
     {
-        runtime->hThread = runtime->ThreadTracker->New(&trigger, NULL, false);
+        void* addr = GetFuncAddr(&trigger);
+        runtime->hThread = runtime->ThreadTracker->New(addr, NULL, false);
         if (runtime->hThread == NULL)
         {
             errno = ERR_RUNTIME_START_TRIGGER;
@@ -241,8 +236,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // for develop shellcode
-    module->FindAPI       = &RT_FindAPI;
-    module->Sleep         = &RT_Sleep;
+    module->FindAPI       = GetFuncAddr(&RT_FindAPI);
+    module->Sleep         = GetFuncAddr(&RT_Sleep);
     module->MemAlloc      = runtime->MemoryTracker->Alloc;
     module->MemRealloc    = runtime->MemoryTracker->Realloc;
     module->MemFree       = runtime->MemoryTracker->Free;
@@ -252,15 +247,15 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->EraseArgument = runtime->ArgumentStore->Erase;
     module->EraseAllArgs  = runtime->ArgumentStore->EraseAll;
     // for IAT hooks
-    module->GetProcAddress         = &RT_GetProcAddress;
-    module->GetProcAddressByName   = &RT_GetProcAddressByName;
-    module->GetProcAddressByHash   = &RT_GetProcAddressByHash;
-    module->GetProcAddressOriginal = &RT_GetProcAddressOriginal;
+    module->GetProcAddress         = GetFuncAddr(&RT_GetProcAddress);
+    module->GetProcAddressByName   = GetFuncAddr(&RT_GetProcAddressByName);
+    module->GetProcAddressByHash   = GetFuncAddr(&RT_GetProcAddressByHash);
+    module->GetProcAddressOriginal = GetFuncAddr(&RT_GetProcAddressOriginal);
     // runtime core methods
-    module->SleepHR = &RT_SleepHR;
-    module->Hide    = &RT_Hide;
-    module->Recover = &RT_Recover;
-    module->Exit    = &RT_Exit;
+    module->SleepHR = GetFuncAddr(&RT_SleepHR);
+    module->Hide    = GetFuncAddr(&RT_Hide);
+    module->Recover = GetFuncAddr(&RT_Recover);
+    module->Exit    = GetFuncAddr(&RT_Exit);
     return module;
 }
 
