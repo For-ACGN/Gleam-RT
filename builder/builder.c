@@ -54,14 +54,19 @@ int fixFuncOffset()
     uint counter = 0;
     for (uintptr eip = begin; eip < end; eip++)
     {
+        // instruction about call
+        if (*(byte*)eip != 0xE8)
+        {
+            continue;
+        }
         // EIP + call rel + len(call)
         if (eip + *(uint32*)(eip + 1) + 5 != stub)
         {
             continue;
         }
         // search the instruction that store function absolute address
-        uintptr target = eip - 5;
-        for (int offset = 0; offset < 8; offset++)
+        uintptr target = eip - 4;
+        for (int offset = 0; offset < 128; offset++)
         {
             uintptr addr = target - offset;
             uintptr func = *(uintptr*)addr;
@@ -76,7 +81,7 @@ int fixFuncOffset()
         }
     }
     printf_s("total fix: %zu\n", counter);
-    if (counter != 2)
+    if (counter != 40)
     {
         printf_s("invalid fix counter\n");
         return 2;
@@ -112,7 +117,10 @@ int saveShellcode()
 
 int testShellcode()
 {
-    Runtime_M* RuntimeM = InitRuntime(NULL);
+    Runtime_Opts opt = {
+        .NotEraseInstruction = true,
+    };
+    Runtime_M* RuntimeM = InitRuntime(&opt);
     printf_s("RuntimeM: 0x%llX\n", (uint64)RuntimeM);
     if (RuntimeM == NULL)
     {
