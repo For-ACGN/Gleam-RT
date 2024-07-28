@@ -1,4 +1,5 @@
 #include "c_types.h"
+#include "rel_addr.h"
 #include "random.h"
 
 // [reference]
@@ -81,14 +82,15 @@ uint64 RandUint64N(uint64 seed, uint64 n)
     return RandUint64(seed) % n;
 }
 
+__declspec(noinline)
 static uint64 rand(uint64 seed, uint64 mod)
 {
     if (seed < 4096)
     {
         seed += 4096;
     }
-    uint64 a = (uint64)(&ror);
-    uint64 c = (uint64)(&getStackAddr);
+    uint64 a = (uint64)(GetFuncAddr(&ror));
+    uint64 c = (uint64)(GetFuncAddr(&getStackAddr));
     for (int i = 0; i < 32; i++)
     {
         // just play game
