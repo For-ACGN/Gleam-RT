@@ -1,5 +1,6 @@
 #include "c_types.h"
 #include "windows_t.h"
+#include "rel_addr.h"
 #include "lib_memory.h"
 #include "hash_api.h"
 #include "list_md.h"
@@ -139,19 +140,19 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     // create methods for tracker
     MemoryTracker_M* module = (MemoryTracker_M*)moduleAddr;
     // Windows API hooks
-    module->VirtualAlloc   = &MT_VirtualAlloc;
-    module->VirtualFree    = &MT_VirtualFree;
-    module->VirtualProtect = &MT_VirtualProtect;
-    module->VirtualQuery   = &MT_VirtualQuery;
+    module->VirtualAlloc   = GetFuncAddr(&MT_VirtualAlloc);
+    module->VirtualFree    = GetFuncAddr(&MT_VirtualFree);
+    module->VirtualProtect = GetFuncAddr(&MT_VirtualProtect);
+    module->VirtualQuery   = GetFuncAddr(&MT_VirtualQuery);
     // methods for runtime
-    module->Alloc   = &MT_MemAlloc;
-    module->Realloc = &MT_MemRealloc;
-    module->Free    = &MT_MemFree;
-    module->Lock    = &MT_Lock;
-    module->Unlock  = &MT_Unlock;
-    module->Encrypt = &MT_Encrypt;
-    module->Decrypt = &MT_Decrypt;
-    module->Clean   = &MT_Clean;
+    module->Alloc   = GetFuncAddr(&MT_MemAlloc);
+    module->Realloc = GetFuncAddr(&MT_MemRealloc);
+    module->Free    = GetFuncAddr(&MT_MemFree);
+    module->Lock    = GetFuncAddr(&MT_Lock);
+    module->Unlock  = GetFuncAddr(&MT_Unlock);
+    module->Encrypt = GetFuncAddr(&MT_Encrypt);
+    module->Decrypt = GetFuncAddr(&MT_Decrypt);
+    module->Clean   = GetFuncAddr(&MT_Clean);
     return module;
 }
 
@@ -196,7 +197,7 @@ __declspec(noinline)
 static bool updateTrackerPointer(MemoryTracker* tracker)
 {
     bool success = false;
-    uintptr target = (uintptr)(&getTrackerPointer);
+    uintptr target = (uintptr)(GetFuncAddr(&getTrackerPointer));
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
@@ -243,8 +244,8 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 __declspec(noinline)
 static void eraseTrackerMethods()
 {
-    uintptr begin = (uintptr)(&initTrackerAPI);
-    uintptr end   = (uintptr)(&eraseTrackerMethods);
+    uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
+    uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
     RandBuf((byte*)begin, (int64)size);
 }
