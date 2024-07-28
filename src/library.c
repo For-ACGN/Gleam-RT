@@ -1,5 +1,6 @@
 #include "c_types.h"
 #include "windows_t.h"
+#include "rel_addr.h"
 #include "lib_memory.h"
 #include "hash_api.h"
 #include "list_md.h"
@@ -108,18 +109,18 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     // create methods for tracker
     LibraryTracker_M* module = (LibraryTracker_M*)moduleAddr;
     // Windows API hooks
-    module->LoadLibraryA             = &LT_LoadLibraryA;
-    module->LoadLibraryW             = &LT_LoadLibraryW;
-    module->LoadLibraryExA           = &LT_LoadLibraryExA;
-    module->LoadLibraryExW           = &LT_LoadLibraryExW;
-    module->FreeLibrary              = &LT_FreeLibrary;
-    module->FreeLibraryAndExitThread = &LT_FreeLibraryAndExitThread;
+    module->LoadLibraryA             = GetFuncAddr(&LT_LoadLibraryA);
+    module->LoadLibraryW             = GetFuncAddr(&LT_LoadLibraryW);
+    module->LoadLibraryExA           = GetFuncAddr(&LT_LoadLibraryExA);
+    module->LoadLibraryExW           = GetFuncAddr(&LT_LoadLibraryExW);
+    module->FreeLibrary              = GetFuncAddr(&LT_FreeLibrary);
+    module->FreeLibraryAndExitThread = GetFuncAddr(&LT_FreeLibraryAndExitThread);
     // methods for runtime
-    module->Lock    = &LT_Lock;
-    module->Unlock  = &LT_Unlock;
-    module->Encrypt = &LT_Encrypt;
-    module->Decrypt = &LT_Decrypt;
-    module->Clean   = &LT_Clean;
+    module->Lock    = GetFuncAddr(&LT_Lock);
+    module->Unlock  = GetFuncAddr(&LT_Unlock);
+    module->Encrypt = GetFuncAddr(&LT_Encrypt);
+    module->Decrypt = GetFuncAddr(&LT_Decrypt);
+    module->Clean   = GetFuncAddr(&LT_Clean);
     return module;
 }
 
@@ -175,7 +176,7 @@ __declspec(noinline)
 static bool updateTrackerPointer(LibraryTracker* tracker)
 {
     bool success = false;
-    uintptr target = (uintptr)(&getTrackerPointer);
+    uintptr target = (uintptr)(GetFuncAddr(&getTrackerPointer));
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
@@ -217,8 +218,8 @@ static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context)
 __declspec(noinline)
 static void eraseTrackerMethods()
 {
-    uintptr begin = (uintptr)(&initTrackerAPI);
-    uintptr end   = (uintptr)(&eraseTrackerMethods);
+    uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
+    uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
     RandBuf((byte*)begin, (int64)size);
 }
