@@ -7,6 +7,19 @@
 #include "rel_addr.h"
 #include "epilogue.h"
 
+#define FUNC_OFFSET_RUNTIME  (41)
+#define FUNC_OFFSET_LIBRARY  (6 + 5 + 1 + 2)
+#define FUNC_OFFSET_MEMORY   (4 + 8 + 1 + 2)
+#define FUNC_OFFSET_THREAD   (7 + 7 + 1 + 2)
+#define FUNC_OFFSET_RESOURCE (8 + 5 + 1 + 2)
+#define FUNC_OFFSET_ARGUMENT (3 + 5 + 1 + 1 + 2)
+
+#define FUNC_OFFSET_COUNTER (\
+    FUNC_OFFSET_RUNTIME  + FUNC_OFFSET_LIBRARY +\
+    FUNC_OFFSET_MEMORY   + FUNC_OFFSET_THREAD  +\
+    FUNC_OFFSET_RESOURCE + FUNC_OFFSET_ARGUMENT \
+)
+
 int fixFuncOffset();
 int saveShellcode();
 int testShellcode();
@@ -81,7 +94,7 @@ int fixFuncOffset()
         }
     }
     printf_s("total fix: %zu\n", counter);
-    if (counter != 40)
+    if (counter != FUNC_OFFSET_COUNTER)
     {
         printf_s("invalid fix counter\n");
         return 2;
