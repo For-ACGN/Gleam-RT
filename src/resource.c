@@ -1,5 +1,6 @@
 #include "c_types.h"
 #include "windows_t.h"
+#include "rel_addr.h"
 #include "lib_memory.h"
 #include "hash_api.h"
 #include "list_md.h"
@@ -131,20 +132,20 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     // create methods for tracker
     ResourceTracker_M* module = (ResourceTracker_M*)moduleAddr;
     // Windows API hooks
-    module->CreateFileA    = &RT_CreateFileA;
-    module->CreateFileW    = &RT_CreateFileW;
-    module->CloseHandle    = &RT_CloseHandle;
-    module->FindFirstFileA = &RT_FindFirstFileA;
-    module->FindFirstFileW = &RT_FindFirstFileW;
-    module->FindClose      = &RT_FindClose;
-    module->WSAStartup     = &RT_WSAStartup;
-    module->WSACleanup     = &RT_WSACleanup;
+    module->CreateFileA    = GetFuncAddr(&RT_CreateFileA);
+    module->CreateFileW    = GetFuncAddr(&RT_CreateFileW);
+    module->CloseHandle    = GetFuncAddr(&RT_CloseHandle);
+    module->FindFirstFileA = GetFuncAddr(&RT_FindFirstFileA);
+    module->FindFirstFileW = GetFuncAddr(&RT_FindFirstFileW);
+    module->FindClose      = GetFuncAddr(&RT_FindClose);
+    module->WSAStartup     = GetFuncAddr(&RT_WSAStartup);
+    module->WSACleanup     = GetFuncAddr(&RT_WSACleanup);
     // methods for runtime
-    module->Lock    = &RT_Lock;
-    module->Unlock  = &RT_Unlock;
-    module->Encrypt = &RT_Encrypt;
-    module->Decrypt = &RT_Decrypt;
-    module->Clean   = &RT_Clean;
+    module->Lock    = GetFuncAddr(&RT_Lock);
+    module->Unlock  = GetFuncAddr(&RT_Unlock);
+    module->Encrypt = GetFuncAddr(&RT_Encrypt);
+    module->Decrypt = GetFuncAddr(&RT_Decrypt);
+    module->Clean   = GetFuncAddr(&RT_Clean);
     return module;
 }
 
@@ -197,7 +198,7 @@ __declspec(noinline)
 static bool updateTrackerPointer(ResourceTracker* tracker)
 {
     bool success = false;
-    uintptr target = (uintptr)(&getTrackerPointer);
+    uintptr target = (uintptr)(GetFuncAddr(&getTrackerPointer));
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
@@ -244,8 +245,8 @@ static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context)
 __declspec(noinline)
 static void eraseTrackerMethods()
 {
-    uintptr begin = (uintptr)(&initTrackerAPI);
-    uintptr end   = (uintptr)(&eraseTrackerMethods);
+    uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
+    uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
     RandBuf((byte*)begin, (int64)size);
 }
