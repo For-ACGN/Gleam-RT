@@ -7,7 +7,10 @@
 #include "rel_addr.h"
 #include "epilogue.h"
 
-#define FUNC_OFFSET_RUNTIME  (41)
+#define FUNC_OFFSET_RUNTIME (\
+    1 + 2 + 4 + 4 + 2 + 1 + 5 +  \
+    5 + 2 + 2 + 2 + 3 + 3 + 4 + (2 + 1)\
+)
 #define FUNC_OFFSET_LIBRARY  (6 + 5 + 1 + 2)
 #define FUNC_OFFSET_MEMORY   (4 + 8 + 1 + 2)
 #define FUNC_OFFSET_THREAD   (7 + 7 + 1 + 2)
