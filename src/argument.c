@@ -1,5 +1,6 @@
 #include "c_types.h"
 #include "windows_t.h"
+#include "rel_addr.h"
 #include "lib_memory.h"
 #include "context.h"
 #include "random.h"
@@ -112,15 +113,15 @@ ArgumentStore_M* InitArgumentStore(Context* context)
     // create methods for store
     ArgumentStore_M* module = (ArgumentStore_M*)moduleAddr;
     // methods for upper module
-    module->Get      = &AS_Get;
-    module->Erase    = &AS_Erase;
-    module->EraseAll = &AS_EraseAll;
+    module->Get      = GetFuncAddr(&AS_Get);
+    module->Erase    = GetFuncAddr(&AS_Erase);
+    module->EraseAll = GetFuncAddr(&AS_EraseAll);
     // methods for runtime
-    module->Lock    = &AS_Lock;
-    module->Unlock  = &AS_Unlock;
-    module->Encrypt = &AS_Encrypt;
-    module->Decrypt = &AS_Decrypt;
-    module->Clean   = &AS_Clean;
+    module->Lock    = GetFuncAddr(&AS_Lock);
+    module->Unlock  = GetFuncAddr(&AS_Unlock);
+    module->Encrypt = GetFuncAddr(&AS_Encrypt);
+    module->Decrypt = GetFuncAddr(&AS_Decrypt);
+    module->Clean   = GetFuncAddr(&AS_Clean);
     return module;
 }
 
@@ -139,7 +140,7 @@ __declspec(noinline)
 static bool updateStorePointer(ArgumentStore* store)
 {
     bool success = false;
-    uintptr target = (uintptr)(&getStorePointer);
+    uintptr target = (uintptr)(GetFuncAddr(&getStorePointer));
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
@@ -172,7 +173,7 @@ static bool initStoreEnvironment(ArgumentStore* store, Context* context)
 
 static errno loadArguments(ArgumentStore* store, Context* context)
 {
-    uintptr stub = (uintptr)(&Argument_Stub);
+    uintptr stub = (uintptr)(GetFuncAddr(&Argument_Stub));
     byte*   addr = (byte*)(stub + ARG_OFFSET_FIRST_ARG);
     uint32  size = *(uint32*)(stub + ARG_OFFSET_ARGS_SIZE);
     // allocate memory page for store them
@@ -216,8 +217,8 @@ static errno loadArguments(ArgumentStore* store, Context* context)
 __declspec(noinline)
 static void eraseStoreMethods()
 {
-    uintptr begin = (uintptr)(&initStoreAPI);
-    uintptr end   = (uintptr)(&eraseStoreMethods);
+    uintptr begin = (uintptr)(GetFuncAddr(&initStoreAPI));
+    uintptr end   = (uintptr)(GetFuncAddr(&eraseStoreMethods));
     uintptr size  = end - begin;
     RandBuf((byte*)begin, (int64)size);
 }
