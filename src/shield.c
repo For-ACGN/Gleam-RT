@@ -1,6 +1,6 @@
 #include "c_types.h"
+#include "rel_addr.h"
 #include "lib_memory.h"
-#include "random.h"
 #include "shield.h"
 
 // Only the instructions related to the DefenseRT function are
@@ -14,18 +14,14 @@ void xorInstructions(Shield_Ctx* ctx, byte* key);
 __declspec(noinline)
 bool DefenseRT(Shield_Ctx* ctx)
 {
-    // use "mem_clean" for prevent incorrect compiler
-    // optimize and generate incorrect shellcode
-    byte key[XOR_KEY_SIZE];
-    mem_clean(&key, sizeof(key));
-    // generate random key
-    RandBuf(&key[0], XOR_KEY_SIZE);
+    // TODO remove it
+    ctx->EndAddress = (uintptr)(GetFuncAddr(&DefenseRT));
     // hide runtime(or with shellcode) instructions
-    xorInstructions(ctx, &key[0]);
+    xorInstructions(ctx, &ctx->CryptoKey[0]);
     // simulate kernel32.Sleep()
     bool success = ctx->WaitForSingleObject(ctx->hProcess, ctx->SleepTime);
     // recover runtime(or with shellcode) instructions
-    xorInstructions(ctx, &key[0]);
+    xorInstructions(ctx, &ctx->CryptoKey[0]);
     return success;
 }
 
@@ -33,7 +29,7 @@ void xorInstructions(Shield_Ctx* ctx, byte* key)
 {
     // calculate shellcode position
     uintptr beginAddr = ctx->BeginAddress;
-    uintptr endAddr   = (uintptr)(&DefenseRT);
+    uintptr endAddr   = ctx->EndAddress;
     // hide runtime(or with shellcode) instructions
     byte keyIdx = 0;
     for (uintptr addr = beginAddr; addr < endAddr; addr++)
