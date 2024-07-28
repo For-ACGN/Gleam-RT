@@ -1,5 +1,6 @@
 #include "c_types.h"
 #include "windows_t.h"
+#include "rel_addr.h"
 #include "lib_memory.h"
 #include "hash_api.h"
 #include "list_md.h"
@@ -131,21 +132,21 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     // create methods for tracker
     ThreadTracker_M* module = (ThreadTracker_M*)moduleAddr;
     // Windows API hooks
-    module->CreateThread     = &TT_CreateThread;
-    module->ExitThread       = &TT_ExitThread;
-    module->SuspendThread    = &TT_SuspendThread;
-    module->ResumeThread     = &TT_ResumeThread;
-    module->GetThreadContext = &TT_GetThreadContext;
-    module->SetThreadContext = &TT_SetThreadContext;
-    module->TerminateThread  = &TT_TerminateThread;
+    module->CreateThread     = GetFuncAddr(&TT_CreateThread);
+    module->ExitThread       = GetFuncAddr(&TT_ExitThread);
+    module->SuspendThread    = GetFuncAddr(&TT_SuspendThread);
+    module->ResumeThread     = GetFuncAddr(&TT_ResumeThread);
+    module->GetThreadContext = GetFuncAddr(&TT_GetThreadContext);
+    module->SetThreadContext = GetFuncAddr(&TT_SetThreadContext);
+    module->TerminateThread  = GetFuncAddr(&TT_TerminateThread);
     // methods for runtime
-    module->New     = &TT_ThdNew;
-    module->Exit    = &TT_ThdExit;
-    module->Lock    = &TT_Lock;
-    module->Unlock  = &TT_Unlock;
-    module->Suspend = &TT_Suspend;
-    module->Resume  = &TT_Resume;
-    module->Clean   = &TT_Clean;
+    module->New     = GetFuncAddr(&TT_ThdNew);
+    module->Exit    = GetFuncAddr(&TT_ThdExit);
+    module->Lock    = GetFuncAddr(&TT_Lock);
+    module->Unlock  = GetFuncAddr(&TT_Unlock);
+    module->Suspend = GetFuncAddr(&TT_Suspend);
+    module->Resume  = GetFuncAddr(&TT_Resume);
+    module->Clean   = GetFuncAddr(&TT_Clean);
     return module;
 }
 
@@ -211,7 +212,7 @@ __declspec(noinline)
 static bool updateTrackerPointer(ThreadTracker* tracker)
 {
     bool success = false;
-    uintptr target = (uintptr)(&getTrackerPointer);
+    uintptr target = (uintptr)(GetFuncAddr(&getTrackerPointer));
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
@@ -269,8 +270,8 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
 __declspec(noinline)
 static void eraseTrackerMethods()
 {
-    uintptr begin = (uintptr)(&initTrackerAPI);
-    uintptr end   = (uintptr)(&eraseTrackerMethods);
+    uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
+    uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
     RandBuf((byte*)begin, (int64)size);
 }
