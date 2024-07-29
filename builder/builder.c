@@ -8,8 +8,9 @@
 #include "epilogue.h"
 
 #define FUNC_OFFSET_RUNTIME (\
-    1 + 2 + 4 + 4 + 2 + 1 + 5 +  \
-    5 + 2 + 2 + 2 + 3 + 3 + 4 + (2 + 1)\
+    1 + 2 + 4 + 4 + 2 + 1 + 5 +\
+    5 + 2 + 2 + 2 + 3 + 3 + 4 +\
+    (2 + 1)\
 )
 #define FUNC_OFFSET_LIBRARY  (6 + 5 + 1 + 2)
 #define FUNC_OFFSET_MEMORY   (4 + 8 + 1 + 2)
@@ -137,11 +138,11 @@ int testShellcode()
         .NotEraseInstruction = true,
     };
     Runtime_M* RuntimeM = InitRuntime(&opt);
-    printf_s("RuntimeM: 0x%llX\n", (uint64)RuntimeM);
     if (RuntimeM == NULL)
     {
         printf_s("failed to test shellcode: 0x%lX\n", GetLastErrno());
         return 5;
     }
+    printf_s("RuntimeM: 0x%llX\n", (uint64)RuntimeM);
     return 0;
 }
