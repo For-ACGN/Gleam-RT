@@ -12,6 +12,9 @@
     <Filter Include="Assembly">
       <UniqueIdentifier>{b404a96a-19d7-48ed-95ae-5931433f9662}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assembly\MSVC">
+      <UniqueIdentifier>{1590f5ac-6747-4d6e-94ac-13cfd601cf17}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\hash_api.c">
@@ -143,6 +146,18 @@
     </MASM>
     <MASM Include="..\asm\epilogue.asm">
       <Filter>Assembly</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\llmul.asm">
+      <Filter>Assembly\MSVC</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\llshl.asm">
+      <Filter>Assembly\MSVC</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\ullrem.asm">
+      <Filter>Assembly\MSVC</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\ullshr.asm">
+      <Filter>Assembly\MSVC</Filter>
     </MASM>
   </ItemGroup>
 </Project>

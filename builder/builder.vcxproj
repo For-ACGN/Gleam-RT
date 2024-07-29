@@ -68,6 +68,7 @@
       <Optimization>MinSpace</Optimization>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -96,6 +97,7 @@
       <Optimization>MinSpace</Optimization>
       <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -149,6 +151,10 @@
     <ClCompile Include="..\src\shield.c" />
   </ItemGroup>
   <ItemGroup>
+    <MASM Include="..\asm\msvc\llmul.asm" />
+    <MASM Include="..\asm\msvc\llshl.asm" />
+    <MASM Include="..\asm\msvc\ullrem.asm" />
+    <MASM Include="..\asm\msvc\ullshr.asm" />
     <MASM Include="..\asm\shield_stub.asm" />
     <MASM Include="..\asm\args_stub.asm" />
     <MASM Include="..\asm\epilogue.asm" />
