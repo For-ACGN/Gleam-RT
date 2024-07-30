@@ -30,20 +30,16 @@ int testShellcode();
 
 int __cdecl main()
 {
-    int ret;
-    // fix offset about function address
-    ret = fixFuncOffset();
+    int ret = fixFuncOffset();
     if (ret != 0)
     {
         return ret;
     }
-    // create file for save shellcode 
     ret = saveShellcode();
     if (ret != 0)
     {
         return ret;
     }
-    // test initialize runtime
     ret = testShellcode();
     if (ret != 0)
     {
@@ -55,7 +51,6 @@ int __cdecl main()
 
 int fixFuncOffset()
 {
-#ifndef _WIN64
     uintptr stub  = (uintptr)(&GetFuncAddr);
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Epilogue);
@@ -103,20 +98,15 @@ int fixFuncOffset()
         printf_s("invalid fix counter\n");
         return 2;
     }
-#endif
     return 0;
 }
 
 int saveShellcode()
 {
-#ifdef _WIN64
-    FILE* file = fopen("../../dist/GleamRT_x64.bin", "wb");
-#elif _WIN32
     FILE* file = fopen("../../dist/GleamRT_x86.bin", "wb");
-#endif
     if (file == NULL)
     {
-        printf_s("failed to open file");
+        printf_s("failed to create output file");
         return 3;
     }
     uintptr begin = (uintptr)(&InitRuntime);
