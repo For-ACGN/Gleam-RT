@@ -640,23 +640,26 @@ static bool flushInstructionCache(Runtime* runtime)
 static errno cleanRuntime(Runtime* runtime)
 {
     errno err = NO_ERROR;
+    // exit trigger thread
     errno enetg = exitTrigger(runtime);
     if (enetg != NO_ERROR && err == NO_ERROR)
     {
         err = enetg;
     }
+    // close all handles in runtime
     errno enchd = closeHandles(runtime);
     if (enchd != NO_ERROR && err == NO_ERROR)
     {
         err = enchd;
     }
-    // must copy api address before call RandBuf
+    // must copy variables in Runtime before call RandBuf
     VirtualFree_t virtualFree = runtime->VirtualFree;
+    void* memPage = runtime->MainMemPage;
     // release main memory page
-    RandBuf(runtime->MainMemPage, MAIN_MEM_PAGE_SIZE);
+    RandBuf(memPage, MAIN_MEM_PAGE_SIZE);
     if (virtualFree != NULL)
     {
-        if (!virtualFree(runtime->MainMemPage, 0, MEM_RELEASE) && err == NO_ERROR)
+        if (!virtualFree(memPage, 0, MEM_RELEASE) && err == NO_ERROR)
         {
             err = ERR_RUNTIME_CLEAN_FREE_MEM;
         }
@@ -670,11 +673,66 @@ static errno exitTrigger(Runtime* runtime)
     {
         return NO_ERROR;
     }
-
-
-    // runtime->WaitForSingleObject(runtime->hThread, INFINITE);
-
-    return NO_ERROR;
+    errno errno = NO_ERROR;
+    for (;;)
+    {
+        // set event type
+        if (runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE) != WAIT_OBJECT_0)
+        {
+            errno = ERR_RUNTIME_LOCK_EVENT;
+            break;
+        }
+        runtime->EventType = EVENT_TYPE_STOP;
+        if (!runtime->ReleaseMutex(runtime->hMutexEvent))
+        {
+            errno = ERR_RUNTIME_UNLOCK_EVENT;
+            break;
+        }
+        // notice trigger
+        if (!runtime->SetEvent(runtime->hEventArrive))
+        {
+            errno = ERR_RUNTIME_NOTICE_TRIGGER;
+            break;
+        }
+        // wait trigger process event
+        if (runtime->WaitForSingleObject(runtime->hEventDone, INFINITE) != WAIT_OBJECT_0)
+        {
+            errno = ERR_RUNTIME_WAIT_TRIGGER;
+            break;
+        }
+        // receive return errno
+        if (runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE) != WAIT_OBJECT_0)
+        {
+            errno = ERR_RUNTIME_LOCK_EVENT;
+            break;
+        }
+        errno = runtime->ReturnErrno;
+        if (!runtime->ReleaseMutex(runtime->hMutexEvent))
+        {
+            errno = ERR_RUNTIME_UNLOCK_EVENT;
+            break;
+        }
+        // reset event
+        if (!runtime->ResetEvent(runtime->hEventDone))
+        {
+            errno = ERR_RUNTIME_RESET_EVENT;
+            break;
+        }
+        break;
+    }
+    if (errno != NO_ERROR)
+    {
+        return errno;
+    }
+    // wait trigger thread exit
+    if (runtime->WaitForSingleObject(runtime->hThread, INFINITE) != WAIT_OBJECT_0)
+    {
+        if (errno == NO_ERROR)
+        {
+            errno = ERR_RUNTIME_CLEAN_EXIT_TRIGGER;
+        }
+    }
+    return errno;
 }
 
 static errno closeHandles(Runtime* runtime)
