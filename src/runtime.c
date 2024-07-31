@@ -136,10 +136,10 @@ static errno hide(Runtime* runtime);
 static errno recover(Runtime* runtime);
 static errno sleep(Runtime* runtime, uint32 milliseconds);
 
-static void eraseRuntimeMethods();
-static void cleanRuntime(Runtime* runtime);
-static void eraseMemory(uintptr address, uintptr size);
-static void rt_epilogue();
+static void  eraseRuntimeMethods();
+static errno cleanRuntime(Runtime* runtime);
+static void  eraseMemory(uintptr address, uintptr size);
+static void  rt_epilogue();
 
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Opts* opts)
@@ -635,10 +635,17 @@ static bool flushInstructionCache(Runtime* runtime)
     return true;
 }
 
-// TODO return errno
-//      kill trigger thread
-static void cleanRuntime(Runtime* runtime)
+static errno cleanRuntime(Runtime* runtime)
 {
+    // exit trigger thread
+    if (runtime->hThread != NULL)
+    {
+
+
+
+        runtime->WaitForSingleObject(runtime->hThread, INFINITE);
+    }
+
     // must copy api address before call RandBuf
     CloseHandle_t closeHandle = runtime->CloseHandle;
     VirtualFree_t virtualFree = runtime->VirtualFree;
@@ -676,6 +683,7 @@ static void cleanRuntime(Runtime* runtime)
     {
         virtualFree(runtime->MainMemPage, 0, MEM_RELEASE);
     }
+    return NO_ERROR;
 }
 
 // updateRuntimePointer will replace hard encode address to the actual address.
@@ -1321,6 +1329,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
 
         .WaitForSingleObject = runtime->WaitForSingleObject,
     };
+    // generate random key for shield
     RandBuf(&ctx.CryptoKey[0], sizeof(ctx.CryptoKey));
     // build crypto context
     byte key[CRYPTO_KEY_SIZE];
@@ -1439,18 +1448,21 @@ errno RT_Exit()
         runtime->LibraryTracker->Clean,
     };
     errno enmod = NO_ERROR;
-    errno errno = NO_ERROR;
     for (int i = 0; i < arrlen(submodules); i++)
     {
         enmod = submodules[i]();
-        if (enmod != NO_ERROR && errno == NO_ERROR)
+        if (enmod != NO_ERROR && err == NO_ERROR)
         {
-            errno = enmod;
+            err = enmod;
         }
     }
 
     // clean runtime resource
-    cleanRuntime(runtime);
+    errno enclr = cleanRuntime(runtime);
+    if (enclr != NO_ERROR && err == NO_ERROR)
+    {
+        err = enclr;
+    }
 
     // erase runtime instructions except this function
     if (!notEraseInst)
@@ -1464,7 +1476,7 @@ errno RT_Exit()
         size  = end - begin;
         eraseMemory(begin, size);
     }
-    return errno;
+    return err;
 }
 
 // must disable compiler optimize, otherwise eraseMemory()
