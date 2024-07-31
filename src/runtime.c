@@ -637,53 +637,55 @@ static bool flushInstructionCache(Runtime* runtime)
 
 static errno cleanRuntime(Runtime* runtime)
 {
+    errno err = NO_ERROR;
     // exit trigger thread
     if (runtime->hThread != NULL)
     {
 
 
 
-        runtime->WaitForSingleObject(runtime->hThread, INFINITE);
+        // runtime->WaitForSingleObject(runtime->hThread, INFINITE);
     }
-
-    // must copy api address before call RandBuf
-    CloseHandle_t closeHandle = runtime->CloseHandle;
-    VirtualFree_t virtualFree = runtime->VirtualFree;
-    // close handles
-    if (closeHandle != NULL)
+    // close handles in runtimes
+    if (runtime->CloseHandle != NULL)
     {
-        if (runtime->hProcess != NULL)
+        typedef struct { 
+            HANDLE handle; errno errno;
+        } handle;
+        handle list[] = 
         {
-            closeHandle(runtime->hProcess);
-        }
-        if (runtime->hMutex != NULL)
+            { runtime->hProcess,     ERR_RUNTIME_CLEAN_H_PROCESS      },
+            { runtime->hMutex,       ERR_RUNTIME_CLEAN_H_MUTEX        },
+            { runtime->hMutexSleep,  ERR_RUNTIME_CLEAN_H_MUTEX_SLEEP  },
+            { runtime->hEventArrive, ERR_RUNTIME_CLEAN_H_EVENT_ARRIVE },
+            { runtime->hEventDone,   ERR_RUNTIME_CLEAN_H_EVENT_DONE   },
+            { runtime->hMutexEvent,  ERR_RUNTIME_CLEAN_H_MUTEX_EVENT  },
+            { runtime->hThread,      ERR_RUNTIME_CLEAN_H_THREAD       },
+        };
+        for (int i = 0; i < arrlen(list); i++)
         {
-            closeHandle(runtime->hMutex);
-        }
-        if (runtime->hEventArrive != NULL)
-        {
-            closeHandle(runtime->hEventArrive);
-        }
-        if (runtime->hEventDone != NULL)
-        {
-            closeHandle(runtime->hEventDone);
-        }
-        if (runtime->hMutexEvent != NULL)
-        {
-            closeHandle(runtime->hMutexEvent);
-        }
-        if (runtime->hThread != NULL)
-        {
-            closeHandle(runtime->hThread);
+            if (list[i].handle == NULL)
+            {
+                continue;
+            }
+            if (!runtime->CloseHandle(list[i].handle) && err == NO_ERROR)
+            {
+                err = list[i].errno;
+            }
         }
     }
+    // must copy api address before call RandBuf
+    VirtualFree_t virtualFree = runtime->VirtualFree;
     // release main memory page
     RandBuf(runtime->MainMemPage, MAIN_MEM_PAGE_SIZE);
     if (virtualFree != NULL)
     {
-        virtualFree(runtime->MainMemPage, 0, MEM_RELEASE);
+        if (!virtualFree(runtime->MainMemPage, 0, MEM_RELEASE) && err == NO_ERROR)
+        {
+            err = ERR_RUNTIME_CLEAN_FREE_MEM;
+        }
     }
-    return NO_ERROR;
+    return err;
 }
 
 // updateRuntimePointer will replace hard encode address to the actual address.
@@ -1315,15 +1317,16 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     // store core Windows API before encrypt
     FlushInstructionCache_t flush = runtime->FlushInstructionCache;
     // build shield context before encrypt
-    uintptr runtimeAddr  = (uintptr)(GetFuncAddr(&InitRuntime));
     uintptr beginAddress = (uintptr)(runtime->BootInstAddress);
-    if (beginAddress == 0 || beginAddress >= runtimeAddr)
+    uintptr runtimeAddr  = (uintptr)(GetFuncAddr(&InitRuntime));
+    if (beginAddress == 0 || beginAddress > runtimeAddr)
     {
         beginAddress = runtimeAddr;
     }
+    uintptr endAddress = (uintptr)(GetFuncAddr(&Shield_Stub));
     Shield_Ctx ctx = {
         .BeginAddress = beginAddress,
-        .EndAddress   = (uintptr)(GetFuncAddr(&Shield_Stub)),
+        .EndAddress   = endAddress,
         .SleepTime    = milliseconds,
         .hProcess     = runtime->hProcess,
 
