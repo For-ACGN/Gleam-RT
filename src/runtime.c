@@ -138,6 +138,8 @@ static errno sleep(Runtime* runtime, uint32 milliseconds);
 
 static void  eraseRuntimeMethods();
 static errno cleanRuntime(Runtime* runtime);
+static errno exitTrigger(Runtime* runtime);
+static errno closeHandles(Runtime* runtime);
 static void  eraseMemory(uintptr address, uintptr size);
 static void  rt_epilogue();
 
@@ -638,41 +640,15 @@ static bool flushInstructionCache(Runtime* runtime)
 static errno cleanRuntime(Runtime* runtime)
 {
     errno err = NO_ERROR;
-    // exit trigger thread
-    if (runtime->hThread != NULL)
+    errno enetg = exitTrigger(runtime);
+    if (enetg != NO_ERROR && err == NO_ERROR)
     {
-
-
-
-        // runtime->WaitForSingleObject(runtime->hThread, INFINITE);
+        err = enetg;
     }
-    // close handles in runtimes
-    if (runtime->CloseHandle != NULL)
+    errno enchd = closeHandles(runtime);
+    if (enchd != NO_ERROR && err == NO_ERROR)
     {
-        typedef struct { 
-            HANDLE handle; errno errno;
-        } handle;
-        handle list[] = 
-        {
-            { runtime->hProcess,     ERR_RUNTIME_CLEAN_H_PROCESS      },
-            { runtime->hMutex,       ERR_RUNTIME_CLEAN_H_MUTEX        },
-            { runtime->hMutexSleep,  ERR_RUNTIME_CLEAN_H_MUTEX_SLEEP  },
-            { runtime->hEventArrive, ERR_RUNTIME_CLEAN_H_EVENT_ARRIVE },
-            { runtime->hEventDone,   ERR_RUNTIME_CLEAN_H_EVENT_DONE   },
-            { runtime->hMutexEvent,  ERR_RUNTIME_CLEAN_H_MUTEX_EVENT  },
-            { runtime->hThread,      ERR_RUNTIME_CLEAN_H_THREAD       },
-        };
-        for (int i = 0; i < arrlen(list); i++)
-        {
-            if (list[i].handle == NULL)
-            {
-                continue;
-            }
-            if (!runtime->CloseHandle(list[i].handle) && err == NO_ERROR)
-            {
-                err = list[i].errno;
-            }
-        }
+        err = enchd;
     }
     // must copy api address before call RandBuf
     VirtualFree_t virtualFree = runtime->VirtualFree;
@@ -686,6 +662,53 @@ static errno cleanRuntime(Runtime* runtime)
         }
     }
     return err;
+}
+
+static errno exitTrigger(Runtime* runtime)
+{
+    if (runtime->hThread == NULL)
+    {
+        return NO_ERROR;
+    }
+
+
+    // runtime->WaitForSingleObject(runtime->hThread, INFINITE);
+
+    return NO_ERROR;
+}
+
+static errno closeHandles(Runtime* runtime)
+{
+    if (runtime->CloseHandle == NULL)
+    {
+        return NO_ERROR;
+    }
+    typedef struct { 
+        HANDLE handle; errno errno;
+    } handle;
+    handle list[] = 
+    {
+        { runtime->hProcess,     ERR_RUNTIME_CLEAN_H_PROCESS      },
+        { runtime->hMutex,       ERR_RUNTIME_CLEAN_H_MUTEX        },
+        { runtime->hMutexSleep,  ERR_RUNTIME_CLEAN_H_MUTEX_SLEEP  },
+        { runtime->hEventArrive, ERR_RUNTIME_CLEAN_H_EVENT_ARRIVE },
+        { runtime->hEventDone,   ERR_RUNTIME_CLEAN_H_EVENT_DONE   },
+        { runtime->hMutexEvent,  ERR_RUNTIME_CLEAN_H_MUTEX_EVENT  },
+        { runtime->hThread,      ERR_RUNTIME_CLEAN_H_THREAD       },
+    };
+    errno errno = NO_ERROR;
+    for (int i = 0; i < arrlen(list); i++)
+    {
+        if (list[i].handle == NULL)
+        {
+            continue;
+        }
+        if (!runtime->CloseHandle(list[i].handle) && errno == NO_ERROR)
+        {
+            errno = list[i].errno;
+        }
+    }
+    return errno;
 }
 
 // updateRuntimePointer will replace hard encode address to the actual address.
@@ -1123,10 +1146,6 @@ static void trigger()
         {
         case WAIT_OBJECT_0:
             errno = processEvent(runtime, &exit);
-            if (exit)
-            {
-                return;
-            }
             break;
         case WAIT_TIMEOUT: // force trigger sleep
             errno = sleepHR(runtime, 1000); 
@@ -1154,6 +1173,12 @@ static void trigger()
         {
             return;
         }
+        // check is exit event
+        if (exit)
+        {
+            return;
+        }
+        // check error for exit trigger
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             return;
