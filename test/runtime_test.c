@@ -29,5 +29,11 @@ bool TestRuntime_Exit()
         printf_s("failed to exit runtime: 0x%lX\n", errno);
         return false;
     }
+    errno = GetLastErrno();
+    if (errno != NO_ERROR)
+    {
+        printf_s("find last errno: 0x%lX\n", errno);
+        return false;
+    }
     return true;
 }
