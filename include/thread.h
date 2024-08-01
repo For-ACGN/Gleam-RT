@@ -12,6 +12,7 @@ typedef bool   (*ThdLock_t)();
 typedef bool   (*ThdUnlock_t)();
 typedef errno  (*ThdSuspend_t)();
 typedef errno  (*ThdResume_t)();
+typedef errno  (*ThdTerminate_t)();
 typedef errno  (*ThdClean_t)();
 
 typedef struct {
@@ -23,13 +24,14 @@ typedef struct {
     SetThreadContext_t SetThreadContext;
     TerminateThread_t  TerminateThread;
 
-    ThdNew_t     New;
-    ThdExit_t    Exit;
-    ThdLock_t    Lock;
-    ThdUnlock_t  Unlock;
-    ThdSuspend_t Suspend;
-    ThdResume_t  Resume;
-    ThdClean_t   Clean;
+    ThdNew_t       New;
+    ThdExit_t      Exit;
+    ThdLock_t      Lock;
+    ThdUnlock_t    Unlock;
+    ThdSuspend_t   Suspend;
+    ThdResume_t    Resume;
+    ThdTerminate_t Terminate;
+    ThdClean_t     Clean;
 } ThreadTracker_M;
 
 ThreadTracker_M* InitThreadTracker(Context* context);
