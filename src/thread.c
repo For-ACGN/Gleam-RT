@@ -68,6 +68,7 @@ bool   TT_Lock();
 bool   TT_Unlock();
 errno  TT_Suspend();
 errno  TT_Resume();
+errno  TT_Terminate();
 errno  TT_Clean();
 
 HANDLE tt_createThread(
@@ -140,13 +141,14 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     module->SetThreadContext = GetFuncAddr(&TT_SetThreadContext);
     module->TerminateThread  = GetFuncAddr(&TT_TerminateThread);
     // methods for runtime
-    module->New     = GetFuncAddr(&TT_ThdNew);
-    module->Exit    = GetFuncAddr(&TT_ThdExit);
-    module->Lock    = GetFuncAddr(&TT_Lock);
-    module->Unlock  = GetFuncAddr(&TT_Unlock);
-    module->Suspend = GetFuncAddr(&TT_Suspend);
-    module->Resume  = GetFuncAddr(&TT_Resume);
-    module->Clean   = GetFuncAddr(&TT_Clean);
+    module->New       = GetFuncAddr(&TT_ThdNew);
+    module->Exit      = GetFuncAddr(&TT_ThdExit);
+    module->Lock      = GetFuncAddr(&TT_Lock);
+    module->Unlock    = GetFuncAddr(&TT_Unlock);
+    module->Suspend   = GetFuncAddr(&TT_Suspend);
+    module->Resume    = GetFuncAddr(&TT_Resume);
+    module->Terminate = GetFuncAddr(&TT_Terminate);
+    module->Clean     = GetFuncAddr(&TT_Clean);
     return module;
 }
 
@@ -821,6 +823,50 @@ errno TT_Resume()
     }
 
     dbg_log("[thread]", "threads: %zu\n", list->Len);
+    return errno;
+}
+
+__declspec(noinline)
+errno TT_Terminate()
+{
+    ThreadTracker* tracker = getTrackerPointer();
+
+    uint32 currentTID = tracker->GetCurrentThreadID();
+    if (currentTID == 0)
+    {
+        return ERR_THREAD_GET_CURRENT_TID;
+    }
+
+    List* threads = &tracker->Threads;
+    errno errno   = NO_ERROR;
+
+    // terminate all threads
+    uint index = 0;
+    for (uint num = 0; num < threads->Len; index++)
+    {
+        thread* thread = List_Get(threads, index);
+        if (thread->threadID == 0)
+        {
+            continue;
+        }
+        // skip self thread
+        if (thread->threadID != currentTID)
+        {
+            if (!tracker->TerminateThread(thread->hThread, 0))
+            {
+                errno = ERR_THREAD_TERMINATE;
+            }
+        }
+        if (!tracker->CloseHandle(thread->hThread))
+        {
+            errno = ERR_THREAD_CLOSE_HANDLE;
+        }
+        if (!List_Delete(threads, index))
+        {
+            errno = ERR_THREAD_DELETE_THREAD;
+        }
+        num++;
+    }
     return errno;
 }
 
