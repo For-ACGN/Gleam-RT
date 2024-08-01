@@ -79,7 +79,7 @@ typedef struct {
     ArgumentStore_M*   ArgumentStore;
 } Runtime;
 
-// export methods about Runtime
+// export methods and IAT hooks about Runtime
 void* RT_FindAPI(uint hash, uint key);
 void  RT_Sleep(DWORD dwMilliseconds);
 
@@ -88,7 +88,7 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 void* RT_GetProcAddressByHash(uint hash, uint key, bool hook);
 void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 
-void  RT_ExitProcess(UINT uExitCode);
+errno RT_ExitProcess(UINT uExitCode);
 errno RT_SleepHR(DWORD dwMilliseconds);
 
 errno RT_Hide();
@@ -1108,9 +1108,40 @@ static void* replaceToHook(Runtime* runtime, void* proc)
 }
 
 __declspec(noinline)
-void RT_ExitProcess(UINT uExitCode)
+errno RT_ExitProcess(UINT uExitCode)
 {
+    Runtime* runtime = getRuntimePointer();
 
+    if (!rt_lock(runtime))
+    {
+        return ERR_RUNTIME_LOCK;
+    }
+
+    errno errno = NO_ERROR;
+
+    errno = RT_lock_mods();
+    if (errno != NO_ERROR)
+    {
+        return errno;
+    }
+
+    errno = runtime->ThreadTracker->Terminate();
+    if (errno != NO_ERROR)
+    {
+        return errno;
+    }
+
+    errno = RT_unlock_mods();
+    if (errno != NO_ERROR)
+    {
+        return errno;
+    }
+
+    if (!rt_unlock(runtime))
+    {
+        return ERR_RUNTIME_UNLOCK;
+    }
+    return NO_ERROR;
 }
 
 __declspec(noinline)
