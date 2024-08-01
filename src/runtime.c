@@ -69,7 +69,7 @@ typedef struct {
     HANDLE hThread;      // trigger thread
 
     // IAT hooks about GetProcAddress
-    Hook IATHooks[23];
+    Hook IATHooks[20];
 
     // submodules
     LibraryTracker_M*  LibraryTracker;
@@ -81,14 +81,16 @@ typedef struct {
 
 // export methods about Runtime
 void* RT_FindAPI(uint hash, uint key);
-void  RT_Sleep(uint32 milliseconds);
+void  RT_Sleep(DWORD dwMilliseconds);
 
 void* RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
 void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 void* RT_GetProcAddressByHash(uint hash, uint key, bool hook);
 void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 
-errno RT_SleepHR(uint32 milliseconds);
+void  RT_ExitProcess(UINT uExitCode);
+errno RT_SleepHR(DWORD dwMilliseconds);
+
 errno RT_Hide();
 errno RT_Recover();
 errno RT_Exit();
@@ -557,6 +559,7 @@ static bool initIATHooks(Runtime* runtime)
 #ifdef _WIN64
     {
         { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, GetFuncAddr(&RT_GetProcAddress) },
+        { 0xB8D0B91323A24997, 0xBC36CA6282477A43, GetFuncAddr(&RT_ExitProcess) },
         { 0xCED5CC955152CD43, 0xAA22C83C068CB037, GetFuncAddr(&RT_SleepHR) },
         { 0xD823D640CA9D87C3, 0x15821AE3463EFBE8, libraryTracker->LoadLibraryA },
         { 0xDE75B0371B7500C0, 0x2A1CF678FC737D0F, libraryTracker->LoadLibraryW },
@@ -579,6 +582,7 @@ static bool initIATHooks(Runtime* runtime)
 #elif _WIN32
     {
         { 0x5E5065D4, 0x63CDAD01, GetFuncAddr(&RT_GetProcAddress) },
+        { 0xB6CEC366, 0xA0CF5E10, GetFuncAddr(&RT_ExitProcess) },
         { 0x705D4FAD, 0x94CF33BF, GetFuncAddr(&RT_SleepHR) },
         { 0x0149E478, 0x86A603D3, libraryTracker->LoadLibraryA },
         { 0x90E21596, 0xEBEA7D19, libraryTracker->LoadLibraryW },
@@ -921,7 +925,7 @@ void* RT_FindAPI(uint hash, uint key)
 }
 
 __declspec(noinline)
-void RT_Sleep(uint32 milliseconds)
+void RT_Sleep(DWORD dwMilliseconds)
 {
     Runtime* runtime = getRuntimePointer();
 
@@ -939,7 +943,7 @@ void RT_Sleep(uint32 milliseconds)
         return;
     }
 
-    wait(hProcess, milliseconds);
+    wait(hProcess, dwMilliseconds);
 }
 
 __declspec(noinline)
@@ -1104,7 +1108,13 @@ static void* replaceToHook(Runtime* runtime, void* proc)
 }
 
 __declspec(noinline)
-errno RT_SleepHR(uint32 milliseconds)
+void RT_ExitProcess(UINT uExitCode)
+{
+
+}
+
+__declspec(noinline)
+errno RT_SleepHR(DWORD dwMilliseconds)
 {
     Runtime* runtime = getRuntimePointer();
 
@@ -1113,19 +1123,19 @@ errno RT_SleepHR(uint32 milliseconds)
         return ERR_RUNTIME_LOCK_SLEEP;
     }
 
-    if (milliseconds <= 100)
+    if (dwMilliseconds <= 100)
     {
         // prevent sleep too frequent
-        milliseconds = 100;
+        dwMilliseconds = 100;
     } else {
         // make sure the sleep time is a multiple of 1s
-        milliseconds = (milliseconds / 1000) * 1000;
-        if (milliseconds == 0)
+        dwMilliseconds = (dwMilliseconds / 1000) * 1000;
+        if (dwMilliseconds == 0)
         {
-            milliseconds = 1000;
+            dwMilliseconds = 1000;
         }
     }
-    milliseconds = 10; // TODO remove it
+    dwMilliseconds = 10; // TODO remove it
 
     errno errno = NO_ERROR;
     for (;;)
@@ -1137,7 +1147,7 @@ errno RT_SleepHR(uint32 milliseconds)
             break;
         }
         runtime->EventType = EVENT_TYPE_SLEEP;
-        runtime->SleepTime = milliseconds;
+        runtime->SleepTime = dwMilliseconds;
         if (!runtime->ReleaseMutex(runtime->hMutexEvent))
         {
             errno = ERR_RUNTIME_UNLOCK_EVENT;
