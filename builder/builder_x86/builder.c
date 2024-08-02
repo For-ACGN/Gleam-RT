@@ -9,12 +9,12 @@
 
 #define FUNC_OFFSET_RUNTIME (\
     1 + 2 + 4 + 4 + 2 + 1 + 5 +\
-    5 + 2 + 2 + 2 + 3 + 3 + 4 +\
+    5 + 3 + 2 + 2 + 3 + 3 + 4 +\
     (2 + 1)\
 )
 #define FUNC_OFFSET_LIBRARY  (6 + 5 + 1 + 2)
 #define FUNC_OFFSET_MEMORY   (4 + 8 + 1 + 2)
-#define FUNC_OFFSET_THREAD   (7 + 7 + 1 + 2)
+#define FUNC_OFFSET_THREAD   (7 + 8 + 1 + 2)
 #define FUNC_OFFSET_RESOURCE (8 + 5 + 1 + 2)
 #define FUNC_OFFSET_ARGUMENT (3 + 5 + 1 + 1 + 2)
 
@@ -92,7 +92,8 @@ int fixFuncOffset()
             break;
         }
     }
-    printf_s("total fix: %zu\n", counter);
+    printf_s("expected fix: %zu\n", FUNC_OFFSET_COUNTER);
+    printf_s("actual fix: %zu\n", counter);
     if (counter != FUNC_OFFSET_COUNTER)
     {
         printf_s("invalid fix counter\n");
