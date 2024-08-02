@@ -1125,6 +1125,7 @@ errno RT_ExitProcess(UINT uExitCode)
         return errno;
     }
 
+    // terminate all tracked thrreads
     errno = runtime->ThreadTracker->Terminate();
     if (errno != NO_ERROR)
     {
@@ -1141,6 +1142,9 @@ errno RT_ExitProcess(UINT uExitCode)
     {
         return ERR_RUNTIME_UNLOCK;
     }
+
+    // exit current thread
+    runtime->ThreadTracker->Exit();
     return NO_ERROR;
 }
 
