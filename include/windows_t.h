@@ -287,7 +287,8 @@ typedef BOOL (*TerminateThread_t)
 
 typedef BOOL (*FlushInstructionCache_t)
 (
-    HANDLE hProcess, LPCVOID lpBaseAddress, SIZE_T dwSize);
+    HANDLE hProcess, LPCVOID lpBaseAddress, SIZE_T dwSize
+);
 
 typedef HANDLE (*CreateFileA_t)
 (
