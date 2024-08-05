@@ -148,8 +148,13 @@ void* FindAPI(uint hash, uint key)
             // optimize and generate incorrect shellcode
             byte dllName[512];
             mem_clean(&dllName, sizeof(dllName));
-            // build DLL name
+            // prevent array bound when call mem_copy
+            if (dot > 500)
+            {
+                dot = 500;
+            }
             mem_copy(&dllName[0], exportName, dot + 1);
+            // build DLL name
             dllName[dot+1] = 'd';
             dllName[dot+2] = 'l';
             dllName[dot+3] = 'l';
