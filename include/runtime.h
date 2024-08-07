@@ -20,7 +20,7 @@ typedef void   (*EraseAllArgs_t)();
 // GetProcAddress, GetProcAddressByName and GetProcAddressByHash
 // are use Hash API module for implement original GetProcAddress.
 // GetProcAddressOriginal is not recommend, usually use
-// GetProcAddressByName with hook OFF instead it.
+// GetProcAddressByName with hook FALSE instead it.
 // These methods are used for IAT hooks or common shellcode.
 typedef void* (*GetProcAddressByName_t)(HMODULE hModule, LPCSTR lpProcName, bool hook);
 typedef void* (*GetProcAddressByHash_t)(uint hash, uint key, bool hook);
@@ -76,6 +76,7 @@ typedef struct {
 } Runtime_M;
 
 // InitRuntime is used to initialize runtime and return module methods.
+// If failed to initialize, use GetLastError to get error code.
 Runtime_M* InitRuntime(Runtime_Opts* opts);
 
 #endif // RUNTIME_H

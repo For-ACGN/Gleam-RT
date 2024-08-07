@@ -148,7 +148,7 @@ static void  rt_epilogue();
 __declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Opts* opts)
 {
-    if (!InitDebugModule())
+    if (!InitDebugger())
     {
         SetLastErrno(ERR_RUNTIME_INIT_DEBUG_MODULE);
         return NULL;
