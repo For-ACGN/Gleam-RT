@@ -6,13 +6,13 @@
 
 #ifndef RELEASE_MODE
 
-bool InitDebugModule();
+bool InitDebugger();
 
 void dbg_log(char* mod, char* fmt, ...);
 
 #else
 
-#define InitDebugModule() (true)
+#define InitDebugger() (true)
 
 #define dbg_log(mod, fmt, ...)
 
