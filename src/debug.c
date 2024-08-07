@@ -1,5 +1,4 @@
 #include "build.h"
-#include "debug.h"
 
 #ifndef RELEASE_MODE
 
@@ -8,15 +7,16 @@
 #include "c_types.h"
 #include "windows_t.h"
 #include "hash_api.h"
-
-static HANDLE dbg_hMutex;
+#include "debug.h"
 
 static CreateMutexA_t        dbg_CreateMutexA;
 static ReleaseMutex_t        dbg_ReleaseMutex;
 static WaitForSingleObject_t dbg_WaitForSingleObject;
 
+static HANDLE dbg_hMutex;
+
 __declspec(noinline)
-bool InitDebugModule()
+bool InitDebugger()
 {
     typedef struct { 
         uint hash; uint key; void* proc;
