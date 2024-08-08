@@ -150,7 +150,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
 {
     if (!InitDebugger())
     {
-        SetLastErrno(ERR_RUNTIME_INIT_DEBUG_MODULE);
+        SetLastErrno(ERR_RUNTIME_INIT_DEBUGGER);
         return NULL;
     }
     // alloc memory for store runtime structure
