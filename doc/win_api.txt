@@ -25,6 +25,8 @@ https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfil
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfilea
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfilew
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfileexa
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfileexw
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findclose
 https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsastartup
 https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-wsacleanup
