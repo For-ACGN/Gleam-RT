@@ -11,15 +11,20 @@
 #include "resource.h"
 #include "debug.h"
 
+// handle types about release functions
 #define TYPE_CLOSE_HANDLE 0x0100
 #define TYPE_FIND_CLOSE   0x0200
 
-#define SRC_CREATE_FILE_A     0x0101
-#define SRC_CREATE_FILE_W     0x0102
-#define SRC_FIND_FIRST_FILE_A 0x0201  // EXA
-#define SRC_FIND_FIRST_FILE_W 0x0202
+// handles created by functions
+#define SRC_CREATE_FILE_A (0x0001|TYPE_CLOSE_HANDLE)
+#define SRC_CREATE_FILE_W (0x0002|TYPE_CLOSE_HANDLE)
 
-// resource counter index
+#define SRC_FIND_FIRST_FILE_A    (0x0001|TYPE_FIND_CLOSE)
+#define SRC_FIND_FIRST_FILE_W    (0x0002|TYPE_FIND_CLOSE)
+#define SRC_FIND_FIRST_FILE_EX_A (0x0003|TYPE_FIND_CLOSE)
+#define SRC_FIND_FIRST_FILE_EX_W (0x0004|TYPE_FIND_CLOSE)
+
+// resource counters index
 #define CTR_WSA_STARTUP 0x0000
 
 typedef struct {
@@ -61,11 +66,20 @@ HANDLE RT_CreateFileW(
     POINTER lpSecurityAttributes, DWORD dwCreationDisposition,
     DWORD dwFlagsAndAttributes, HANDLE hTemplateFile
 );
-BOOL   RT_CloseHandle(HANDLE hObject);
 HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData);
 HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData);
-BOOL   RT_FindClose(HANDLE hFindFile);
+HANDLE RT_FindFirstFileExA(
+    LPCSTR lpFileName, UINT fInfoLevelId, LPVOID lpFindFileData,
+    UINT fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags
+);
+HANDLE RT_FindFirstFileExW(
+    LPCWSTR lpFileName, UINT fInfoLevelId, LPVOID lpFindFileData,
+    UINT fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags
+);
+BOOL RT_CloseHandle(HANDLE hObject);
+BOOL RT_FindClose(HANDLE hFindFile);
 
+// resource counters
 int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData);
 int RT_WSACleanup();
 
