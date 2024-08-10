@@ -1062,25 +1062,29 @@ static void* getResTrackerHook(Runtime* runtime, void* proc)
     hook hooks[] =
 #ifdef _WIN64
     {
-        { 0x94DAFAE03484102D, 0x300F881516DC2FF5, resourceTracker->CreateFileA    },
-        { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, resourceTracker->CreateFileW    },
-        { 0x78AEE64CADBBC72F, 0x480A328AEFFB1A39, resourceTracker->CloseHandle    },
-        { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, resourceTracker->FindFirstFileA },
-        { 0x7C520EB61A85181B, 0x933C760F029EF1DD, resourceTracker->FindFirstFileW },
-        { 0x3D3A73632A3BCEDA, 0x72E6CA3A0850F779, resourceTracker->FindClose      },
-        { 0x7749934E33C18703, 0xCFB41E32B03DC637, resourceTracker->WSAStartup     },
-        { 0x46C76E87C13DF670, 0x37B6B54E4B2FBECC, resourceTracker->WSACleanup     },
+        { 0x94DAFAE03484102D, 0x300F881516DC2FF5, resourceTracker->CreateFileA      },
+        { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, resourceTracker->CreateFileW      },
+        { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, resourceTracker->FindFirstFileA   },
+        { 0x7C520EB61A85181B, 0x933C760F029EF1DD, resourceTracker->FindFirstFileW   },
+        { 0xFB272B44E7E9CFC6, 0xB5F76233869E347D, resourceTracker->FindFirstFileExA },
+        { 0x1C30504D9D6BC5E5, 0xF5C232B8DEEC41C8, resourceTracker->FindFirstFileExW },
+        { 0x78AEE64CADBBC72F, 0x480A328AEFFB1A39, resourceTracker->CloseHandle      },
+        { 0x3D3A73632A3BCEDA, 0x72E6CA3A0850F779, resourceTracker->FindClose        },
+        { 0x7749934E33C18703, 0xCFB41E32B03DC637, resourceTracker->WSAStartup       },
+        { 0x46C76E87C13DF670, 0x37B6B54E4B2FBECC, resourceTracker->WSACleanup       },
     };
 #elif _WIN32
     {
-        { 0x79796D6E, 0x6DBBA55C, resourceTracker->CreateFileA    },
-        { 0x0370C4B8, 0x76254EF3, resourceTracker->CreateFileW    },
-        { 0xCB5BD447, 0x49A6FC78, resourceTracker->CloseHandle    },
-        { 0x629ADDFA, 0x749D1CC9, resourceTracker->FindFirstFileA },
-        { 0x612273CD, 0x563EDF55, resourceTracker->FindFirstFileW },
-        { 0x6CD807C4, 0x812C40E9, resourceTracker->FindClose      },
-        { 0xE487BC0B, 0x283C1684, resourceTracker->WSAStartup     },
-        { 0x175B553E, 0x541A996E, resourceTracker->WSACleanup     },
+        { 0x79796D6E, 0x6DBBA55C, resourceTracker->CreateFileA      },
+        { 0x0370C4B8, 0x76254EF3, resourceTracker->CreateFileW      },
+        { 0x629ADDFA, 0x749D1CC9, resourceTracker->FindFirstFileA   },
+        { 0x612273CD, 0x563EDF55, resourceTracker->FindFirstFileW   },
+        { 0x8C692AD6, 0xB63ECE85, resourceTracker->FindFirstFileExA },
+        { 0xE52EE07C, 0x6C2F10B6, resourceTracker->FindFirstFileExW },
+        { 0xCB5BD447, 0x49A6FC78, resourceTracker->CloseHandle      },
+        { 0x6CD807C4, 0x812C40E9, resourceTracker->FindClose        },
+        { 0xE487BC0B, 0x283C1684, resourceTracker->WSAStartup       },
+        { 0x175B553E, 0x541A996E, resourceTracker->WSACleanup       },
     };
 #endif
     for (int i = 0; i < arrlen(hooks); i++)
