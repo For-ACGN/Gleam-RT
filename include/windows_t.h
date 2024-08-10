@@ -314,6 +314,18 @@ typedef HANDLE (*FindFirstFileW_t)
     LPCWSTR lpFileName, POINTER lpFindFileData
 );
 
+typedef HANDLE (*FindFirstFileExA_t)
+(
+    LPCSTR lpFileName, UINT fInfoLevelId, LPVOID lpFindFileData,
+    UINT fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags
+);
+
+typedef HANDLE (*FindFirstFileExW_t)
+(
+    LPCWSTR lpFileName, UINT fInfoLevelId, LPVOID lpFindFileData,
+    UINT fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags
+);
+
 typedef BOOL (*FindClose_t)
 (
     HANDLE hFindFile
