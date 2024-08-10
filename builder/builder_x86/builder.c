@@ -15,7 +15,7 @@
 #define FUNC_OFFSET_LIBRARY  (6 + 5 + 1 + 2)
 #define FUNC_OFFSET_MEMORY   (4 + 8 + 1 + 2)
 #define FUNC_OFFSET_THREAD   (7 + 8 + 1 + 2)
-#define FUNC_OFFSET_RESOURCE (8 + 5 + 1 + 2)
+#define FUNC_OFFSET_RESOURCE (10 + 5 + 1 + 2)
 #define FUNC_OFFSET_ARGUMENT (3 + 5 + 1 + 1 + 2)
 
 #define FUNC_OFFSET_COUNTER (\
