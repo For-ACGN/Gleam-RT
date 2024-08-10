@@ -13,12 +13,14 @@ typedef errno (*ResDecrypt_t)();
 typedef errno (*ResClean_t)();
 
 typedef struct {
-    CreateFileA_t    CreateFileA;
-    CreateFileW_t    CreateFileW;
-    CloseHandle_t    CloseHandle;
-    FindFirstFileA_t FindFirstFileA;
-    FindFirstFileW_t FindFirstFileW;
-    FindClose_t      FindClose;
+    CreateFileA_t      CreateFileA;
+    CreateFileW_t      CreateFileW;
+    FindFirstFileA_t   FindFirstFileA;
+    FindFirstFileW_t   FindFirstFileW;
+    FindFirstFileExA_t FindFirstFileExA;
+    FindFirstFileExW_t FindFirstFileExW;
+    CloseHandle_t      CloseHandle;
+    FindClose_t        FindClose;
 
     WSAStartup_t WSAStartup;
     WSACleanup_t WSACleanup;
