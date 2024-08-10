@@ -406,37 +406,6 @@ HANDLE RT_CreateFileW(
 };
 
 __declspec(noinline)
-BOOL RT_CloseHandle(HANDLE hObject)
-{
-    ResourceTracker* tracker = getTrackerPointer();
-
-    if (!RT_Lock())
-    {
-        return false;
-    }
-
-    BOOL success;
-    for (;;)
-    {
-        success = tracker->CloseHandle(hObject);
-        if (!success)
-        {
-            break;
-        }
-        delHandle(tracker, hObject, TYPE_CLOSE_HANDLE);
-        break;
-    }    
-
-    dbg_log("[resource]", "CloseHandle: 0x%zX\n", hObject);
-
-    if (!RT_Unlock())
-    {
-        return false;
-    }
-    return success;
-};
-
-__declspec(noinline)
 HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData)
 {
     ResourceTracker* tracker = getTrackerPointer();
@@ -533,7 +502,50 @@ HANDLE RT_FindFirstFileExA(
     UINT fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags
 )
 {
+    ResourceTracker* tracker = getTrackerPointer();
 
+    if (!RT_Lock())
+    {
+        return INVALID_HANDLE_VALUE;
+    }
+
+    HANDLE hFindFile;
+
+    bool success = true;
+    for (;;)
+    {
+        hFindFile = tracker->FindFirstFileExA(
+            lpFileName, fInfoLevelId, lpFindFileData,
+            fSearchOp, lpSearchFilter, dwAdditionalFlags
+        );
+        if (hFindFile == INVALID_HANDLE_VALUE)
+        {
+            success = false;
+            break;
+        }
+        if (!addHandle(tracker, hFindFile, SRC_FIND_FIRST_FILE_EX_A))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
+    dbg_log("[resource]", "FindFirstFileExA: %s\n", lpFileName);
+
+    if (!RT_Unlock())
+    {
+        if (success)
+        {
+            tracker->FindClose(hFindFile);
+        }
+        return INVALID_HANDLE_VALUE;
+    }
+    if (!success)
+    {
+        return INVALID_HANDLE_VALUE;
+    }
+    return hFindFile;
 };
 
 HANDLE RT_FindFirstFileExW(
@@ -541,7 +553,81 @@ HANDLE RT_FindFirstFileExW(
     UINT fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags
 )
 {
+    ResourceTracker* tracker = getTrackerPointer();
 
+    if (!RT_Lock())
+    {
+        return INVALID_HANDLE_VALUE;
+    }
+
+    HANDLE hFindFile;
+
+    bool success = true;
+    for (;;)
+    {
+        hFindFile = tracker->FindFirstFileExW(
+            lpFileName, fInfoLevelId, lpFindFileData,
+            fSearchOp, lpSearchFilter, dwAdditionalFlags
+        );
+        if (hFindFile == INVALID_HANDLE_VALUE)
+        {
+            success = false;
+            break;
+        }
+        if (!addHandle(tracker, hFindFile, SRC_FIND_FIRST_FILE_EX_W))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
+    dbg_log("[resource]", "FindFirstFileExW: %ls\n", lpFileName);
+
+    if (!RT_Unlock())
+    {
+        if (success)
+        {
+            tracker->FindClose(hFindFile);
+        }
+        return INVALID_HANDLE_VALUE;
+    }
+    if (!success)
+    {
+        return INVALID_HANDLE_VALUE;
+    }
+    return hFindFile;
+};
+
+__declspec(noinline)
+BOOL RT_CloseHandle(HANDLE hObject)
+{
+    ResourceTracker* tracker = getTrackerPointer();
+
+    if (!RT_Lock())
+    {
+        return false;
+    }
+
+    BOOL success;
+    for (;;)
+    {
+        success = tracker->CloseHandle(hObject);
+        if (!success)
+        {
+            break;
+        }
+        delHandle(tracker, hObject, TYPE_CLOSE_HANDLE);
+        break;
+    }    
+
+    dbg_log("[resource]", "CloseHandle: 0x%zX\n", hObject);
+
+    if (!RT_Unlock())
+    {
+        return false;
+    }
+    return success;
 };
 
 __declspec(noinline)
