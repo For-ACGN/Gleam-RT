@@ -36,9 +36,11 @@ typedef struct {
     // API addresses
     CreateFileA_t         CreateFileA;
     CreateFileW_t         CreateFileW;
-    CloseHandle_t         CloseHandle;
     FindFirstFileA_t      FindFirstFileA;
     FindFirstFileW_t      FindFirstFileW;
+    FindFirstFileExA_t    FindFirstFileExA;
+    FindFirstFileExW_t    FindFirstFileExW;
+    CloseHandle_t         CloseHandle;
     FindClose_t           FindClose;
     ReleaseMutex_t        ReleaseMutex;
     WaitForSingleObject_t WaitForSingleObject;
@@ -146,14 +148,16 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     // create methods for tracker
     ResourceTracker_M* module = (ResourceTracker_M*)moduleAddr;
     // Windows API hooks
-    module->CreateFileA    = GetFuncAddr(&RT_CreateFileA);
-    module->CreateFileW    = GetFuncAddr(&RT_CreateFileW);
-    module->CloseHandle    = GetFuncAddr(&RT_CloseHandle);
-    module->FindFirstFileA = GetFuncAddr(&RT_FindFirstFileA);
-    module->FindFirstFileW = GetFuncAddr(&RT_FindFirstFileW);
-    module->FindClose      = GetFuncAddr(&RT_FindClose);
-    module->WSAStartup     = GetFuncAddr(&RT_WSAStartup);
-    module->WSACleanup     = GetFuncAddr(&RT_WSACleanup);
+    module->CreateFileA      = GetFuncAddr(&RT_CreateFileA);
+    module->CreateFileW      = GetFuncAddr(&RT_CreateFileW);
+    module->FindFirstFileA   = GetFuncAddr(&RT_FindFirstFileA);
+    module->FindFirstFileW   = GetFuncAddr(&RT_FindFirstFileW);
+    module->FindFirstFileExA = GetFuncAddr(&RT_FindFirstFileExA);
+    module->FindFirstFileExW = GetFuncAddr(&RT_FindFirstFileExW);
+    module->CloseHandle      = GetFuncAddr(&RT_CloseHandle);
+    module->FindClose        = GetFuncAddr(&RT_FindClose);
+    module->WSAStartup       = GetFuncAddr(&RT_WSAStartup);
+    module->WSACleanup       = GetFuncAddr(&RT_WSACleanup);
     // methods for runtime
     module->Lock    = GetFuncAddr(&RT_Lock);
     module->Unlock  = GetFuncAddr(&RT_Unlock);
@@ -176,6 +180,8 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
         { 0xD1B5E30FA8812243, 0xFD9A53B98C9A437E }, // CreateFileW
         { 0x60041DBB2B0D19DF, 0x7BD2C85D702B4DDC }, // FindFirstFileA
         { 0xFE81B7989672CCE3, 0xA7FD593F0ED3E8EA }, // FindFirstFileW
+        { 0xCAA3E575156CF368, 0x8A587657CB19E9BB }, // FindFirstFileExA
+        { 0x7E4308DC46D7B281, 0x10C4F8ED60BC5EB5 }, // FindFirstFileExW
         { 0x98AC87F60ED8677D, 0x2DF5C74604B2E3A1 }, // FindClose
     };
 #elif _WIN32
@@ -184,6 +190,8 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
         { 0x2CB7048A, 0x76AC9783 }, // CreateFileW
         { 0x131B6345, 0x65478818 }, // FindFirstFileA
         { 0xD57E7557, 0x50BC5D0F }, // FindFirstFileW
+        { 0xADD805AF, 0xD14251F2 }, // FindFirstFileExA
+        { 0x0A45496A, 0x4A4A7F36 }, // FindFirstFileExW
         { 0xE992A699, 0x8B6ED092 }, // FindClose
     };
 #endif
@@ -196,11 +204,13 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
         }
         list[i].proc = proc;
     }
-    tracker->CreateFileA    = list[0x00].proc;
-    tracker->CreateFileW    = list[0x01].proc;
-    tracker->FindFirstFileA = list[0x02].proc;
-    tracker->FindFirstFileW = list[0x03].proc;
-    tracker->FindClose      = list[0x04].proc;
+    tracker->CreateFileA      = list[0x00].proc;
+    tracker->CreateFileW      = list[0x01].proc;
+    tracker->FindFirstFileA   = list[0x02].proc;
+    tracker->FindFirstFileW   = list[0x03].proc;
+    tracker->FindFirstFileExA = list[0x04].proc;
+    tracker->FindFirstFileExW = list[0x05].proc;
+    tracker->FindClose        = list[0x06].proc;
 
     tracker->CloseHandle         = context->CloseHandle;
     tracker->ReleaseMutex        = context->ReleaseMutex;
@@ -516,6 +526,22 @@ HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData)
         return INVALID_HANDLE_VALUE;
     }
     return hFindFile;
+};
+
+HANDLE RT_FindFirstFileExA(
+    LPCSTR lpFileName, UINT fInfoLevelId, LPVOID lpFindFileData,
+    UINT fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags
+)
+{
+
+};
+
+HANDLE RT_FindFirstFileExW(
+    LPCWSTR lpFileName, UINT fInfoLevelId, LPVOID lpFindFileData,
+    UINT fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags
+)
+{
+
 };
 
 __declspec(noinline)
