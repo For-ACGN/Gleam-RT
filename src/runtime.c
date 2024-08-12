@@ -30,6 +30,7 @@ typedef struct {
 } Hook;
 
 typedef struct {
+    // temp context
     Runtime_Opts* Options;
 
     // store options
@@ -114,7 +115,7 @@ static Runtime* getRuntimePointer();
 static bool rt_lock(Runtime* runtime);
 static bool rt_unlock(Runtime* runtime);
 
-static void* allocateRuntimeMemory();
+static void* allocRuntimeMemPage();
 static bool  initRuntimeAPI(Runtime* runtime);
 static bool  adjustPageProtect(Runtime* runtime);
 static bool  updateRuntimePointer(Runtime* runtime);
@@ -154,7 +155,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         return NULL;
     }
     // alloc memory for store runtime structure
-    void* memPage = allocateRuntimeMemory();
+    void* memPage = allocRuntimeMemPage();
     if (memPage == NULL)
     {
         SetLastErrno(ERR_RUNTIME_ALLOC_MEMORY);
@@ -264,7 +265,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
 }
 
 // allocate memory for store structures.
-static void* allocateRuntimeMemory()
+static void* allocRuntimeMemPage()
 {
 #ifdef _WIN64
     uint hash = 0xB6A1D0D4A275D4B6;
@@ -338,6 +339,7 @@ static bool initRuntimeAPI(Runtime* runtime)
         }
         list[i].proc = proc;
     }
+
     runtime->GetSystemInfo         = list[0x00].proc;
     runtime->VirtualAlloc          = list[0x01].proc;
     runtime->VirtualFree           = list[0x02].proc;
@@ -619,7 +621,7 @@ static bool initIATHooks(Runtime* runtime)
 __declspec(noinline)
 static void eraseRuntimeMethods()
 {
-    uintptr begin = (uintptr)(GetFuncAddr(&allocateRuntimeMemory));
+    uintptr begin = (uintptr)(GetFuncAddr(&allocRuntimeMemPage));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseRuntimeMethods));
     uintptr size  = end - begin;
     RandBuf((byte*)begin, (int64)size);
@@ -1050,8 +1052,8 @@ static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
     return NULL;
 }
 
-// getResTrackerHook is used to FindAPI after LoadLibrary
-// hooks in initIATHooks are all in kernel32.dll
+// getResTrackerHook is used to FindAPI after call LoadLibrary.
+// Hooks in initIATHooks() are all in kernel32.dll.
 static void* getResTrackerHook(Runtime* runtime, void* proc)
 {
     ResourceTracker_M* resourceTracker = runtime->ResourceTracker;
