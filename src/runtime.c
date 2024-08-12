@@ -630,10 +630,15 @@ static void eraseRuntimeMethods()
 __declspec(noinline)
 static bool flushInstructionCache(Runtime* runtime)
 {
-    void*   addr  = GetFuncAddr(&InitRuntime);
+    void* init = GetFuncAddr(&InitRuntime);
+    void* addr = runtime->BootInstAddress;
+    if (addr == NULL || (uintptr)addr > (uintptr)init)
+    {
+        addr = init;
+    }
     uintptr begin = (uintptr)(addr);
     uintptr end   = (uintptr)(GetFuncAddr(&Epilogue));
-    uintptr size  = end - begin;
+    uint    size  = end - begin;
     if (!runtime->FlushInstructionCache(CURRENT_PROCESS, addr, size))
     {
         return false;
