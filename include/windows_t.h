@@ -23,6 +23,8 @@ typedef void* HANDLE;
 typedef void* FARPROC;
 
 typedef void*   LPVOID;
+typedef uint8*  LPSTR;
+typedef uint16* LPWSTR;
 typedef HANDLE* LPHANDLE;
 
 typedef const void*   LPCVOID;
