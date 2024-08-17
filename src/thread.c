@@ -68,7 +68,7 @@ bool   TT_Lock();
 bool   TT_Unlock();
 errno  TT_Suspend();
 errno  TT_Resume();
-errno  TT_Terminate();
+errno  TT_KillAll();
 errno  TT_Clean();
 
 HANDLE tt_createThread(
@@ -141,14 +141,14 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     module->SetThreadContext = GetFuncAddr(&TT_SetThreadContext);
     module->TerminateThread  = GetFuncAddr(&TT_TerminateThread);
     // methods for runtime
-    module->New       = GetFuncAddr(&TT_ThdNew);
-    module->Exit      = GetFuncAddr(&TT_ThdExit);
-    module->Lock      = GetFuncAddr(&TT_Lock);
-    module->Unlock    = GetFuncAddr(&TT_Unlock);
-    module->Suspend   = GetFuncAddr(&TT_Suspend);
-    module->Resume    = GetFuncAddr(&TT_Resume);
-    module->Terminate = GetFuncAddr(&TT_Terminate);
-    module->Clean     = GetFuncAddr(&TT_Clean);
+    module->New     = GetFuncAddr(&TT_ThdNew);
+    module->Exit    = GetFuncAddr(&TT_ThdExit);
+    module->Lock    = GetFuncAddr(&TT_Lock);
+    module->Unlock  = GetFuncAddr(&TT_Unlock);
+    module->Suspend = GetFuncAddr(&TT_Suspend);
+    module->Resume  = GetFuncAddr(&TT_Resume);
+    module->KillAll = GetFuncAddr(&TT_KillAll);
+    module->Clean   = GetFuncAddr(&TT_Clean);
     return module;
 }
 
@@ -827,7 +827,7 @@ errno TT_Resume()
 }
 
 __declspec(noinline)
-errno TT_Terminate()
+errno TT_KillAll()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
