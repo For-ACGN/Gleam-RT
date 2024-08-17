@@ -70,7 +70,7 @@ typedef struct {
     HANDLE hThread;      // trigger thread
 
     // IAT hooks about GetProcAddress
-    Hook IATHooks[20];
+    Hook IATHooks[22];
 
     // submodules
     LibraryTracker_M*  LibraryTracker;
@@ -573,6 +573,8 @@ static bool initIATHooks(Runtime* runtime)
         { 0xDB54AA6683574A8B, 0x3137DE2D71D3FF3E, memoryTracker->VirtualFree },
         { 0xF5469C21B43D23E5, 0xF80028997F625A05, memoryTracker->VirtualProtect },
         { 0xE9ECDC63F6D3DC53, 0x815C2FDFE640307E, memoryTracker->VirtualQuery },
+        { 0xDCFB29E5457FC2AC, 0xE730BA5E1DAF71D7, memoryTracker->VirtualLock },
+        { 0x6BA2D5251AA73581, 0x74B6BED239151714, memoryTracker->VirtualUnlock },
         { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, threadTracker->CreateThread },
         { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, threadTracker->ExitThread },
         { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, threadTracker->SuspendThread },
@@ -596,6 +598,8 @@ static bool initIATHooks(Runtime* runtime)
         { 0x4F0FC063, 0x182F3CC6, memoryTracker->VirtualFree },
         { 0xEBD60441, 0x280A4A9F, memoryTracker->VirtualProtect },
         { 0xD17B0461, 0xFB4E5DB5, memoryTracker->VirtualQuery },
+        { 0x105F3B24, 0x2919B75B, memoryTracker->VirtualLock },
+        { 0x78F96542, 0x1FCAE820, memoryTracker->VirtualUnlock },
         { 0x20744CA1, 0x4FA1647D, threadTracker->CreateThread },
         { 0xED42C0F0, 0xC59EBA39, threadTracker->ExitThread },
         { 0x133B00D5, 0x48E02627, threadTracker->SuspendThread },
@@ -1031,9 +1035,9 @@ static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
         { 0xA23FAC0E6398838A, 0xE4990D7D4933EE6A, GetFuncAddr(&RT_GetProcAddressByName)   },
         { 0xABD1E8F0D28E9F46, 0xAF34F5979D300C70, GetFuncAddr(&RT_GetProcAddressByHash)   },
         { 0xC9C5D350BB118FAE, 0x061A602F681F2636, GetFuncAddr(&RT_GetProcAddressOriginal) },
-        { 0x126369AAC565B208, 0xEA01652E5DDE482E, argumentStore->Get         },
-        { 0x2FEB65B0CF6A233A, 0x24B8204DA5F3FA2F, argumentStore->Erase       },
-        { 0x2AE3C13B09353949, 0x2FDD5041391C2A93, argumentStore->EraseAll    },
+        { 0x126369AAC565B208, 0xEA01652E5DDE482E, argumentStore->Get      },
+        { 0x2FEB65B0CF6A233A, 0x24B8204DA5F3FA2F, argumentStore->Erase    },
+        { 0x2AE3C13B09353949, 0x2FDD5041391C2A93, argumentStore->EraseAll },
     };
 #elif _WIN32
     {
@@ -1118,6 +1122,7 @@ static void* replaceToHook(Runtime* runtime, void* proc)
     return proc;
 }
 
+// TODO improve it about return errno
 __declspec(noinline)
 errno RT_ExitProcess(UINT uExitCode)
 {
@@ -1136,8 +1141,8 @@ errno RT_ExitProcess(UINT uExitCode)
         return errno;
     }
 
-    // terminate all tracked thrreads
-    errno = runtime->ThreadTracker->Terminate();
+    // terminate all tracked threads
+    errno = runtime->ThreadTracker->KillAll();
     if (errno != NO_ERROR)
     {
         return errno;
