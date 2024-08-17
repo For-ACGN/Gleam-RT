@@ -244,6 +244,16 @@ typedef SIZE_T (*VirtualQuery_t)
     LPCVOID lpAddress, POINTER lpBuffer, SIZE_T dwLength
 );
 
+typedef BOOL (*VirtualLock_t)
+(
+    LPVOID lpAddress, SIZE_T dwSize
+);
+
+typedef BOOL (*VirtualUnlock_t)
+(
+    LPVOID lpAddress, SIZE_T dwSize
+);
+
 typedef HANDLE (*CreateThread_t)
 (
     POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
