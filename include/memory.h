@@ -13,6 +13,7 @@ typedef bool  (*MemLock_t)();
 typedef bool  (*MemUnlock_t)();
 typedef errno (*MemEncrypt_t)();
 typedef errno (*MemDecrypt_t)();
+typedef errno (*MemFreeAll_t)();
 typedef errno (*MemClean_t)();
 
 typedef struct {
@@ -20,6 +21,8 @@ typedef struct {
     VirtualFree_t    VirtualFree;
     VirtualProtect_t VirtualProtect;
     VirtualQuery_t   VirtualQuery;
+    VirtualLock_t    VirtualLock;
+    VirtualUnlock_t  VirtualUnlock;
 
     MemAlloc_t   Alloc;
     MemRealloc_t Realloc;
@@ -28,6 +31,7 @@ typedef struct {
     MemUnlock_t  Unlock;
     MemEncrypt_t Encrypt;
     MemDecrypt_t Decrypt;
+    MemFreeAll_t FreeAll;
     MemClean_t   Clean;
 } MemoryTracker_M;
 
