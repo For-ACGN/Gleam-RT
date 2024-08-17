@@ -983,14 +983,6 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page)
 }
 
 __declspec(noinline)
-errno MT_FreeAll()
-{
-    MemoryTracker* tracker = getTrackerPointer();
-
-    return NO_ERROR;
-}
-
-__declspec(noinline)
 errno MT_Decrypt()
 {
     MemoryTracker* tracker = getTrackerPointer();
@@ -1071,6 +1063,63 @@ static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key)
     addr += ((uintptr)tracker->VirtualFree)  >> 6;
     mem_copy(key+0, &page->key[0], CRYPTO_KEY_SIZE);
     mem_copy(key+4, &addr, sizeof(uintptr));
+}
+
+__declspec(noinline)
+errno MT_FreeAll()
+{
+    MemoryTracker* tracker = getTrackerPointer();
+
+    List* pages   = &tracker->Pages;
+    List* regions = &tracker->Regions;
+    errno errno   = NO_ERROR;
+
+    // decommit memory pages
+    uint index = 0;
+    for (uint num = 0; num < pages->Len; index++)
+    {
+        memPage* page = List_Get(pages, index);
+        if (page->address == 0)
+        {
+            continue;
+        }
+        // skip locked memory page
+        if (page->lock)
+        {
+            num++;
+            continue;
+        }
+        // free memory page
+        if (!cleanPage(tracker, page))
+        {
+            errno = ERR_MEMORY_CLEAN_PAGE;
+        }
+        num++;
+    }
+
+    // release reserved memory region
+    index = 0;
+    for (uint num = 0; num < regions->Len; index++)
+    {
+        memRegion* region = List_Get(regions, index);
+        if (region->address == 0)
+        {
+            continue;
+        }
+        // skip locked memory region
+        if (region->lock)
+        {
+            num++;
+            continue;
+        }
+        // release memory region
+        if (!tracker->VirtualFree((LPVOID)(region->address), 0, MEM_RELEASE))
+        {
+            errno = ERR_MEMORY_CLEAN_REGION;
+        }
+        num++;
+    }
+    return errno;
 }
 
 __declspec(noinline)
