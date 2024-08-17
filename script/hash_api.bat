@@ -49,6 +49,8 @@ hash_api -fmt 64 -conc -func VirtualAlloc
 hash_api -fmt 64 -conc -func VirtualFree
 hash_api -fmt 64 -conc -func VirtualProtect
 hash_api -fmt 64 -conc -func VirtualQuery
+hash_api -fmt 64 -conc -func VirtualLock
+hash_api -fmt 64 -conc -func VirtualUnlock
 echo.
 
 echo [Thread Tracker]
@@ -120,6 +122,8 @@ hash_api -fmt 32 -conc -func VirtualAlloc
 hash_api -fmt 32 -conc -func VirtualFree
 hash_api -fmt 32 -conc -func VirtualProtect
 hash_api -fmt 32 -conc -func VirtualQuery
+hash_api -fmt 32 -conc -func VirtualLock
+hash_api -fmt 32 -conc -func VirtualUnlock
 echo.
 
 echo [Thread Tracker]
