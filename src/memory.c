@@ -94,6 +94,7 @@ static bool deletePages(MemoryTracker* tracker, uintptr address, uint size);
 static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect);
 static bool lock_memory(MemoryTracker* tracker, uintptr address);
 static bool unlock_memory(MemoryTracker* tracker, uintptr address);
+static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock);
 
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
@@ -668,9 +669,9 @@ BOOL MT_VirtualLock(LPVOID address, SIZE_T size)
     return success;
 }
 
-bool lock_memory(MemoryTracker* tracker, uintptr address)
+static bool lock_memory(MemoryTracker* tracker, uintptr address)
 {
-    return true;
+    return set_memory_locker(tracker, address, true);
 }
 
 __declspec(noinline)
@@ -702,10 +703,71 @@ BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
     return success;
 }
 
-bool unlock_memory(MemoryTracker* tracker, uintptr address)
+static bool unlock_memory(MemoryTracker* tracker, uintptr address)
 {
-    return true;
+    return set_memory_locker(tracker, address, false);
 }
+
+#pragma optimize("t", on)
+static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock)
+{
+    // search memory regions list
+    register List* regions = &tracker->Regions;
+    register uint  len     = regions->Len;
+    register uint  index   = 0;
+    register memRegion* region;
+
+    // record region size and set locker
+    uint regionSize;
+    bool found = false;
+    for (uint num = 0; num < len; index++)
+    {
+        region = List_Get(regions, index);
+        if (region->address == 0)
+        {
+            continue;
+        }
+        if (region->address != address)
+        {
+            num++;
+            continue;
+        }
+        regionSize = region->size;
+        region->lock = lock;
+        found = true;
+        break;
+    }
+    if (!found)
+    {
+        return false;
+    }
+
+    // set memory page locker
+    register uint pageSize = tracker->PageSize;
+    register List* pages   = &tracker->Pages;
+    len   = pages->Len;
+    index = 0;
+    register memPage* page;
+    found = false;
+    for (uint num = 0; num < len; index++)
+    {
+        page = List_Get(pages, index);
+        if (page->address == 0)
+        {
+            continue;
+        }
+        if ((page->address + pageSize <= address) || (page->address >= address + regionSize))
+        {
+            num++;
+            continue;
+        }
+        page->lock = lock;
+        found = true;
+        num++;
+    }
+    return found;
+}
+#pragma optimize("t", off)
 
 // replacePageProtect is used to make sure all the page are readable.
 // avoid inadvertently using sensitive permissions.
