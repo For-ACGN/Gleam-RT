@@ -14,11 +14,13 @@
 typedef struct {
     uintptr address;
     uint    size;
+    bool    lock;
 } memRegion;
 
 typedef struct {
     uintptr address;
     uint32  protect;
+    bool    lock;
 
     byte key[CRYPTO_KEY_SIZE];
     byte iv [CRYPTO_IV_SIZE];
@@ -30,6 +32,8 @@ typedef struct {
     VirtualFree_t           VirtualFree;
     VirtualProtect_t        VirtualProtect;
     VirtualQuery_t          VirtualQuery;
+    VirtualLock_t           VirtualLock;
+    VirtualUnlock_t         VirtualUnlock;
     ReleaseMutex_t          ReleaseMutex;
     WaitForSingleObject_t   WaitForSingleObject;
     FlushInstructionCache_t FlushInstructionCache;
@@ -51,20 +55,23 @@ typedef struct {
 } MemoryTracker;
 
 // methods for IAT hooks
-LPVOID  MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect);
-BOOL    MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type);
-BOOL    MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old);
-SIZE_T  MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length);
+LPVOID MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect);
+BOOL   MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type);
+BOOL   MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old);
+SIZE_T MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length);
+BOOL   MT_VirtualLock(LPVOID address, SIZE_T size);
+BOOL   MT_VirtualUnlock(LPVOID address, SIZE_T size);
 
 // methods for runtime
-void*   MT_MemAlloc(uint size);
-void*   MT_MemRealloc(void* address, uint size);
-bool    MT_MemFree(void* address);
-bool    MT_Lock();
-bool    MT_Unlock();
-errno   MT_Encrypt();
-errno   MT_Decrypt();
-errno   MT_Clean();
+void* MT_MemAlloc(uint size);
+void* MT_MemRealloc(void* address, uint size);
+bool  MT_MemFree(void* address);
+bool  MT_Lock();
+bool  MT_Unlock();
+errno MT_Encrypt();
+errno MT_Decrypt();
+errno MT_FreeAll();
+errno MT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
@@ -85,6 +92,8 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size);
 static bool releasePage(MemoryTracker* tracker, uintptr address, uint size);
 static bool deletePages(MemoryTracker* tracker, uintptr address, uint size);
 static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect);
+static bool lock_memory(MemoryTracker* tracker, uintptr address);
+static bool unlock_memory(MemoryTracker* tracker, uintptr address);
 
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
@@ -144,6 +153,8 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->VirtualFree    = GetFuncAddr(&MT_VirtualFree);
     module->VirtualProtect = GetFuncAddr(&MT_VirtualProtect);
     module->VirtualQuery   = GetFuncAddr(&MT_VirtualQuery);
+    module->VirtualLock    = GetFuncAddr(&MT_VirtualLock);
+    module->VirtualUnlock  = GetFuncAddr(&MT_VirtualUnlock);
     // methods for runtime
     module->Alloc   = GetFuncAddr(&MT_MemAlloc);
     module->Realloc = GetFuncAddr(&MT_MemRealloc);
@@ -152,6 +163,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->Unlock  = GetFuncAddr(&MT_Unlock);
     module->Encrypt = GetFuncAddr(&MT_Encrypt);
     module->Decrypt = GetFuncAddr(&MT_Decrypt);
+    module->FreeAll = GetFuncAddr(&MT_FreeAll);
     module->Clean   = GetFuncAddr(&MT_Clean);
     return module;
 }
@@ -166,10 +178,14 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
 #ifdef _WIN64
     {
         { 0x69E4CD5EB08400FD, 0x648D50E649F8C06E }, // VirtualQuery
+        { 0x24AB671FD240FDCB, 0x40A8B468E734C166 }, // VirtualLock
+        { 0x5BE15B295B21235B, 0x5E6AFF64FB431502 }, // VirtualUnlock
     };
 #elif _WIN32
     {
         { 0x79D75104, 0x92F1D233 }, // VirtualQuery
+        { 0x2149FD08, 0x6537772D }, // VirtualLock
+        { 0xCE162EEC, 0x5D903E73 }, // VirtualUnlock
     };
 #endif
     for (int i = 0; i < arrlen(list); i++)
@@ -181,7 +197,9 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
         }
         list[i].proc = proc;
     }
-    tracker->VirtualQuery = list[0].proc;
+    tracker->VirtualQuery  = list[0].proc;
+    tracker->VirtualLock   = list[1].proc;
+    tracker->VirtualUnlock = list[2].proc;
 
     tracker->VirtualAlloc          = context->VirtualAlloc;
     tracker->VirtualFree           = context->VirtualFree;
@@ -354,6 +372,7 @@ static bool reserveRegion(MemoryTracker* tracker, uintptr address, uint size)
     memRegion region = {
         .address = address,
         .size    = size,
+        .lock    = false,
     };
     return List_Insert(&tracker->Regions, &region);
 }
@@ -370,6 +389,7 @@ static bool commitPage(MemoryTracker* tracker, uintptr address, uint size, uint3
     }
     memPage page = {
         .protect = protect,
+        .lock    = false,
     };
     register List* pages = &tracker->Pages;
     for (uint i = 0; i < numPage; i++)
@@ -619,6 +639,74 @@ SIZE_T MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length)
     return size;
 }
 
+__declspec(noinline)
+BOOL MT_VirtualLock(LPVOID address, SIZE_T size)
+{
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return false;
+    }
+
+    dbg_log("[memory]", "VirtualLock: 0x%zX\n", address);
+
+    // if size is zero, only set a flag to memory page and
+    // region that prevent MT_FreeAll free these memory 
+    BOOL success;
+    if (size == 0)
+    {
+        success = lock_memory(tracker, (uintptr)address);
+    } else {
+        success = tracker->VirtualLock(address, size);
+    }
+
+    if (!MT_Unlock())
+    {
+        return false;
+    }
+    return success;
+}
+
+bool lock_memory(MemoryTracker* tracker, uintptr address)
+{
+    return true;
+}
+
+__declspec(noinline)
+BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
+{
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return false;
+    }
+
+    dbg_log("[memory]", "VirtualUnlock: 0x%zX\n", address);
+
+    // if size is zero, only unset a flag to memory page
+    // and region that MT_FreeAll will free these memory 
+    BOOL success;
+    if (size == 0)
+    {
+        success = unlock_memory(tracker, (uintptr)address);
+    } else {
+        success = tracker->VirtualUnlock(address, size);
+    }
+
+    if (!MT_Unlock())
+    {
+        return false;
+    }
+    return success;
+}
+
+bool unlock_memory(MemoryTracker* tracker, uintptr address)
+{
+    return true;
+}
+
 // replacePageProtect is used to make sure all the page are readable.
 // avoid inadvertently using sensitive permissions.
 static uint32 replacePageProtect(uint32 protect)
@@ -830,6 +918,14 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page)
     deriveKey(tracker, page, &key[0]);
     EncryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
     return true;
+}
+
+__declspec(noinline)
+errno MT_FreeAll()
+{
+    MemoryTracker* tracker = getTrackerPointer();
+
+    return NO_ERROR;
 }
 
 __declspec(noinline)
