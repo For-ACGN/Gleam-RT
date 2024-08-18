@@ -1035,18 +1035,18 @@ static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
         { 0xA23FAC0E6398838A, 0xE4990D7D4933EE6A, GetFuncAddr(&RT_GetProcAddressByName)   },
         { 0xABD1E8F0D28E9F46, 0xAF34F5979D300C70, GetFuncAddr(&RT_GetProcAddressByHash)   },
         { 0xC9C5D350BB118FAE, 0x061A602F681F2636, GetFuncAddr(&RT_GetProcAddressOriginal) },
-        { 0x126369AAC565B208, 0xEA01652E5DDE482E, argumentStore->Get      },
-        { 0x2FEB65B0CF6A233A, 0x24B8204DA5F3FA2F, argumentStore->Erase    },
-        { 0x2AE3C13B09353949, 0x2FDD5041391C2A93, argumentStore->EraseAll },
+        { 0x126369AAC565B208, 0xEA01652E5DDE482E, argumentStore->Get      }, // RT_GetArgument
+        { 0x2FEB65B0CF6A233A, 0x24B8204DA5F3FA2F, argumentStore->Erase    }, // RT_EraseArgument
+        { 0x2AE3C13B09353949, 0x2FDD5041391C2A93, argumentStore->EraseAll }, // RT_EraseAllArgs
     };
 #elif _WIN32
     {
         { 0xCF983018, 0x3ECBF2DF, GetFuncAddr(&RT_GetProcAddressByName)   },
         { 0x40D5BD08, 0x302D5D2B, GetFuncAddr(&RT_GetProcAddressByHash)   },
         { 0x45556AA5, 0xB3BEF31D, GetFuncAddr(&RT_GetProcAddressOriginal) },
-        { 0x7D57C76D, 0xD67871A6, argumentStore->Get      },
-        { 0xC33C2108, 0x8A90E020, argumentStore->Erase    },
-        { 0x9BD86FED, 0xFEA640B8, argumentStore->EraseAll },
+        { 0x7D57C76D, 0xD67871A6, argumentStore->Get      }, // RT_GetArgument
+        { 0xC33C2108, 0x8A90E020, argumentStore->Erase    }, // RT_EraseArgument
+        { 0x9BD86FED, 0xFEA640B8, argumentStore->EraseAll }, // RT_EraseAllArgs
     };
 #endif
     for (int i = 0; i < arrlen(methods); i++)
@@ -1122,7 +1122,6 @@ static void* replaceToHook(Runtime* runtime, void* proc)
     return proc;
 }
 
-// TODO improve it about return errno
 __declspec(noinline)
 errno RT_ExitProcess(UINT uExitCode)
 {
@@ -1132,33 +1131,37 @@ errno RT_ExitProcess(UINT uExitCode)
     {
         return ERR_RUNTIME_LOCK;
     }
+    errno errlm = RT_lock_mods();
+    if (errlm != NO_ERROR)
+    {
+        return errlm;
+    }
 
     errno errno = NO_ERROR;
-
-    errno = RT_lock_mods();
-    if (errno != NO_ERROR)
+    for (;;)
     {
-        return errno;
+        errno = runtime->ThreadTracker->KillAll();
+        if (errno != NO_ERROR)
+        {
+            break;
+        }
+        break;
     }
 
-    // terminate all tracked threads
-    errno = runtime->ThreadTracker->KillAll();
-    if (errno != NO_ERROR)
+    errlm = RT_unlock_mods();
+    if (errlm != NO_ERROR)
     {
-        return errno;
+        return errlm;
     }
-
-    errno = RT_unlock_mods();
-    if (errno != NO_ERROR)
-    {
-        return errno;
-    }
-
     if (!rt_unlock(runtime))
     {
         return ERR_RUNTIME_UNLOCK;
     }
 
+    if (errno != NO_ERROR)
+    {
+        return errno;
+    }
     // exit current thread
     runtime->ThreadTracker->Exit();
     return NO_ERROR;
