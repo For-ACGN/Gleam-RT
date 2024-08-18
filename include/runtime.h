@@ -71,6 +71,7 @@ typedef struct {
     FindAPI_t FindAPI;
     Sleep_t   Sleep;
 
+    // random module
     RandBuf_t     RandBuf;
     RandBool_t    RandBool;
     RandInt64_t   RandInt64;
@@ -78,28 +79,42 @@ typedef struct {
     RandInt64N_t  RandInt64N;
     RandUint64N_t RandUint64N;
 
+    // crypto module
     EncryptBuf_t EncryptBuf;
     DecryptBuf_t DecryptBuf;
 
+    // compress module
     Compress_t   Compress;
     Decompress_t Decompress;
 
+    // library tracker
+    LoadLibraryA_t   LoadLibraryA;
+    LoadLibraryW_t   LoadLibraryW;
+    LoadLibraryExA_t LoadLibraryExA;
+    LoadLibraryExW_t LoadLibraryExW;
+    FreeLibrary_t    FreeLibrary;
+    GetProcAddress_t GetProcAddress;
+
+    // memory tracker
     MemAlloc_t   MemAlloc;
     MemRealloc_t MemRealloc;
     MemFree_t    MemFree;
 
+    // thread tracker
     ThdNew_t  NewThread;
     ThdExit_t ExitThread;
 
+    // argument store
     GetArgument_t   GetArgument;
     EraseArgument_t EraseArgument;
     EraseAllArgs_t  EraseAllArgs;
 
-    GetProcAddress_t         GetProcAddress;
+    // IAT hooks
     GetProcAddressByName_t   GetProcAddressByName;
     GetProcAddressByHash_t   GetProcAddressByHash;
     GetProcAddressOriginal_t GetProcAddressOriginal;
     
+    // runtime core
     SleepHR_t SleepHR;
     Hide_t    Hide;
     Recover_t Recover;
