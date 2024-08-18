@@ -7,15 +7,31 @@
 #include "errno.h"
 
 // for generic shellcode development.
-typedef void   (*Sleep_t)(uint32 milliseconds);
-typedef void*  (*MemAlloc_t)(uint size);
-typedef void*  (*MemRealloc_t)(void* address, uint size);
-typedef bool   (*MemFree_t)(void* address);
+typedef void (*Sleep_t)(uint32 milliseconds);
+
+typedef void   (*RandBuf_t)(byte* buf, int64 size);
+typedef bool   (*RandBool_t)(uint64 seed);
+typedef int64  (*RandInt64_t)(uint64 seed);
+typedef uint64 (*RandUint64_t)(uint64 seed);
+typedef int64  (*RandInt64N_t)(uint64 seed, int64 n);
+typedef uint64 (*RandUint64N_t)(uint64 seed, uint64 n);
+
+typedef void (*EncryptBuf_t)(byte* buf, uint size, byte* key, byte* iv);
+typedef void (*DecryptBuf_t)(byte* buf, uint size, byte* key, byte* iv);
+
+typedef uint (*Compress_t)(void* dst, void* src);
+typedef uint (*Decompress_t)(void* dst, void* src);
+
+typedef void* (*MemAlloc_t)(uint size);
+typedef void* (*MemRealloc_t)(void* address, uint size);
+typedef bool  (*MemFree_t)(void* address);
+
 typedef HANDLE (*ThdNew_t)(void* address, void* parameter, bool track);
 typedef void   (*ThdExit_t)();
-typedef bool   (*GetArgument_t)(uint index, void** data, uint32* size);
-typedef bool   (*EraseArgument_t)(uint index);
-typedef void   (*EraseAllArgs_t)();
+
+typedef bool (*GetArgument_t)(uint index, void** data, uint32* size);
+typedef bool (*EraseArgument_t)(uint index);
+typedef void (*EraseAllArgs_t)();
 
 // GetProcAddress, GetProcAddressByName and GetProcAddressByHash
 // are use Hash API module for implement original GetProcAddress.
@@ -55,11 +71,26 @@ typedef struct {
     FindAPI_t FindAPI;
     Sleep_t   Sleep;
 
-    MemAlloc_t      MemAlloc;
-    MemRealloc_t    MemRealloc;
-    MemFree_t       MemFree;
-    ThdNew_t        NewThread;
-    ThdExit_t       ExitThread;
+    RandBuf_t     RandBuf;
+    RandBool_t    RandBool;
+    RandInt64_t   RandInt64;
+    RandUint64_t  RandUint64;
+    RandInt64N_t  RandInt64N;
+    RandUint64N_t RandUint64N;
+
+    EncryptBuf_t EncryptBuf;
+    DecryptBuf_t DecryptBuf;
+
+    Compress_t   Compress;
+    Decompress_t Decompress;
+
+    MemAlloc_t   MemAlloc;
+    MemRealloc_t MemRealloc;
+    MemFree_t    MemFree;
+
+    ThdNew_t  NewThread;
+    ThdExit_t ExitThread;
+
     GetArgument_t   GetArgument;
     EraseArgument_t EraseArgument;
     EraseAllArgs_t  EraseAllArgs;
