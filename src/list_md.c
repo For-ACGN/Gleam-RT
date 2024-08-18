@@ -14,6 +14,30 @@ void List_Init(List* list, List_Ctx* ctx, uint unit)
     list->Unit = unit;
 }
 
+bool List_Set(List* list, uint index, void* data)
+{
+    if (index + 1 > list->Cap)
+    {
+        if (!List_Resize(list, index + 1))
+        {
+            return false;
+        }
+    }
+    uintptr addr = (uintptr)(list->Data) + index * list->Unit;
+    mem_copy((void*)addr, data, list->Unit);
+    return true;
+}
+
+void* List_Get(List* list, uint index)
+{
+    if (index + 1 > list->Cap)
+    {
+        return NULL;
+    }
+    uintptr addr = (uintptr)(list->Data);
+    return (void*)(addr + index * list->Unit);
+}
+
 bool List_Insert(List* list, void* data)
 {
     bool resized = false;
@@ -79,16 +103,6 @@ bool List_Delete(List* list, uint index)
     mem_clean(addr, list->Unit);
     list->Len--;
     return true;
-}
-
-void* List_Get(List* list, uint index)
-{
-    if (index + 1 > list->Cap)
-    {
-        return NULL;
-    }
-    uintptr addr = (uintptr)(list->Data);
-    return (void*)(addr + index * list->Unit);
 }
 
 bool List_Find(List* list, void* data, uint equal, uint* idx)
