@@ -5,6 +5,7 @@
 #include "hash_api.h"
 #include "random.h"
 #include "crypto.h"
+#include "compress.h"
 #include "win_api.h"
 #include "context.h"
 #include "errno.h"
@@ -240,23 +241,43 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     }
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
-    // for develop shellcode
-    module->FindAPI       = GetFuncAddr(&RT_FindAPI);
-    module->Sleep         = GetFuncAddr(&RT_Sleep);
-    module->MemAlloc      = runtime->MemoryTracker->Alloc;
-    module->MemRealloc    = runtime->MemoryTracker->Realloc;
-    module->MemFree       = runtime->MemoryTracker->Free;
-    module->NewThread     = runtime->ThreadTracker->New;
-    module->ExitThread    = runtime->ThreadTracker->Exit;
+    // misc module
+    module->FindAPI = GetFuncAddr(&RT_FindAPI);
+    module->Sleep   = GetFuncAddr(&RT_Sleep);
+    // random module
+    module->RandBuf     = GetFuncAddr(&RandBuf);
+    module->RandBool    = GetFuncAddr(&RandBool);
+    module->RandInt64   = GetFuncAddr(&RandInt64);
+    module->RandUint64  = GetFuncAddr(&RandUint64);
+    module->RandInt64N  = GetFuncAddr(&RandInt64N);
+    module->RandUint64N = GetFuncAddr(&RandUint64N);
+    // crypto module
+    module->EncryptBuf = GetFuncAddr(&EncryptBuf);
+    module->DecryptBuf = GetFuncAddr(&DecryptBuf);
+    // compress module
+    module->Compress   = GetFuncAddr(&Compress);
+    module->Decompress = GetFuncAddr(&Decompress);
+    // library tracker
+    module->LoadLibraryA   = runtime->LibraryTracker->LoadLibraryA;
+    module->LoadLibraryW   = runtime->LibraryTracker->LoadLibraryW;
+    module->FreeLibrary    = runtime->LibraryTracker->FreeLibrary;
+    module->GetProcAddress = GetFuncAddr(&RT_GetProcAddress);
+    // memory tracker
+    module->MemAlloc   = runtime->MemoryTracker->Alloc;
+    module->MemRealloc = runtime->MemoryTracker->Realloc;
+    module->MemFree    = runtime->MemoryTracker->Free;
+    // thread tracker
+    module->NewThread  = runtime->ThreadTracker->New;
+    module->ExitThread = runtime->ThreadTracker->Exit;
+    // argument store
     module->GetArgument   = runtime->ArgumentStore->Get;
     module->EraseArgument = runtime->ArgumentStore->Erase;
     module->EraseAllArgs  = runtime->ArgumentStore->EraseAll;
-    // for IAT hooks
-    module->GetProcAddress         = GetFuncAddr(&RT_GetProcAddress);
+    // about IAT hooks
     module->GetProcAddressByName   = GetFuncAddr(&RT_GetProcAddressByName);
     module->GetProcAddressByHash   = GetFuncAddr(&RT_GetProcAddressByHash);
     module->GetProcAddressOriginal = GetFuncAddr(&RT_GetProcAddressOriginal);
-    // runtime core methods
+    // runtime core
     module->SleepHR = GetFuncAddr(&RT_SleepHR);
     module->Hide    = GetFuncAddr(&RT_Hide);
     module->Recover = GetFuncAddr(&RT_Recover);
@@ -1020,6 +1041,7 @@ void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 }
 #pragma optimize("", on)
 
+// TODO add more about basic modules
 static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
 {
     Runtime* runtime = getRuntimePointer();
