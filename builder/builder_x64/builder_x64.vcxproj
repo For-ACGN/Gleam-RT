@@ -71,6 +71,7 @@
     <ClInclude Include="..\..\include\list_md.h" />
     <ClInclude Include="..\..\include\random.h" />
     <ClInclude Include="..\..\include\crypto.h" />
+    <ClInclude Include="..\..\include\compress.h" />
     <ClInclude Include="..\..\include\win_api.h" />
     <ClInclude Include="..\..\include\context.h" />
     <ClInclude Include="..\..\include\errno.h" />
@@ -94,6 +95,7 @@
     <ClCompile Include="..\..\src\list_md.c" />
     <ClCompile Include="..\..\src\random.c" />
     <ClCompile Include="..\..\src\crypto.c" />
+    <ClCompile Include="..\..\src\compress.c" />
     <ClCompile Include="..\..\src\win_api.c" />
     <ClCompile Include="..\..\src\errno.c" />
     <ClCompile Include="..\..\src\library.c" />

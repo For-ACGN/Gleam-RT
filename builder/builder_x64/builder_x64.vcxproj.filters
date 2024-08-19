@@ -65,6 +65,9 @@
     <ClCompile Include="..\..\src\rel_addr.c">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\compress.c">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\crypto.h">
@@ -131,6 +134,9 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\rel_addr.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\compress.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>
