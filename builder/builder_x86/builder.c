@@ -8,9 +8,9 @@
 #include "epilogue.h"
 
 #define FUNC_OFFSET_RUNTIME (\
-    1 + 2 + 4 + 4 + 2 + 1 + 5 +\
-    5 + 3 + 2 + 2 + 3 + 3 + 4 +\
-    (2 + 1)\
+    1 + 2 + 6 + 2 + 2 + 1 + 3 +\
+    4 + 2 + 1 + 5 + 5 + 3 + 2 +\
+    2 + 3 + 3 + 4 + (2 + 1)\
 )
 #define FUNC_OFFSET_LIBRARY  (6 + 5 + 1 + 2)
 #define FUNC_OFFSET_MEMORY   (6 + 9 + 1 + 2)
