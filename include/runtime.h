@@ -68,6 +68,7 @@ typedef struct {
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
+    // misc module
     FindAPI_t FindAPI;
     Sleep_t   Sleep;
 
@@ -90,8 +91,6 @@ typedef struct {
     // library tracker
     LoadLibraryA_t   LoadLibraryA;
     LoadLibraryW_t   LoadLibraryW;
-    LoadLibraryExA_t LoadLibraryExA;
-    LoadLibraryExW_t LoadLibraryExW;
     FreeLibrary_t    FreeLibrary;
     GetProcAddress_t GetProcAddress;
 
@@ -109,7 +108,7 @@ typedef struct {
     EraseArgument_t EraseArgument;
     EraseAllArgs_t  EraseAllArgs;
 
-    // IAT hooks
+    // about IAT hooks
     GetProcAddressByName_t   GetProcAddressByName;
     GetProcAddressByHash_t   GetProcAddressByHash;
     GetProcAddressOriginal_t GetProcAddressOriginal;
