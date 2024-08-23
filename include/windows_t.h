@@ -140,10 +140,12 @@ typedef struct __declspec(align(16)) {
 } CONTEXT;
 #endif
 
-#define INVALID_HANDLE_VALUE (HANDLE)(-1)
+#define MAX_PATH 260
 
-#define CURRENT_PROCESS (HANDLE)(-1)
-#define CURRENT_THREAD  (HANDLE)(-2)
+#define INVALID_HANDLE_VALUE ((HANDLE)(-1))
+
+#define CURRENT_PROCESS ((HANDLE)(-1))
+#define CURRENT_THREAD  ((HANDLE)(-2))
 
 #define MEM_COMMIT   0x00001000
 #define MEM_RESERVE  0x00002000
@@ -178,8 +180,6 @@ typedef struct __declspec(align(16)) {
 #define WAIT_FAILED   0xFFFFFFFF
 
 #define DUPLICATE_SAME_ACCESS 0x00000002
-
-#define MAX_PATH 260
 
 #define WSASYSNOTREADY 10091
 #define WSAEINPROGRESS 10036
