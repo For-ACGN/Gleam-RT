@@ -664,13 +664,7 @@ static bool flushInstructionCache(Runtime* runtime)
     uintptr begin = (uintptr)(addr);
     uintptr end   = (uintptr)(GetFuncAddr(&Epilogue));
     uint    size  = end - begin;
-    if (!runtime->FlushInstructionCache(CURRENT_PROCESS, addr, size))
-    {
-        return false;
-    }
-    // clean useless API functions in runtime structure
-    RandBuf((byte*)(&runtime->VirtualProtect), sizeof(uintptr));
-    return true;
+    return runtime->FlushInstructionCache(CURRENT_PROCESS, addr, size);
 }
 
 static errno cleanRuntime(Runtime* runtime)
