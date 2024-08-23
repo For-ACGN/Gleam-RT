@@ -91,7 +91,7 @@ static bool freePage(MemoryTracker* tracker, uintptr address, uint size, uint32 
 static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size);
 static bool releasePage(MemoryTracker* tracker, uintptr address, uint size);
 static bool deletePages(MemoryTracker* tracker, uintptr address, uint size);
-static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect);
+static void protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect);
 static bool lock_memory(MemoryTracker* tracker, uintptr address);
 static bool unlock_memory(MemoryTracker* tracker, uintptr address);
 static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock);
@@ -576,11 +576,7 @@ BOOL MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old)
             success = false;
             break;
         }
-        if (!protectPage(tracker, (uintptr)address, size, new))
-        {
-            success = false;
-            break;
-        }
+        protectPage(tracker, (uintptr)address, size, new);
         break;
     }
 
@@ -591,7 +587,7 @@ BOOL MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old)
     return success;
 }
 
-static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect)
+static void protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect)
 {
     register uint pageSize = tracker->PageSize;
 
@@ -613,10 +609,8 @@ static bool protectPage(MemoryTracker* tracker, uintptr address, uint size, uint
             continue;
         }
         page->protect = protect;
-        found = true;
         num++;
     }
-    return found;
 }
 
 __declspec(noinline)
