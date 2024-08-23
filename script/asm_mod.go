@@ -8,13 +8,49 @@ import (
 )
 
 func main() {
-	x64, err := os.ReadFile("../dist/GleamRT_x64.bin")
+	dumpASMx64()
+	dumpASMx86()
+}
+
+func dumpASMx64() {
+	bin, err := os.ReadFile("../dist/GleamRT_x64.bin")
 	checkError(err)
-	x86, err := os.ReadFile("../dist/GleamRT_x86.bin")
+	mod := dumpBytesHex(bin)
+
+	builder := bytes.Buffer{}
+	builder.WriteString(".code\r\n")
+	builder.WriteString("\r\n")
+	builder.WriteString("InitRuntime proc\r\n")
+	builder.Write(mod)
+	builder.WriteString("InitRuntime endp\r\n")
+	builder.WriteString("\r\n")
+	builder.WriteString("end\r\n")
+	builder.WriteString("\r\n")
+
+	mod = builder.Bytes()
+	err = os.WriteFile("../dist/GleamRT_x64.asm", mod, 0600)
 	checkError(err)
-	err = os.WriteFile("../dist/GleamRT_x64.asm", dumpBytesHex(x64), 0600)
+}
+
+func dumpASMx86() {
+	bin, err := os.ReadFile("../dist/GleamRT_x86.bin")
 	checkError(err)
-	err = os.WriteFile("../dist/GleamRT_x86.asm", dumpBytesHex(x86), 0600)
+	mod := dumpBytesHex(bin)
+
+	builder := bytes.Buffer{}
+	builder.WriteString(".model tiny\r\n")
+	builder.WriteString("\r\n")
+	builder.WriteString(".code\r\n")
+	builder.WriteString("\r\n")
+	builder.WriteString("_InitRuntime@4 proc\r\n")
+	builder.Write(mod)
+	builder.WriteString("_InitRuntime@4 endp\r\n")
+	builder.WriteString("\r\n")
+	builder.WriteString("end\r\n")
+	builder.WriteString("\r\n")
+
+	mod = builder.Bytes()
+	err = os.WriteFile("../dist/GleamRT_x86.asm", mod, 0600)
 	checkError(err)
 }
 
