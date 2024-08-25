@@ -6,8 +6,6 @@
 // However, on x86, since "mov reg, abs_addr" is always used
 // to obtain function addresses, external tools & inline assembly 
 // techniques are required to implement relative addressing.
-// 
-// The variable func will be replace to the offset of the GetFuncAddr
 
 #ifdef _WIN64
 	#define GetFuncAddr(func)(func)
