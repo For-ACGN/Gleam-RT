@@ -66,6 +66,7 @@ void dbg_log(char* mod, char* fmt, ...)
 
     printf_s("%s ", mod);
     vprintf_s(fmt, args);
+    printf_s("\n");
 
     va_end(args);
 
