@@ -1,4 +1,3 @@
-#include "build.h"
 #include "c_types.h"
 #include "rel_addr.h"
 
@@ -7,22 +6,20 @@
 #pragma optimize("", off)
 void* GetFuncAddr(void* func)
 {
-#ifndef RELEASE_MODE
-    return func;
-#else
-    uintptr addr = 0; // get address about GetFuncAddr
+    uintptr addr = 0; // store address about GetFuncAddr
     _asm {
         call get_eip
         jmp exit_asm    
     get_eip:
         pop eax       ; pop return address from stack
         mov addr, eax ; mov address to variable addr
-        sub addr, 8+5 ; function prologue + call
-        push eax
+        sub addr, 9+5 ; this function prologue + call
+        push eax      ; restore eax
+        ret
     exit_asm:
     }
-    return (void*)(addr + (uintptr)func);
-#endif
+    uintptr offset = (uintptr)(func) - (uintptr)(&GetFuncAddr);
+    return (void*)(addr + offset);
 }
 #pragma optimize("", on)
 
