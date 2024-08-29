@@ -1,3 +1,4 @@
+#include "build.h"
 #include "c_types.h"
 #include "windows_t.h"
 #include "rel_addr.h"
@@ -140,7 +141,7 @@ static errno hide(Runtime* runtime);
 static errno recover(Runtime* runtime);
 static errno sleep(Runtime* runtime, uint32 milliseconds);
 
-static void  eraseRuntimeMethods();
+static void  eraseRuntimeMethods(Runtime* runtime);
 static errno cleanRuntime(Runtime* runtime);
 static errno exitTrigger(Runtime* runtime);
 static errno closeHandles(Runtime* runtime);
@@ -217,7 +218,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     }
     if (errno == NO_ERROR || errno > ERR_RUNTIME_ADJUST_PROTECT)
     {
-        eraseRuntimeMethods();
+        eraseRuntimeMethods(runtime);
     }
     if (errno == NO_ERROR && !flushInstructionCache(runtime))
     {
@@ -644,10 +645,12 @@ static bool initIATHooks(Runtime* runtime)
 }
 
 __declspec(noinline)
-static void eraseRuntimeMethods()
+static void eraseRuntimeMethods(Runtime* runtime)
 {
-    // TODO is not erase
-
+    if (runtime->Options->NotEraseInstruction)
+    {
+        return;
+    }
     uintptr begin = (uintptr)(GetFuncAddr(&allocRuntimeMemPage));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseRuntimeMethods));
     uintptr size  = end - begin;
@@ -1213,8 +1216,12 @@ errno RT_SleepHR(DWORD dwMilliseconds)
             dwMilliseconds = 1000;
         }
     }
-    dwMilliseconds = 10; // TODO remove it
 
+    // for test submodule faster
+#ifndef RELEASE_MODE
+    dwMilliseconds = 5 + RandUintN(0, 50);
+#endif
+    
     errno errno = NO_ERROR;
     for (;;)
     {
