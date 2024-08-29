@@ -113,8 +113,8 @@ errno RT_unlock_mods();
 #endif
 static Runtime* getRuntimePointer();
 
-static bool rt_lock(Runtime* runtime);
-static bool rt_unlock(Runtime* runtime);
+static bool rt_lock();
+static bool rt_unlock();
 
 static void* allocRuntimeMemPage();
 static bool  initRuntimeAPI(Runtime* runtime);
@@ -646,6 +646,8 @@ static bool initIATHooks(Runtime* runtime)
 __declspec(noinline)
 static void eraseRuntimeMethods()
 {
+    // TODO is not erase
+
     uintptr begin = (uintptr)(GetFuncAddr(&allocRuntimeMemPage));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseRuntimeMethods));
     uintptr size  = end - begin;
@@ -810,15 +812,19 @@ static Runtime* getRuntimePointer()
 #pragma optimize("", on)
 
 __declspec(noinline)
-static bool rt_lock(Runtime* runtime)
+static bool rt_lock()
 {
+    Runtime* runtime = getRuntimePointer();
+
     uint32 event = runtime->WaitForSingleObject(runtime->hMutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
 __declspec(noinline)
-static bool rt_unlock(Runtime* runtime)
+static bool rt_unlock()
 {
+    Runtime* runtime = getRuntimePointer();
+
     return runtime->ReleaseMutex(runtime->hMutex);
 }
 
@@ -955,7 +961,7 @@ void RT_Sleep(DWORD dwMilliseconds)
 {
     Runtime* runtime = getRuntimePointer();
 
-    if (!rt_lock(runtime))
+    if (!rt_lock())
     {
         return;
     }
@@ -964,7 +970,7 @@ void RT_Sleep(DWORD dwMilliseconds)
     WaitForSingleObject_t wait = runtime->WaitForSingleObject;
     HANDLE hProcess = runtime->hProcess;
 
-    if (!rt_unlock(runtime))
+    if (!rt_unlock())
     {
         return;
     }
@@ -1001,6 +1007,8 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
     uint hash = HashAPI_W((uint16*)(&module[0]), (byte*)lpProcName, key);
     return RT_GetProcAddressByHash(hash, key, hook);
 }
+
+// TODO process ordinal import
 
 __declspec(noinline)
 void* RT_GetProcAddressByHash(uint hash, uint key, bool hook)
@@ -1143,7 +1151,7 @@ errno RT_ExitProcess(UINT uExitCode)
 {
     Runtime* runtime = getRuntimePointer();
 
-    if (!rt_lock(runtime))
+    if (!rt_lock())
     {
         return ERR_RUNTIME_LOCK;
     }
@@ -1169,7 +1177,7 @@ errno RT_ExitProcess(UINT uExitCode)
     {
         return errlm;
     }
-    if (!rt_unlock(runtime))
+    if (!rt_unlock())
     {
         return ERR_RUNTIME_UNLOCK;
     }
@@ -1357,7 +1365,7 @@ static errno processEvent(Runtime* runtime, bool* exit)
 __declspec(noinline)
 static errno sleepHR(Runtime* runtime, uint32 milliseconds)
 {
-    if (!rt_lock(runtime))
+    if (!rt_lock())
     {
         return ERR_RUNTIME_LOCK;
     }
@@ -1395,7 +1403,7 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
         return err;
     }
 
-    if (!rt_unlock(runtime))
+    if (!rt_unlock())
     {
         return ERR_RUNTIME_UNLOCK;
     }
@@ -1527,7 +1535,7 @@ errno RT_Hide()
 {
     Runtime* runtime = getRuntimePointer();
 
-    if (!rt_lock(runtime))
+    if (!rt_lock())
     {
         return ERR_RUNTIME_LOCK;
     }
@@ -1546,7 +1554,7 @@ errno RT_Hide()
         return err;
     }
 
-    if (!rt_unlock(runtime))
+    if (!rt_unlock())
     {
         return ERR_RUNTIME_UNLOCK;
     }
@@ -1558,7 +1566,7 @@ errno RT_Recover()
 {
     Runtime* runtime = getRuntimePointer();
 
-    if (!rt_lock(runtime))
+    if (!rt_lock())
     {
         return ERR_RUNTIME_LOCK;
     }
@@ -1577,7 +1585,7 @@ errno RT_Recover()
         return err;
     }
 
-    if (!rt_unlock(runtime))
+    if (!rt_unlock())
     {
         return ERR_RUNTIME_UNLOCK;
     }
@@ -1589,7 +1597,7 @@ errno RT_Exit()
 {
     Runtime* runtime = getRuntimePointer();
 
-    if (!rt_lock(runtime))
+    if (!rt_lock())
     {
         return ERR_RUNTIME_LOCK;
     }
