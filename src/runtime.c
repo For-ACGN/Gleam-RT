@@ -120,7 +120,7 @@ static bool rt_unlock();
 static void* allocRuntimeMemPage();
 static bool  initRuntimeAPI(Runtime* runtime);
 static bool  adjustPageProtect(Runtime* runtime);
-static bool  updateRuntimePointer(Runtime* runtime);
+static bool  updateRuntimePointer(uintptr stub, void* pointer);
 static errno initRuntimeEnvironment(Runtime* runtime);
 static errno initLibraryTracker(Runtime* runtime, Context* context);
 static errno initMemoryTracker(Runtime* runtime, Context* context);
@@ -148,7 +148,6 @@ static errno closeHandles(Runtime* runtime);
 static void  eraseMemory(uintptr address, uintptr size);
 static void  rt_epilogue();
 
-__declspec(noinline)
 Runtime_M* InitRuntime(Runtime_Opts* opts)
 {
     if (!InitDebugger())
@@ -199,7 +198,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
             errno = ERR_RUNTIME_ADJUST_PROTECT;
             break;
         }
-        if (!updateRuntimePointer(runtime))
+        if (!updateRuntimePointer(RUNTIME_POINTER, runtime))
         {
             errno = ERR_RUNTIME_UPDATE_PTR;
             break;
@@ -399,19 +398,19 @@ static bool adjustPageProtect(Runtime* runtime)
     return runtime->VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &old);
 }
 
-static bool updateRuntimePointer(Runtime* runtime)
+static bool updateRuntimePointer(uintptr stub, void* pointer)
 {
     bool success = false;
     uintptr target = (uintptr)(GetFuncAddr(&getRuntimePointer));
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
-        if (*pointer != RUNTIME_POINTER)
+        if (*pointer != stub)
         {
             target++;
             continue;
         }
-        *pointer = (uintptr)runtime;
+        *pointer = (uintptr)pointer;
         success = true;
         break;
     }
@@ -647,7 +646,7 @@ static bool initIATHooks(Runtime* runtime)
 __declspec(noinline)
 static void eraseRuntimeMethods(Runtime* runtime)
 {
-    if (runtime->Options->NotEraseInstruction)
+    if (runtime->NotEraseInstruction)
     {
         return;
     }
@@ -1219,7 +1218,7 @@ errno RT_SleepHR(DWORD dwMilliseconds)
 
     // for test submodule faster
 #ifndef RELEASE_MODE
-    dwMilliseconds = 5 + RandUintN(0, 50);
+    dwMilliseconds = 5 + (DWORD)RandUintN(0, 50);
 #endif
     
     errno errno = NO_ERROR;
@@ -1643,6 +1642,18 @@ errno RT_Exit()
     if (enclr != NO_ERROR && err == NO_ERROR)
     {
         err = enclr;
+    }
+
+    // recover instructions for generate shellcode
+    if (notEraseInst)
+    {
+        if (!updateRuntimePointer((uintptr)runtime, (void*)RUNTIME_POINTER))
+        {
+            if (err == NO_ERROR)
+            {
+                err = ERR_RUNTIME_EXIT_RECOVER_INST;
+            }
+        }
     }
 
     // erase runtime instructions except this function
