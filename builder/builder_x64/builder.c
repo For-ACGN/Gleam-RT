@@ -4,7 +4,6 @@
 #include "hash_api.h"
 #include "errno.h"
 #include "runtime.h"
-#include "rel_addr.h"
 #include "epilogue.h"
 
 int saveShellcode();
