@@ -1,3 +1,6 @@
+.code
+
+InitRuntime proc
   db 048h, 089h, 05Ch, 024h, 008h, 048h, 089h, 074h, 024h, 018h, 048h, 089h, 07Ch, 024h, 020h, 041h
   db 056h, 048h, 083h, 0ECh, 030h, 048h, 08Bh, 0F9h, 0E8h, 05Fh, 003h, 000h, 000h, 048h, 08Bh, 0F0h
   db 048h, 085h, 0C0h, 075h, 015h, 065h, 048h, 08Bh, 004h, 025h, 030h, 000h, 000h, 000h, 0C7h, 040h
@@ -1956,3 +1959,7 @@
   db 025h, 09Ah, 055h, 0B7h, 03Eh, 051h, 0F8h, 005h, 03Ah, 0F5h, 076h, 00Eh, 002h, 000h, 000h, 000h
   db 018h, 000h, 000h, 000h, 040h, 0DAh, 0F5h, 00Ah, 099h, 0E1h, 0DAh, 004h, 073h, 069h, 0CCh, 06Dh
   db 006h, 0FFh, 0F5h, 0EBh, 029h, 095h, 0A2h, 0F3h, 024h, 09Ah, 055h, 0D4h
+InitRuntime endp
+
+end
+

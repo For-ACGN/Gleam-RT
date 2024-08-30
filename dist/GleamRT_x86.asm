@@ -1,3 +1,8 @@
+.model tiny
+
+.code
+
+_InitRuntime@4 proc
   db 055h, 08Bh, 0ECh, 083h, 0E4h, 0F8h, 083h, 0ECh, 00Ch, 053h, 056h, 057h, 0E8h, 0D5h, 002h, 000h
   db 000h, 08Bh, 0F8h, 085h, 0FFh, 075h, 012h, 064h, 0A1h, 018h, 000h, 000h, 000h, 0C7h, 040h, 034h
   db 002h, 000h, 000h, 001h, 0E9h, 083h, 000h, 000h, 000h, 033h, 0DBh, 053h, 06Ah, 0FFh, 053h, 057h
@@ -1511,3 +1516,7 @@
   db 0F3h, 025h, 09Ah, 055h, 0B7h, 03Eh, 051h, 0F8h, 005h, 03Ah, 0F5h, 076h, 00Eh, 002h, 000h, 000h
   db 000h, 018h, 000h, 000h, 000h, 040h, 0DAh, 0F5h, 00Ah, 099h, 0E1h, 0DAh, 004h, 073h, 069h, 0CCh
   db 06Dh, 006h, 0FFh, 0F5h, 0EBh, 029h, 095h, 0A2h, 0F3h, 024h, 09Ah, 055h, 0D4h
+_InitRuntime@4 endp
+
+end
+
