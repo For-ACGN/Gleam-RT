@@ -273,7 +273,7 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryA: 0x%zX\n", hModule);
+    dbg_log("[library]", "LoadLibraryA: 0x%zX", hModule);
 
     if (!LT_Unlock())
     {
@@ -319,7 +319,7 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryW: 0x%zX\n", hModule);
+    dbg_log("[library]", "LoadLibraryW: 0x%zX", hModule);
 
     if (!LT_Unlock())
     {
@@ -365,7 +365,7 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryExA: 0x%zX\n", hModule);
+    dbg_log("[library]", "LoadLibraryExA: 0x%zX", hModule);
 
     if (!LT_Unlock())
     {
@@ -411,7 +411,7 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryExW: 0x%zX\n", hModule);
+    dbg_log("[library]", "LoadLibraryExW: 0x%zX", hModule);
 
     if (!LT_Unlock())
     {
@@ -454,7 +454,7 @@ BOOL LT_FreeLibrary(HMODULE hLibModule)
         break;
     }
 
-    dbg_log("[library]", "FreeLibrary: 0x%zX\n", hLibModule);
+    dbg_log("[library]", "FreeLibrary: 0x%zX", hLibModule);
 
     if (!LT_Unlock())
     {
@@ -474,7 +474,7 @@ void LT_FreeLibraryAndExitThread(HMODULE hLibModule, DWORD dwExitCode)
     }
 
     delModule(tracker, hLibModule);
-    dbg_log("[library]", "FreeLibraryAndExitThread: 0x%zX\n", hLibModule);
+    dbg_log("[library]", "FreeLibraryAndExitThread: 0x%zX", hLibModule);
 
     if (!LT_Unlock())
     {
@@ -582,7 +582,7 @@ errno LT_Decrypt()
     byte* iv   = &tracker->ModulesIV[0];
     DecryptBuf(list->Data, List_Size(list), key, iv);
 
-    dbg_log("[library]", "modules: %zu\n", list->Len);
+    dbg_log("[library]", "modules: %zu", list->Len);
     return NO_ERROR;
 }
 

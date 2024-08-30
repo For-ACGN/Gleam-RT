@@ -301,7 +301,7 @@ LPVOID MT_VirtualAlloc(LPVOID address, SIZE_T size, DWORD type, DWORD protect)
     }
 
     dbg_log(
-        "[memory]", "VirtualAlloc: 0x%zX, 0x%zX, 0x%X, 0x%X\n",
+        "[memory]", "VirtualAlloc: 0x%zX, 0x%zX, 0x%X, 0x%X",
         address, size, type, protect
     );
 
@@ -416,7 +416,7 @@ BOOL MT_VirtualFree(LPVOID address, SIZE_T size, DWORD type)
     }
 
     dbg_log(
-        "[memory]", "VirtualFree: 0x%zX, 0x%zX, 0x%X\n",
+        "[memory]", "VirtualFree: 0x%zX, 0x%zX, 0x%X",
         address, size, type
     );
 
@@ -564,7 +564,7 @@ BOOL MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old)
     }
 
     dbg_log(
-        "[memory]", "VirtualProtect: 0x%zX, 0x%zX, 0x%X\n", 
+        "[memory]", "VirtualProtect: 0x%zX, 0x%zX, 0x%X", 
         address, size, new
     );
 
@@ -623,7 +623,7 @@ SIZE_T MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length)
         return 0;
     }
 
-    dbg_log("[memory]", "VirtualQuery: 0x%zX\n", address);
+    dbg_log("[memory]", "VirtualQuery: 0x%zX", address);
 
     uint size = tracker->VirtualQuery(address, buffer, length);
 
@@ -644,7 +644,7 @@ BOOL MT_VirtualLock(LPVOID address, SIZE_T size)
         return false;
     }
 
-    dbg_log("[memory]", "VirtualLock: 0x%zX\n", address);
+    dbg_log("[memory]", "VirtualLock: 0x%zX", address);
 
     // if size is zero, only set a flag to memory page and
     // region that prevent MT_FreeAll free these memory 
@@ -678,7 +678,7 @@ BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
         return false;
     }
 
-    dbg_log("[memory]", "VirtualUnlock: 0x%zX\n", address);
+    dbg_log("[memory]", "VirtualUnlock: 0x%zX", address);
 
     // if size is zero, only unset a flag to memory page
     // and region that MT_FreeAll will free these memory 
@@ -1010,8 +1010,8 @@ errno MT_Decrypt()
         }
         num++;
     }
-    dbg_log("[memory]", "regions: %zu\n", tracker->Regions.Len);
-    dbg_log("[memory]", "pages:   %zu\n", tracker->Pages.Len);
+    dbg_log("[memory]", "regions: %zu", tracker->Regions.Len);
+    dbg_log("[memory]", "pages:   %zu", tracker->Pages.Len);
     return NO_ERROR;
 }
 

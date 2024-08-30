@@ -307,7 +307,7 @@ static void* allocRuntimeMemPage()
         return NULL;
     }
     RandBuf(addr, MAIN_MEM_PAGE_SIZE);
-    dbg_log("[runtime]", "Main Page: 0x%zX\n", addr);
+    dbg_log("[runtime]", "Main Page: 0x%zX", addr);
     return addr;
 }
 
@@ -867,7 +867,6 @@ void* RT_malloc(uint size)
     {
         return NULL;
     }
-    // printf_s("rt_malloc: 0x%llX, %llu\n", addr, size);
 
     // store the size at the head of the memory page
     // ensure the memory address is 16 bytes aligned
@@ -910,8 +909,6 @@ bool RT_free(void* address)
     {
         return true;
     }
-
-    // printf_s("rt_free: 0x%llX\n", (uintptr)address);
 
     // clean the buffer data before call VirtualFree.
     void* addr = (void*)((uintptr)(address)-16);

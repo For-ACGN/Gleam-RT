@@ -335,7 +335,7 @@ HANDLE RT_CreateFileA(
         break;
     }
 
-    dbg_log("[resource]", "CreateFileA: %s\n", lpFileName);
+    dbg_log("[resource]", "CreateFileA: %s", lpFileName);
 
     if (!RT_Unlock())
     {
@@ -388,7 +388,7 @@ HANDLE RT_CreateFileW(
         break;
     }
 
-    dbg_log("[resource]", "CreateFileW: %ls\n", lpFileName);
+    dbg_log("[resource]", "CreateFileW: %ls", lpFileName);
 
     if (!RT_Unlock())
     {
@@ -434,7 +434,7 @@ HANDLE RT_FindFirstFileA(LPCSTR lpFileName, POINTER lpFindFileData)
         break;
     }
 
-    dbg_log("[resource]", "FindFirstFileA: %s\n", lpFileName);
+    dbg_log("[resource]", "FindFirstFileA: %s", lpFileName);
 
     if (!RT_Unlock())
     {
@@ -480,7 +480,7 @@ HANDLE RT_FindFirstFileW(LPCWSTR lpFileName, POINTER lpFindFileData)
         break;
     }
 
-    dbg_log("[resource]", "FindFirstFileW: %ls\n", lpFileName);
+    dbg_log("[resource]", "FindFirstFileW: %ls", lpFileName);
 
     if (!RT_Unlock())
     {
@@ -531,7 +531,7 @@ HANDLE RT_FindFirstFileExA(
         break;
     }
 
-    dbg_log("[resource]", "FindFirstFileExA: %s\n", lpFileName);
+    dbg_log("[resource]", "FindFirstFileExA: %s", lpFileName);
 
     if (!RT_Unlock())
     {
@@ -582,7 +582,7 @@ HANDLE RT_FindFirstFileExW(
         break;
     }
 
-    dbg_log("[resource]", "FindFirstFileExW: %ls\n", lpFileName);
+    dbg_log("[resource]", "FindFirstFileExW: %ls", lpFileName);
 
     if (!RT_Unlock())
     {
@@ -621,7 +621,7 @@ BOOL RT_CloseHandle(HANDLE hObject)
         break;
     }    
 
-    dbg_log("[resource]", "CloseHandle: 0x%zX\n", hObject);
+    dbg_log("[resource]", "CloseHandle: 0x%zX", hObject);
 
     if (!RT_Unlock())
     {
@@ -652,7 +652,7 @@ BOOL RT_FindClose(HANDLE hFindFile)
         break;
     }
 
-    dbg_log("[resource]", "FindClose: 0x%zX\n", hFindFile);
+    dbg_log("[resource]", "FindClose: 0x%zX", hFindFile);
 
     if (!RT_Unlock())
     {
@@ -738,7 +738,7 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
         tracker->Counters[CTR_WSA_STARTUP]++;
     }
 
-    dbg_log("[resource]", "WSAStartup is called\n");
+    dbg_log("[resource]", "WSAStartup is called");
 
     if (!RT_Unlock())
     {
@@ -773,7 +773,7 @@ int RT_WSACleanup()
         tracker->Counters[CTR_WSA_STARTUP]--;
     }
 
-    dbg_log("[resource]", "WSACleanup is called\n");
+    dbg_log("[resource]", "WSACleanup is called");
 
     if (!RT_Unlock())
     {
@@ -823,7 +823,7 @@ errno RT_Decrypt()
     byte* iv   = &tracker->HandlesIV[0];
     DecryptBuf(list->Data, List_Size(list), key, iv);
 
-    dbg_log("[resource]", "handles: %zu\n", list->Len);
+    dbg_log("[resource]", "handles: %zu", list->Len);
     return NO_ERROR;
 }
 

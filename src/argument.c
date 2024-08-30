@@ -209,8 +209,8 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     }
     // clean stub data after decrypt
     RandBuf((byte*)stub, ARG_HEADER_DATA_SIZE + size);
-    dbg_log("[argument]", "mem page: 0x%zX\n", store->Address);
-    dbg_log("[argument]", "num args: %zu\n", store->NumArgs);
+    dbg_log("[argument]", "mem page: 0x%zX", store->Address);
+    dbg_log("[argument]", "num args: %zu", store->NumArgs);
     return NO_ERROR;
 }
 
