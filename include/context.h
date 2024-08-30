@@ -11,6 +11,7 @@ typedef errno (*rt_unlock_t)();
 
 typedef struct {
     // runtime options
+    bool NotEraseInstruction;
     bool TrackCurrentThread;
 
     // runtime context data
