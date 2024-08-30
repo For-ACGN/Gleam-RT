@@ -6,26 +6,24 @@
 #include "argument.h"
 #include "runtime.h"
 
-int testShellcode();
-int saveShellcode();
+bool testShellcode();
+bool saveShellcode();
 
 int __cdecl main()
 {
-    int ret = testShellcode();
-    if (ret != 0)
+    if (!testShellcode())
     {
-        return ret;
+        return 1;
     }
-    ret = saveShellcode();
-    if (ret != 0)
+    if (!saveShellcode())
     {
-        return ret;
+        return 2;
     }
     printf_s("save shellcode successfully");
     return 0;
 }
 
-int testShellcode()
+bool testShellcode()
 {
     Runtime_Opts opt = {
         .NotEraseInstruction = true,
@@ -34,19 +32,19 @@ int testShellcode()
     if (RuntimeM == NULL)
     {
         printf_s("failed to test shellcode: 0x%lX\n", GetLastErrno());
-        return 1;
+        return false;
     }
     printf_s("RuntimeM: 0x%llX\n", (uint64)RuntimeM);
     errno errno = RuntimeM->Exit();
     if (errno != NO_ERROR)
     {
         printf_s("failed to exit runtime: 0x%lX\n", errno);
-        return 2;
+        return false;
     }
-    return 0;
+    return true;
 }
 
-int saveShellcode()
+bool saveShellcode()
 {
 #ifdef _WIN64
     FILE* file = fopen("../dist/GleamRT_x64.bin", "wb");
@@ -56,17 +54,30 @@ int saveShellcode()
     if (file == NULL)
     {
         printf_s("failed to create output file");
-        return 2;
+        return false;
     }
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Argument_Stub);
     uintptr size  = end - begin;
+    // skip 0xCC instructions at the tail
+    uint num0xCC = 0;
+    for (;;)
+    {
+        end--;
+        if (*(byte*)end != 0xCC)
+        {
+            break;
+        }
+        num0xCC++;
+    }
+    size -= num0xCC;
+    // write shellcode
     size_t  n = fwrite((byte*)begin, (size_t)size, 1, file);
     if (n != 1)
     {
         printf_s("failed to save shellcode");
-        return 3;
+        return false;
     }
     fclose(file);
-    return 0;
+    return true;
 }
