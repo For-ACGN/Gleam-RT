@@ -7,9 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test", "test\test.vcxproj",
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pe_loader", "pe_loader\pe_loader.vcxproj", "{F50B9D94-8879-4ACC-89B9-E91698C4611A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "builder_x64", "builder\builder_x64\builder_x64.vcxproj", "{D622C9AA-B588-4DFB-ADED-0311FC84030E}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "builder_x86", "builder\builder_x86\builder_x86.vcxproj", "{F6F189C8-EB91-4470-855B-5C1E53E78359}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "builder", "builder\builder.vcxproj", "{F6F189C8-EB91-4470-855B-5C1E53E78359}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,18 +33,12 @@ Global
 		{F50B9D94-8879-4ACC-89B9-E91698C4611A}.Release|x64.Build.0 = Release|x64
 		{F50B9D94-8879-4ACC-89B9-E91698C4611A}.Release|x86.ActiveCfg = Release|Win32
 		{F50B9D94-8879-4ACC-89B9-E91698C4611A}.Release|x86.Build.0 = Release|Win32
-		{D622C9AA-B588-4DFB-ADED-0311FC84030E}.Debug|x64.ActiveCfg = Release|x64
-		{D622C9AA-B588-4DFB-ADED-0311FC84030E}.Debug|x64.Build.0 = Release|x64
-		{D622C9AA-B588-4DFB-ADED-0311FC84030E}.Debug|x86.ActiveCfg = Release|Win32
-		{D622C9AA-B588-4DFB-ADED-0311FC84030E}.Debug|x86.Build.0 = Release|Win32
-		{D622C9AA-B588-4DFB-ADED-0311FC84030E}.Release|x64.ActiveCfg = Release|x64
-		{D622C9AA-B588-4DFB-ADED-0311FC84030E}.Release|x64.Build.0 = Release|x64
-		{D622C9AA-B588-4DFB-ADED-0311FC84030E}.Release|x86.ActiveCfg = Release|x64
-		{D622C9AA-B588-4DFB-ADED-0311FC84030E}.Release|x86.Build.0 = Release|x64
-		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Debug|x64.ActiveCfg = Release|Win32
+		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Debug|x64.ActiveCfg = Release|x64
+		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Debug|x64.Build.0 = Release|x64
 		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Debug|x86.ActiveCfg = Release|Win32
 		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Debug|x86.Build.0 = Release|Win32
-		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Release|x64.ActiveCfg = Release|Win32
+		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Release|x64.ActiveCfg = Release|x64
+		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Release|x64.Build.0 = Release|x64
 		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Release|x86.ActiveCfg = Release|Win32
 		{F6F189C8-EB91-4470-855B-5C1E53E78359}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
