@@ -120,7 +120,8 @@ static bool rt_unlock();
 static void* allocRuntimeMemPage();
 static bool  initRuntimeAPI(Runtime* runtime);
 static bool  adjustPageProtect(Runtime* runtime);
-static bool  updateRuntimePointer(uintptr stub, void* pointer);
+static bool  updateRuntimePointer(Runtime* runtime);
+static bool  recoverRuntimePointer(Runtime* runtime);
 static errno initRuntimeEnvironment(Runtime* runtime);
 static errno initLibraryTracker(Runtime* runtime, Context* context);
 static errno initMemoryTracker(Runtime* runtime, Context* context);
@@ -198,7 +199,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
             errno = ERR_RUNTIME_ADJUST_PROTECT;
             break;
         }
-        if (!updateRuntimePointer(RUNTIME_POINTER, runtime))
+        if (!updateRuntimePointer(runtime))
         {
             errno = ERR_RUNTIME_UPDATE_PTR;
             break;
@@ -398,19 +399,42 @@ static bool adjustPageProtect(Runtime* runtime)
     return runtime->VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &old);
 }
 
-static bool updateRuntimePointer(uintptr stub, void* pointer)
+// CANNOT merge updateRuntimePointer and recoverRuntimePointer 
+// to one function with two arguments, otherwise the compiler
+// will generate the incorrect instructions.
+
+static bool updateRuntimePointer(Runtime* runtime)
 {
     bool success = false;
     uintptr target = (uintptr)(GetFuncAddr(&getRuntimePointer));
     for (uintptr i = 0; i < 64; i++)
     {
         uintptr* pointer = (uintptr*)(target);
-        if (*pointer != stub)
+        if (*pointer != RUNTIME_POINTER)
         {
             target++;
             continue;
         }
-        *pointer = (uintptr)pointer;
+        *pointer = (uintptr)runtime;
+        success = true;
+        break;
+    }
+    return success;
+}
+
+static bool recoverRuntimePointer(Runtime* runtime)
+{
+    bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getRuntimePointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != (uintptr)runtime)
+        {
+            target++;
+            continue;
+        }
+        *pointer = RUNTIME_POINTER;
         success = true;
         break;
     }
@@ -1647,7 +1671,7 @@ errno RT_Exit()
     // recover instructions for generate shellcode
     if (notEraseInst)
     {
-        if (!updateRuntimePointer((uintptr)runtime, (void*)RUNTIME_POINTER))
+        if (!recoverRuntimePointer(runtime))
         {
             if (err == NO_ERROR)
             {
