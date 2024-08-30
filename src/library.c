@@ -17,6 +17,9 @@ typedef struct {
 } module;
 
 typedef struct {
+    // store options
+    bool NotEraseInstruction;
+
     // API addresses
     LoadLibraryA_t             LoadLibraryA;
     LoadLibraryW_t             LoadLibraryW;
@@ -62,6 +65,7 @@ static LibraryTracker* getTrackerPointer();
 
 static bool initTrackerAPI(LibraryTracker* tracker, Context* context);
 static bool updateTrackerPointer(LibraryTracker* tracker);
+static bool recoverTrackerPointer(LibraryTracker* tracker);
 static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context);
 static bool addModule(LibraryTracker* tracker, HMODULE hModule);
 static bool delModule(LibraryTracker* tracker, HMODULE hModule);
@@ -79,6 +83,8 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     // initialize tracker
     LibraryTracker* tracker = (LibraryTracker*)trackerAddr;
     mem_clean(tracker, sizeof(LibraryTracker));
+    // store options
+    tracker->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -99,7 +105,7 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
         }
         break;
     }
-    eraseTrackerMethods();
+    eraseTrackerMethods(context);
     if (errno != NO_ERROR)
     {
         cleanTracker(tracker);
@@ -172,7 +178,10 @@ static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
     return true;
 }
 
-__declspec(noinline)
+// CANNOT merge updateTrackerPointer and recoverTrackerPointer
+// to one function with two arguments, otherwise the compiler
+// will generate the incorrect instructions.
+
 static bool updateTrackerPointer(LibraryTracker* tracker)
 {
     bool success = false;
@@ -186,6 +195,25 @@ static bool updateTrackerPointer(LibraryTracker* tracker)
             continue;
         }
         *pointer = (uintptr)tracker;
+        success = true;
+        break;
+    }
+    return success;
+}
+
+static bool recoverTrackerPointer(LibraryTracker* tracker)
+{
+    bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getTrackerPointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != (uintptr)tracker)
+        {
+            target++;
+            continue;
+        }
+        *pointer = TRACKER_POINTER;
         success = true;
         break;
     }
@@ -216,8 +244,12 @@ static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context)
 }
 
 __declspec(noinline)
-static void eraseTrackerMethods()
+static void eraseTrackerMethods(Context* context)
 {
+    if (context->NotEraseInstruction)
+    {
+        return;
+    }
     uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
@@ -612,15 +644,24 @@ errno LT_Clean()
 
     // clean module list
     RandBuf(modules->Data, List_Size(modules));
-    if (!List_Free(modules))
+    if (!List_Free(modules) && errno == NO_ERROR)
     {
         errno = ERR_LIBRARY_FREE_LIST;
     }
 
     // close mutex
-    if (!tracker->CloseHandle(tracker->hMutex))
+    if (!tracker->CloseHandle(tracker->hMutex) && errno == NO_ERROR)
     {
         errno = ERR_LIBRARY_CLOSE_MUTEX;
+    }
+
+    // recover instructions
+    if (tracker->NotEraseInstruction)
+    {
+        if (!recoverTrackerPointer(tracker) && errno == NO_ERROR)
+        {
+            errno = ERR_LIBRARY_RECOVER_INST;
+        }
     }
     return errno;
 }
