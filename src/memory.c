@@ -27,6 +27,9 @@ typedef struct {
 } memPage;
 
 typedef struct {
+    // store options
+    bool NotEraseInstruction;
+
     // API addresses
     VirtualAlloc_t          VirtualAlloc;
     VirtualFree_t           VirtualFree;
@@ -83,6 +86,7 @@ static MemoryTracker* getTrackerPointer();
 
 static bool initTrackerAPI(MemoryTracker* tracker, Context* context);
 static bool updateTrackerPointer(MemoryTracker* tracker);
+static bool recoverTrackerPointer(MemoryTracker* tracker);
 static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context);
 static bool allocPage(MemoryTracker* tracker, uintptr address, uint size, uint32 type, uint32 protect);
 static bool reserveRegion(MemoryTracker* tracker, uintptr address, uint size);
@@ -108,7 +112,7 @@ static bool isEmptyPage(MemoryTracker* tracker, memPage* page);
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
 static bool cleanPage(MemoryTracker* tracker, memPage* page);
 
-static void eraseTrackerMethods();
+static void eraseTrackerMethods(Context* context);
 static void cleanTracker(MemoryTracker* tracker);
 
 MemoryTracker_M* InitMemoryTracker(Context* context)
@@ -120,6 +124,8 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     // initialize tracker
     MemoryTracker* tracker = (MemoryTracker*)trackerAddr;
     mem_clean(tracker, sizeof(MemoryTracker));
+    // store options
+    tracker->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -140,7 +146,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
         }
         break;
     }
-    eraseTrackerMethods();
+    eraseTrackerMethods(context);
     if (errno != NO_ERROR)
     {
         cleanTracker(tracker);
@@ -212,6 +218,10 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
     return true;
 }
 
+// CANNOT merge updateTrackerPointer and recoverTrackerPointer
+// to one function with two arguments, otherwise the compiler
+// will generate the incorrect instructions.
+
 __declspec(noinline)
 static bool updateTrackerPointer(MemoryTracker* tracker)
 {
@@ -226,6 +236,26 @@ static bool updateTrackerPointer(MemoryTracker* tracker)
             continue;
         }
         *pointer = (uintptr)tracker;
+        success = true;
+        break;
+    }
+    return success;
+}
+
+__declspec(noinline)
+static bool recoverTrackerPointer(MemoryTracker* tracker)
+{
+    bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getTrackerPointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != (uintptr)tracker)
+        {
+            target++;
+            continue;
+        }
+        *pointer = TRACKER_POINTER;
         success = true;
         break;
     }
@@ -261,8 +291,12 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
 }
 
 __declspec(noinline)
-static void eraseTrackerMethods()
+static void eraseTrackerMethods(Context* context)
 {
+    if (context->NotEraseInstruction)
+    {
+        return;
+    }
     uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
@@ -1134,7 +1168,7 @@ errno MT_Clean()
         {
             continue;
         }
-        if (!cleanPage(tracker, page))
+        if (!cleanPage(tracker, page) && errno == NO_ERROR)
         {
             errno = ERR_MEMORY_CLEAN_PAGE;
         }
@@ -1152,7 +1186,10 @@ errno MT_Clean()
         }
         if (!tracker->VirtualFree((LPVOID)(region->address), 0, MEM_RELEASE))
         {
-            errno = ERR_MEMORY_CLEAN_REGION;
+            if (errno == NO_ERROR)
+            {
+                errno = ERR_MEMORY_CLEAN_REGION;
+            }
         }
         num++;
     }
@@ -1160,19 +1197,28 @@ errno MT_Clean()
     // clean memory region and page list
     RandBuf(regions->Data, List_Size(regions));
     RandBuf(pages->Data, List_Size(pages));
-    if (!List_Free(regions))
+    if (!List_Free(regions) && errno == NO_ERROR)
     {
         errno = ERR_MEMORY_FREE_PAGE_LIST;
     }
-    if (!List_Free(pages))
+    if (!List_Free(pages) && errno == NO_ERROR)
     {
         errno = ERR_MEMORY_FREE_REGION_LIST;
     }
 
     // close mutex
-    if (!tracker->CloseHandle(tracker->hMutex))
+    if (!tracker->CloseHandle(tracker->hMutex) && errno == NO_ERROR)
     {
         errno = ERR_MEMORY_CLOSE_MUTEX;
+    }
+
+    // recover instructions
+    if (tracker->NotEraseInstruction)
+    {
+        if (!recoverTrackerPointer(tracker) && errno == NO_ERROR)
+        {
+            errno = ERR_MEMORY_RECOVER_INST;
+        }
     }
     return errno;
 }
