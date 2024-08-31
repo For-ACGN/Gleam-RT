@@ -33,6 +33,9 @@ typedef struct {
 } handle;
 
 typedef struct {
+    // store options
+    bool NotEraseInstruction;
+
     // API addresses
     CreateFileA_t         CreateFileA;
     CreateFileW_t         CreateFileW;
@@ -102,11 +105,12 @@ static ResourceTracker* getTrackerPointer();
 
 static bool initTrackerAPI(ResourceTracker* tracker, Context* context);
 static bool updateTrackerPointer(ResourceTracker* tracker);
+static bool recoverTrackerPointer(ResourceTracker* tracker);
 static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context);
 static bool addHandle(ResourceTracker* tracker, void* hObject, uint16 source);
 static void delHandle(ResourceTracker* tracker, void* hObject, uint16 type);
 
-static void eraseTrackerMethods();
+static void eraseTrackerMethods(Context* context);
 static void cleanTracker(ResourceTracker* tracker);
 
 ResourceTracker_M* InitResourceTracker(Context* context)
@@ -118,6 +122,8 @@ ResourceTracker_M* InitResourceTracker(Context* context)
     // initialize tracker
     ResourceTracker* tracker = (ResourceTracker*)trackerAddr;
     mem_clean(tracker, sizeof(ResourceTracker));
+    // store options
+    tracker->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -138,7 +144,7 @@ ResourceTracker_M* InitResourceTracker(Context* context)
         }
         break;
     }
-    eraseTrackerMethods();
+    eraseTrackerMethods(context);
     if (errno != NO_ERROR)
     {
         cleanTracker(tracker);
@@ -218,6 +224,10 @@ static bool initTrackerAPI(ResourceTracker* tracker, Context* context)
     return true;
 }
 
+// CANNOT merge updateTrackerPointer and recoverTrackerPointer
+// to one function with two arguments, otherwise the compiler
+// will generate the incorrect instructions.
+
 __declspec(noinline)
 static bool updateTrackerPointer(ResourceTracker* tracker)
 {
@@ -232,6 +242,26 @@ static bool updateTrackerPointer(ResourceTracker* tracker)
             continue;
         }
         *pointer = (uintptr)tracker;
+        success = true;
+        break;
+    }
+    return success;
+}
+
+__declspec(noinline)
+static bool recoverTrackerPointer(ResourceTracker* tracker)
+{
+    bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getTrackerPointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != (uintptr)tracker)
+        {
+            target++;
+            continue;
+        }
+        *pointer = TRACKER_POINTER;
         success = true;
         break;
     }
@@ -267,8 +297,12 @@ static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context)
 }
 
 __declspec(noinline)
-static void eraseTrackerMethods()
+static void eraseTrackerMethods(Context* context)
 {
+    if (context->NotEraseInstruction)
+    {
+        return;
+    }
     uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
@@ -847,18 +881,19 @@ errno RT_Clean()
         switch (handle->source & 0xFF00)
         {
         case TYPE_CLOSE_HANDLE:
-            if (!tracker->CloseHandle(handle->handle))
+            if (!tracker->CloseHandle(handle->handle) && errno == NO_ERROR)
             {
                 errno = ERR_RESOURCE_CLOSE_HANDLE;
             }
             break;
         case TYPE_FIND_CLOSE:
-            if (!tracker->FindClose(handle->handle))
+            if (!tracker->FindClose(handle->handle) && errno == NO_ERROR)
             {
                 errno = ERR_RESOURCE_FIND_CLOSE;
             }
             break;
         default:
+            // must cover prevent errno
             errno = ERR_RESOURCE_INVALID_SRC_TYPE;
             break;
         }
@@ -867,7 +902,7 @@ errno RT_Clean()
 
     // clean handle list
     RandBuf(handles->Data, List_Size(handles));
-    if (!List_Free(handles))
+    if (!List_Free(handles) && errno == NO_ERROR)
     {
         errno = ERR_RESOURCE_FREE_HANDLE_LIST;
     }
@@ -883,7 +918,7 @@ errno RT_Clean()
         int64 counter = tracker->Counters[CTR_WSA_STARTUP];
         for (int64 i = 0; i < counter; i++)
         {
-            if (WSACleanup() != 0)
+            if (WSACleanup() != 0 && errno == NO_ERROR)
             {
                 errno = ERR_RESOURCE_WSA_CLEANUP;
             }
@@ -891,9 +926,18 @@ errno RT_Clean()
     }
 
     // close mutex
-    if (!tracker->CloseHandle(tracker->hMutex))
+    if (!tracker->CloseHandle(tracker->hMutex) && errno == NO_ERROR)
     {
         errno = ERR_RESOURCE_CLOSE_MUTEX;
+    }
+
+    // recover instructions
+    if (tracker->NotEraseInstruction)
+    {
+        if (!recoverTrackerPointer(tracker) && errno == NO_ERROR)
+        {
+            errno = ERR_RESOURCE_RECOVER_INST;
+        }
     }
     return errno;
 }
