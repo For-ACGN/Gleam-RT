@@ -71,7 +71,7 @@ static bool addModule(LibraryTracker* tracker, HMODULE hModule);
 static bool delModule(LibraryTracker* tracker, HMODULE hModule);
 static bool cleanModule(LibraryTracker* tracker, module* module);
 
-static void eraseTrackerMethods();
+static void eraseTrackerMethods(Context* context);
 static void cleanTracker(LibraryTracker* tracker);
 
 LibraryTracker_M* InitLibraryTracker(Context* context)
@@ -182,6 +182,7 @@ static bool initTrackerAPI(LibraryTracker* tracker, Context* context)
 // to one function with two arguments, otherwise the compiler
 // will generate the incorrect instructions.
 
+__declspec(noinline)
 static bool updateTrackerPointer(LibraryTracker* tracker)
 {
     bool success = false;
@@ -201,6 +202,7 @@ static bool updateTrackerPointer(LibraryTracker* tracker)
     return success;
 }
 
+__declspec(noinline)
 static bool recoverTrackerPointer(LibraryTracker* tracker)
 {
     bool success = false;
