@@ -24,6 +24,9 @@
 #define ARG_OFFSET_FIRST_ARG  (36 + 4)
 
 typedef struct {
+    // store options
+    bool NotEraseInstruction;
+
     // API addresses
     VirtualAlloc_t        VirtualAlloc;
     VirtualFree_t         VirtualFree;
@@ -63,10 +66,11 @@ static ArgumentStore* getStorePointer();
 
 static bool  initStoreAPI(ArgumentStore* store, Context* context);
 static bool  updateStorePointer(ArgumentStore* store);
+static bool  recoverStorePointer(ArgumentStore* store);
 static bool  initStoreEnvironment(ArgumentStore* store, Context* context);
 static errno loadArguments(ArgumentStore* store, Context* context);
 
-static void eraseStoreMethods();
+static void eraseStoreMethods(Context* context);
 static void cleanStore(ArgumentStore* store);
 
 ArgumentStore_M* InitArgumentStore(Context* context)
@@ -78,6 +82,8 @@ ArgumentStore_M* InitArgumentStore(Context* context)
     // initialize store
     ArgumentStore* store = (ArgumentStore*)storeAddr;
     mem_clean(store, sizeof(ArgumentStore));
+    // store options
+    store->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -103,7 +109,7 @@ ArgumentStore_M* InitArgumentStore(Context* context)
         }
         break;
     }
-    eraseStoreMethods();
+    eraseStoreMethods(context);
     if (errno != NO_ERROR)
     {
         cleanStore(store);
@@ -136,6 +142,10 @@ static bool initStoreAPI(ArgumentStore* store, Context* context)
     return true;
 }
 
+// CANNOT merge updateStorePointer and recoverStorePointer
+// to one function with two arguments, otherwise the compiler
+// will generate the incorrect instructions.
+
 __declspec(noinline)
 static bool updateStorePointer(ArgumentStore* store)
 {
@@ -150,6 +160,26 @@ static bool updateStorePointer(ArgumentStore* store)
             continue;
         }
         *pointer = (uintptr)store;
+        success = true;
+        break;
+    }
+    return success;
+}
+
+__declspec(noinline)
+static bool recoverStorePointer(ArgumentStore* store)
+{
+    bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getStorePointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != (uintptr)store)
+        {
+            target++;
+            continue;
+        }
+        *pointer = STORE_POINTER;
         success = true;
         break;
     }
@@ -207,16 +237,23 @@ static errno loadArguments(ArgumentStore* store, Context* context)
         }
         data++;
     }
-    // clean stub data after decrypt
-    RandBuf((byte*)stub, ARG_HEADER_DATA_SIZE + size);
+    // clean argument stub after decrypt
+    if (!context->NotEraseInstruction)
+    {
+        RandBuf((byte*)stub, ARG_HEADER_DATA_SIZE + size);
+    }
     dbg_log("[argument]", "mem page: 0x%zX", store->Address);
     dbg_log("[argument]", "num args: %zu", store->NumArgs);
     return NO_ERROR;
 }
 
 __declspec(noinline)
-static void eraseStoreMethods()
+static void eraseStoreMethods(Context* context)
 {
+    if (context->NotEraseInstruction)
+    {
+        return;
+    }
     uintptr begin = (uintptr)(GetFuncAddr(&initStoreAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseStoreMethods));
     uintptr size  = end - begin;
@@ -392,14 +429,24 @@ errno AS_Clean()
 
     // free memory page
     RandBuf(store->Address, store->Size);
-    if (!store->VirtualFree(store->Address, 0, MEM_RELEASE))
+    if (!store->VirtualFree(store->Address, 0, MEM_RELEASE) && errno == NO_ERROR)
     {
         errno = ERR_ARGUMENT_FREE_MEM;
     }
+
     // close mutex
-    if (!store->CloseHandle(store->hMutex))
+    if (!store->CloseHandle(store->hMutex) && errno == NO_ERROR)
     {
         errno = ERR_ARGUMENT_CLOSE_MUTEX;
+    }
+
+    // recover instructions
+    if (store->NotEraseInstruction)
+    {
+        if (!recoverStorePointer(store) && errno == NO_ERROR)
+        {
+            errno = ERR_ARGUMENT_RECOVER_INST;
+        }
     }
     return errno;
 }
