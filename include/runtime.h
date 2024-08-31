@@ -16,8 +16,8 @@ typedef uint64 (*RandUint64_t)(uint64 seed);
 typedef int64  (*RandInt64N_t)(uint64 seed, int64 n);
 typedef uint64 (*RandUint64N_t)(uint64 seed, uint64 n);
 
-typedef void (*EncryptBuf_t)(byte* buf, uint size, byte* key, byte* iv);
-typedef void (*DecryptBuf_t)(byte* buf, uint size, byte* key, byte* iv);
+typedef void (*Encrypt_t)(byte* buf, uint size, byte* key, byte* iv);
+typedef void (*Decrypt_t)(byte* buf, uint size, byte* key, byte* iv);
 
 typedef uint (*Compress_t)(void* dst, void* src);
 typedef uint (*Decompress_t)(void* dst, void* src);
@@ -81,8 +81,8 @@ typedef struct {
     RandUint64N_t RandUint64N;
 
     // crypto module
-    EncryptBuf_t EncryptBuf;
-    DecryptBuf_t DecryptBuf;
+    Encrypt_t Encrypt;
+    Decrypt_t Decrypt;
 
     // compress module
     Compress_t   Compress;
@@ -91,6 +91,8 @@ typedef struct {
     // library tracker
     LoadLibraryA_t   LoadLibraryA;
     LoadLibraryW_t   LoadLibraryW;
+    LoadLibraryExA_t LoadLibraryExA;
+    LoadLibraryExW_t LoadLibraryExW;
     FreeLibrary_t    FreeLibrary;
     GetProcAddress_t GetProcAddress;
 
