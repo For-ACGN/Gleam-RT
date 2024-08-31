@@ -6,12 +6,12 @@
 #include "argument.h"
 #include "runtime.h"
 
-bool testShellcode();
+bool testShellcode(bool erase);
 bool saveShellcode();
 
 int __cdecl main()
 {
-    if (!testShellcode())
+    if (!testShellcode(false))
     {
         return 1;
     }
@@ -19,19 +19,23 @@ int __cdecl main()
     {
         return 2;
     }
+    if (!testShellcode(true))
+    {
+        return 3;
+    }
     printf_s("save shellcode successfully");
     return 0;
 }
 
-bool testShellcode()
+bool testShellcode(bool erase)
 {
     Runtime_Opts opt = {
-        .NotEraseInstruction = true,
+        .NotEraseInstruction = !erase,
     };
     Runtime_M* RuntimeM = InitRuntime(&opt);
     if (RuntimeM == NULL)
     {
-        printf_s("failed to test shellcode: 0x%lX\n", GetLastErrno());
+        printf_s("failed to initialize runtime: 0x%lX\n", GetLastErrno());
         return false;
     }
     printf_s("RuntimeM: 0x%llX\n", (uint64)RuntimeM);
@@ -53,7 +57,7 @@ bool saveShellcode()
 #endif
     if (file == NULL)
     {
-        printf_s("failed to create output file");
+        printf_s("failed to create shellcode output file");
         return false;
     }
     uintptr begin = (uintptr)(&InitRuntime);
