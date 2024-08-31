@@ -253,14 +253,16 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->RandInt64N  = GetFuncAddr(&RandInt64N);
     module->RandUint64N = GetFuncAddr(&RandUint64N);
     // crypto module
-    module->EncryptBuf = GetFuncAddr(&EncryptBuf);
-    module->DecryptBuf = GetFuncAddr(&DecryptBuf);
+    module->Encrypt = GetFuncAddr(&EncryptBuf);
+    module->Decrypt = GetFuncAddr(&DecryptBuf);
     // compress module
     module->Compress   = GetFuncAddr(&Compress);
     module->Decompress = GetFuncAddr(&Decompress);
     // library tracker
     module->LoadLibraryA   = runtime->LibraryTracker->LoadLibraryA;
     module->LoadLibraryW   = runtime->LibraryTracker->LoadLibraryW;
+    module->LoadLibraryExA = runtime->LibraryTracker->LoadLibraryExA;
+    module->LoadLibraryExW = runtime->LibraryTracker->LoadLibraryExW;
     module->FreeLibrary    = runtime->LibraryTracker->FreeLibrary;
     module->GetProcAddress = GetFuncAddr(&RT_GetProcAddress);
     // memory tracker
@@ -492,7 +494,8 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     runtime->hMutexEvent = hMutexEvent;
     // create context data for initialize other modules
     Context context = {
-        .TrackCurrentThread = runtime->Options->TrackCurrentThread,
+        .NotEraseInstruction = runtime->Options->NotEraseInstruction,
+        .TrackCurrentThread  = runtime->Options->TrackCurrentThread,
 
         .MainMemPage = (uintptr)(runtime->MainMemPage),
         .PageSize    = runtime->PageSize,
