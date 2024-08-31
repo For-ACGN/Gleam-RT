@@ -18,6 +18,9 @@ typedef struct {
 } thread;
 
 typedef struct {
+    // store options
+    bool NotEraseInstruction;
+
     // API addresses
     CreateThread_t        CreateThread;
     ExitThread_t          ExitThread;
@@ -86,12 +89,13 @@ static ThreadTracker* getTrackerPointer();
 
 static bool  initTrackerAPI(ThreadTracker* tracker, Context* context);
 static bool  updateTrackerPointer(ThreadTracker* tracker);
+static bool  recoverTrackerPointer(ThreadTracker* tracker);
 static bool  initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static void* camouflageStartAddress(uint64 seed);
 static bool  addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
 static void  delThread(ThreadTracker* tracker, uint32 threadID);
 
-static void eraseTrackerMethods();
+static void eraseTrackerMethods(Context* context);
 static void cleanTracker(ThreadTracker* tracker);
 
 ThreadTracker_M* InitThreadTracker(Context* context)
@@ -103,6 +107,8 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     // initialize tracker
     ThreadTracker* tracker = (ThreadTracker*)trackerAddr;
     mem_clean(tracker, sizeof(ThreadTracker));
+    // store options
+    tracker->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -123,7 +129,7 @@ ThreadTracker_M* InitThreadTracker(Context* context)
         }
         break;
     }
-    eraseTrackerMethods();
+    eraseTrackerMethods(context);
     if (errno != NO_ERROR)
     {
         cleanTracker(tracker);
@@ -210,6 +216,10 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
     return true;
 }
 
+// CANNOT merge updateTrackerPointer and recoverTrackerPointer
+// to one function with two arguments, otherwise the compiler
+// will generate the incorrect instructions.
+
 __declspec(noinline)
 static bool updateTrackerPointer(ThreadTracker* tracker)
 {
@@ -224,6 +234,26 @@ static bool updateTrackerPointer(ThreadTracker* tracker)
             continue;
         }
         *pointer = (uintptr)tracker;
+        success = true;
+        break;
+    }
+    return success;
+}
+
+__declspec(noinline)
+static bool recoverTrackerPointer(ThreadTracker* tracker)
+{
+    bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getTrackerPointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != (uintptr)tracker)
+        {
+            target++;
+            continue;
+        }
+        *pointer = TRACKER_POINTER;
         success = true;
         break;
     }
@@ -270,8 +300,12 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
 }
 
 __declspec(noinline)
-static void eraseTrackerMethods()
+static void eraseTrackerMethods(Context* context)
 {
+    if (context->NotEraseInstruction)
+    {
+        return;
+    }
     uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
@@ -896,12 +930,12 @@ errno TT_Clean()
         // skip self thread
         if (thread->threadID != currentTID)
         {
-            if (!tracker->TerminateThread(thread->hThread, 0))
+            if (!tracker->TerminateThread(thread->hThread, 0) && errno == NO_ERROR)
             {
                 errno = ERR_THREAD_TERMINATE;
             }
         }
-        if (!tracker->CloseHandle(thread->hThread))
+        if (!tracker->CloseHandle(thread->hThread) && errno == NO_ERROR)
         {
             errno = ERR_THREAD_CLOSE_HANDLE;
         }
@@ -910,15 +944,24 @@ errno TT_Clean()
 
     // clean thread list
     RandBuf(threads->Data, List_Size(threads));
-    if (!List_Free(threads))
+    if (!List_Free(threads) && errno == NO_ERROR)
     {
         errno = ERR_THREAD_FREE_LIST;
     }
 
     // close mutex
-    if (!tracker->CloseHandle(tracker->hMutex))
+    if (!tracker->CloseHandle(tracker->hMutex) && errno == NO_ERROR)
     {
         errno = ERR_THREAD_CLOSE_MUTEX;
+    }
+
+    // recover instructions
+    if (tracker->NotEraseInstruction)
+    {
+        if (!recoverTrackerPointer(tracker) && errno == NO_ERROR)
+        {
+            errno = ERR_THREAD_RECOVER_INST;
+        }
     }
     return errno;
 }
