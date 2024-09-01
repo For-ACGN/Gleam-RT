@@ -25,7 +25,6 @@ func dumpASMx64() {
 	builder.WriteString("InitRuntime endp\r\n")
 	builder.WriteString("\r\n")
 	builder.WriteString("end\r\n")
-	builder.WriteString("\r\n")
 
 	mod = builder.Bytes()
 	err = os.WriteFile("../dist/GleamRT_x64.asm", mod, 0600)
@@ -47,7 +46,6 @@ func dumpASMx86() {
 	builder.WriteString("_InitRuntime@4 endp\r\n")
 	builder.WriteString("\r\n")
 	builder.WriteString("end\r\n")
-	builder.WriteString("\r\n")
 
 	mod = builder.Bytes()
 	err = os.WriteFile("../dist/GleamRT_x86.asm", mod, 0600)
