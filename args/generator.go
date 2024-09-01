@@ -56,9 +56,6 @@ func dumpBytesHex(b []byte) string {
 // | 32 byte |  uint32  |  uint32   |  uint32  |   var    |
 // +---------+----------+-----------+----------+----------+
 
-// OffsetRuntimeTail is the offset of runtime tail for set encoded arguments
-const OffsetRuntimeTail = 32 + 8 + (4 + 4) + (4 + 12)
-
 const (
 	cryptoKeySize  = 32
 	offsetFirstArg = 32 + 4 + 4
@@ -72,7 +69,7 @@ func EncodeArgStub(args [][]byte) ([]byte, error) {
 		return nil, errors.New("failed to generate crypto key")
 	}
 	// write crypto key
-	buf := bytes.NewBuffer(make([]byte, 0, OffsetRuntimeTail))
+	buf := bytes.NewBuffer(make([]byte, 0, offsetFirstArg))
 	buf.Write(key)
 	// write the number of arguments
 	b := make([]byte, 4)
