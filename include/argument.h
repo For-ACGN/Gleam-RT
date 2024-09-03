@@ -5,7 +5,8 @@
 #include "context.h"
 #include "errno.h"
 
-typedef bool (*ArgGet_t)(uint index, void** data, uint32* size);
+typedef bool (*ArgGetValue_t)(uint index, void* value, uint32* size);
+typedef bool (*ArgGetPointer_t)(uint index, void** pointer, uint32* size);
 typedef bool (*ArgErase_t)(uint index);
 typedef void (*ArgEraseAll_t)();
 
@@ -16,9 +17,10 @@ typedef errno (*ArgDecrypt_t)();
 typedef errno (*ArgClean_t)();
 
 typedef struct {
-    ArgGet_t      Get;
-    ArgErase_t    Erase;
-    ArgEraseAll_t EraseAll;
+    ArgGetValue_t   GetValue;
+    ArgGetPointer_t GetPointer;
+    ArgErase_t      Erase;
+    ArgEraseAll_t   EraseAll;
 
     ArgLock_t    Lock;
     ArgUnlock_t  Unlock;
