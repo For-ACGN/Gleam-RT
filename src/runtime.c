@@ -273,7 +273,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->NewThread  = runtime->ThreadTracker->New;
     module->ExitThread = runtime->ThreadTracker->Exit;
     // argument store
-    module->GetArgument   = runtime->ArgumentStore->Get;
+    module->GetArgValue   = runtime->ArgumentStore->GetValue;
+    module->GetArgPointer = runtime->ArgumentStore->GetPointer;
     module->EraseArgument = runtime->ArgumentStore->Erase;
     module->EraseAllArgs  = runtime->ArgumentStore->EraseAll;
     // about IAT hooks
@@ -1085,18 +1086,20 @@ static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
         { 0xA23FAC0E6398838A, 0xE4990D7D4933EE6A, GetFuncAddr(&RT_GetProcAddressByName)   },
         { 0xABD1E8F0D28E9F46, 0xAF34F5979D300C70, GetFuncAddr(&RT_GetProcAddressByHash)   },
         { 0xC9C5D350BB118FAE, 0x061A602F681F2636, GetFuncAddr(&RT_GetProcAddressOriginal) },
-        { 0x126369AAC565B208, 0xEA01652E5DDE482E, argumentStore->Get      }, // RT_GetArgument
-        { 0x2FEB65B0CF6A233A, 0x24B8204DA5F3FA2F, argumentStore->Erase    }, // RT_EraseArgument
-        { 0x2AE3C13B09353949, 0x2FDD5041391C2A93, argumentStore->EraseAll }, // RT_EraseAllArgs
+        { 0x6FC9E56C1F7B2D65, 0x13DA8BAC05E7183C, argumentStore->GetValue   }, // RT_GetArgValue
+        { 0xD4868056137A5E3F, 0x1648F372F2649601, argumentStore->GetPointer }, // RT_GetArgPointer
+        { 0x2FEB65B0CF6A233A, 0x24B8204DA5F3FA2F, argumentStore->Erase      }, // RT_EraseArgument
+        { 0x2AE3C13B09353949, 0x2FDD5041391C2A93, argumentStore->EraseAll   }, // RT_EraseAllArgs
     };
 #elif _WIN32
     {
         { 0xCF983018, 0x3ECBF2DF, GetFuncAddr(&RT_GetProcAddressByName)   },
         { 0x40D5BD08, 0x302D5D2B, GetFuncAddr(&RT_GetProcAddressByHash)   },
         { 0x45556AA5, 0xB3BEF31D, GetFuncAddr(&RT_GetProcAddressOriginal) },
-        { 0x7D57C76D, 0xD67871A6, argumentStore->Get      }, // RT_GetArgument
-        { 0xC33C2108, 0x8A90E020, argumentStore->Erase    }, // RT_EraseArgument
-        { 0x9BD86FED, 0xFEA640B8, argumentStore->EraseAll }, // RT_EraseAllArgs
+        { 0x8443915E, 0x6C4AA230, argumentStore->GetValue   }, // RT_GetArgValue
+        { 0xB6403531, 0x011D36DB, argumentStore->GetPointer }, // RT_GetArgPointer
+        { 0xC33C2108, 0x8A90E020, argumentStore->Erase      }, // RT_EraseArgument
+        { 0x9BD86FED, 0xFEA640B8, argumentStore->EraseAll   }, // RT_EraseAllArgs
     };
 #endif
     for (int i = 0; i < arrlen(methods); i++)
