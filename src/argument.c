@@ -45,9 +45,10 @@ typedef struct {
 } ArgumentStore;
 
 // methods for upper module
-bool  AS_Get(uint index, void** data, uint32* size);
-bool  AS_Erase(uint index);
-void  AS_EraseAll();
+bool AS_GetValue(uint index, void* value, uint32* size);
+bool AS_GetPointer(uint index, void** pointer, uint32* size);
+bool AS_Erase(uint index);
+void AS_EraseAll();
 
 // methods for runtime
 bool  AS_Lock();
@@ -119,9 +120,10 @@ ArgumentStore_M* InitArgumentStore(Context* context)
     // create methods for store
     ArgumentStore_M* module = (ArgumentStore_M*)moduleAddr;
     // methods for upper module
-    module->Get      = GetFuncAddr(&AS_Get);
-    module->Erase    = GetFuncAddr(&AS_Erase);
-    module->EraseAll = GetFuncAddr(&AS_EraseAll);
+    module->GetValue   = GetFuncAddr(&AS_GetValue);
+    module->GetPointer = GetFuncAddr(&AS_GetPointer);
+    module->Erase      = GetFuncAddr(&AS_Erase);
+    module->EraseAll   = GetFuncAddr(&AS_EraseAll);
     // methods for runtime
     module->Lock    = GetFuncAddr(&AS_Lock);
     module->Unlock  = GetFuncAddr(&AS_Unlock);
@@ -288,7 +290,7 @@ static ArgumentStore* getStorePointer()
 #pragma optimize("", on)
 
 __declspec(noinline)
-bool AS_Get(uint index, void** data, uint32* size)
+bool AS_GetValue(uint index, void* value, uint32* size)
 {
     ArgumentStore* store = getStorePointer();
 
@@ -305,7 +307,7 @@ bool AS_Get(uint index, void** data, uint32* size)
 
     // calculate the offset to target argument
     uint32 offset = 0;
-    bool   found = false;
+    bool found = false;
     for (uint32 i = 0; i < store->NumArgs; i++)
     {
         if (i != index)
@@ -314,11 +316,60 @@ bool AS_Get(uint index, void** data, uint32* size)
             offset += 4 + *(uint32*)(store->Address + offset);
             continue;
         }
+        // copy argument data to value pointer
+        void* src = store->Address + offset + 4;
+        uint32 sz = *(uint32*)(store->Address + offset);
+        mem_copy(value, src, sz);
+        // set argument size
+        if (size != NULL)
+        {
+            *size = sz;
+        }
+        found = true;
+        break;
+    }
+
+    if (!AS_Unlock())
+    {
+        return false;
+    }
+    return found;
+}
+
+__declspec(noinline)
+bool AS_GetPointer(uint index, void** pointer, uint32* size)
+{
+    ArgumentStore* store = getStorePointer();
+
+    // check argument index is valid
+    if (index + 1 > store->NumArgs)
+    {
+        return false;
+    }
+
+    if (!AS_Lock())
+    {
+        return false;
+    }
+
+    // calculate the offset to target argument
+    uint32 offset = 0;
+    bool found = false;
+    for (uint32 i = 0; i < store->NumArgs; i++)
+    {
+        if (i != index)
+        {
+            // skip argument size and data
+            offset += 4 + *(uint32*)(store->Address + offset);
+            continue;
+        }
+        // set argument pointer
+        *pointer = (void*)(store->Address + offset + 4);
+        // set argument size
         if (size != NULL)
         {
             *size = *(uint32*)(store->Address + offset);
         }
-        *data = (void*)(store->Address + offset + 4);
         found = true;
         break;
     }
