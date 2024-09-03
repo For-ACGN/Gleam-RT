@@ -1671,12 +1671,9 @@ errno RT_Exit()
     // recover instructions for generate shellcode
     if (notEraseInst)
     {
-        if (!recoverRuntimePointer(runtime))
+        if (!recoverRuntimePointer(runtime) && err == NO_ERROR)
         {
-            if (err == NO_ERROR)
-            {
-                err = ERR_RUNTIME_EXIT_RECOVER_INST;
-            }
+            err = ERR_RUNTIME_EXIT_RECOVER_INST;
         }
     }
 
@@ -1703,7 +1700,8 @@ static void eraseMemory(uintptr address, uintptr size)
     byte* addr = (byte*)address;
     for (uintptr i = 0; i < size; i++)
     {
-        *addr = 0xFF;
+        *addr += (byte)(address + i);
+        *addr |= (byte)(address ^ 0xFF);
         addr++;
     }
 }
