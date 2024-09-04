@@ -96,22 +96,22 @@ func EncodeArgStub(args [][]byte) ([]byte, error) {
 	binary.LittleEndian.PutUint32(buf, uint32(totalSize))
 	buffer.Write(buf)
 	// write arguments
-	var checksum uint32
 	for i := 0; i < len(args); i++ {
 		// write argument size
 		binary.LittleEndian.PutUint32(buf, uint32(len(args[i])))
 		buffer.Write(buf)
 		// write argument data
 		buffer.Write(args[i])
-		// update checksum
-		for _, b := range args[i] {
-			checksum += checksum << 1
-			checksum += uint32(b)
-		}
 	}
 	output := buffer.Bytes()
-	encryptArgStub(output)
+	// calculate checksum
+	var checksum uint32
+	for _, b := range output[offsetFirstArg:] {
+		checksum += checksum << 1
+		checksum += uint32(b)
+	}
 	binary.LittleEndian.PutUint32(output[offsetChecksum:], checksum)
+	encryptArgStub(output)
 	return output, nil
 }
 
@@ -143,20 +143,25 @@ func DecodeArgStub(stub []byte) ([][]byte, error) {
 		return nil, nil
 	}
 	decryptArgStub(stub)
+	// calculate checksum
+	var checksum uint32
+	for _, b := range stub[offsetFirstArg:] {
+		checksum += checksum << 1
+		checksum += uint32(b)
+	}
+	expected := binary.LittleEndian.Uint32(stub[offsetChecksum:])
+	if checksum != expected {
+		return nil, errors.New("invalid checksum")
+	}
+	// decode arguments
 	args := make([][]byte, 0, numArgs)
 	offset := offsetFirstArg
-	var checksum uint32
 	for i := 0; i < int(numArgs); i++ {
 		l := binary.LittleEndian.Uint32(stub[offset:])
 		arg := make([]byte, l)
 		copy(arg, stub[offset+4:offset+4+int(l)])
 		args = append(args, arg)
 		offset += 4 + int(l)
-		// update checksum
-		for _, b := range arg {
-			checksum += checksum << 1
-			checksum += uint32(b)
-		}
 	}
 	return args, nil
 }
