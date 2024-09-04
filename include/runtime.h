@@ -29,7 +29,8 @@ typedef bool  (*MemFree_t)(void* address);
 typedef HANDLE (*ThdNew_t)(void* address, void* parameter, bool track);
 typedef void   (*ThdExit_t)();
 
-typedef bool (*GetArgument_t)(uint index, void** data, uint32* size);
+typedef bool (*GetArgValue_t)(uint index, void* value, uint32* size);
+typedef bool (*GetArgPointer_t)(uint index, void** pointer, uint32* size);
 typedef bool (*EraseArgument_t)(uint index);
 typedef void (*EraseAllArgs_t)();
 
@@ -106,7 +107,8 @@ typedef struct {
     ThdExit_t ExitThread;
 
     // argument store
-    GetArgument_t   GetArgument;
+    GetArgValue_t   GetArgValue;
+    GetArgPointer_t GetArgPointer;
     EraseArgument_t EraseArgument;
     EraseAllArgs_t  EraseAllArgs;
 
