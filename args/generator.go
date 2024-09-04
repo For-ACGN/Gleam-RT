@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -14,15 +15,16 @@ func main() {
 	args := [][]byte{
 		{0x78, 0x56, 0x34, 0x12},
 		[]byte("aaaabbbbccc\x00"),
+		{},
 	}
 	output, err := EncodeArgStub(args)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	checkError(err)
+
 	fmt.Println(dumpBytesHex(output))
 
-	fmt.Println(DecodeArgStub(output))
+	args, err = DecodeArgStub(output)
+	checkError(err)
+	fmt.Println(args)
 }
 
 func dumpBytesHex(b []byte) string {
@@ -50,15 +52,24 @@ func dumpBytesHex(b []byte) string {
 	return builder.String()
 }
 
-// +---------+----------+-----------+----------+----------+
-// |   key   | num args | args size | arg size | arg data |
-// +---------+----------+-----------+----------+----------+
-// | 32 byte |  uint32  |  uint32   |  uint32  |   var    |
-// +---------+----------+-----------+----------+----------+
+func checkError(err error) {
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+// +---------+----------+----------+-----------+----------+----------+
+// |   key   | checksum | num args | args size | arg size | arg data |
+// +---------+----------+----------+-----------+----------+----------+
+// | 32 byte |  uint32  |  uint32  |  uint32   |  uint32  |   var    |
+// +---------+----------+----------+-----------+----------+----------+
 
 const (
 	cryptoKeySize  = 32
-	offsetFirstArg = 32 + 4 + 4
+	offsetChecksum = 32
+	offsetNumArgs  = 32 + 4
+	offsetFirstArg = 32 + 4 + 4 + 4
 )
 
 // EncodeArgStub is used to encode and encrypt arguments for runtime
@@ -69,52 +80,39 @@ func EncodeArgStub(args [][]byte) ([]byte, error) {
 		return nil, errors.New("failed to generate crypto key")
 	}
 	// write crypto key
-	buf := bytes.NewBuffer(make([]byte, 0, offsetFirstArg))
-	buf.Write(key)
+	buffer := bytes.NewBuffer(make([]byte, 0, offsetFirstArg))
+	buffer.Write(key)
+	// reserve space for checksum
+	buffer.Write(make([]byte, 4))
 	// write the number of arguments
-	b := make([]byte, 4)
-	binary.LittleEndian.PutUint32(b, uint32(len(args)))
-	buf.Write(b)
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, uint32(len(args)))
+	buffer.Write(buf)
 	// calculate the total size of the arguments
 	var totalSize int
 	for i := 0; i < len(args); i++ {
 		totalSize += 4 + len(args[i])
 	}
-	binary.LittleEndian.PutUint32(b, uint32(totalSize))
-	buf.Write(b)
+	binary.LittleEndian.PutUint32(buf, uint32(totalSize))
+	buffer.Write(buf)
 	// write arguments
+	var checksum uint32
 	for i := 0; i < len(args); i++ {
 		// write argument size
-		binary.LittleEndian.PutUint32(b, uint32(len(args[i])))
-		buf.Write(b)
+		binary.LittleEndian.PutUint32(buf, uint32(len(args[i])))
+		buffer.Write(buf)
 		// write argument data
-		buf.Write(args[i])
+		buffer.Write(args[i])
+		// update checksum
+		for _, b := range args[i] {
+			checksum += checksum << 1
+			checksum += uint32(b)
+		}
 	}
-	output := buf.Bytes()
+	output := buffer.Bytes()
 	encryptArgStub(output)
+	binary.LittleEndian.PutUint32(output[offsetChecksum:], checksum)
 	return output, nil
-}
-
-// DecodeArgStub is used to decode and decrypt arguments from raw stub.
-func DecodeArgStub(stub []byte) ([][]byte, error) {
-	if len(stub) < offsetFirstArg {
-		return nil, errors.New("stub is too short")
-	}
-	numArgs := binary.LittleEndian.Uint32(stub[cryptoKeySize:])
-	if numArgs == 0 {
-		return nil, nil
-	}
-	decryptArgStub(stub)
-	args := make([][]byte, 0, numArgs)
-	offset := offsetFirstArg
-	for i := 0; i < int(numArgs); i++ {
-		l := binary.LittleEndian.Uint32(stub[offset:])
-		arg := make([]byte, l)
-		copy(arg, stub[offset+4:offset+4+int(l)])
-		args = append(args, arg)
-		offset += 4 + int(l)
-	}
-	return args, nil
 }
 
 func encryptArgStub(stub []byte) {
@@ -133,6 +131,34 @@ func encryptArgStub(stub []byte) {
 			keyIdx = 0
 		}
 	}
+}
+
+// DecodeArgStub is used to decode and decrypt arguments from raw stub.
+func DecodeArgStub(stub []byte) ([][]byte, error) {
+	if len(stub) < offsetFirstArg {
+		return nil, errors.New("stub is too short")
+	}
+	numArgs := binary.LittleEndian.Uint32(stub[offsetNumArgs:])
+	if numArgs == 0 {
+		return nil, nil
+	}
+	decryptArgStub(stub)
+	args := make([][]byte, 0, numArgs)
+	offset := offsetFirstArg
+	var checksum uint32
+	for i := 0; i < int(numArgs); i++ {
+		l := binary.LittleEndian.Uint32(stub[offset:])
+		arg := make([]byte, l)
+		copy(arg, stub[offset+4:offset+4+int(l)])
+		args = append(args, arg)
+		offset += 4 + int(l)
+		// update checksum
+		for _, b := range arg {
+			checksum += checksum << 1
+			checksum += uint32(b)
+		}
+	}
+	return args, nil
 }
 
 func decryptArgStub(stub []byte) {
