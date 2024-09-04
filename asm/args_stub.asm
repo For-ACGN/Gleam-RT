@@ -2,13 +2,11 @@ IFDEF _WIN32
 .model tiny
 ENDIF
 
-; total offset of the shellcode tail is (32 + 8 + (4+4) + (4+12)) = 64 bytes
-
-; +---------+----------+-----------+----------+----------+
-; |   key   | num args | args size | arg size | arg data |
-; +---------+----------+-----------+----------+----------+
-; | 32 byte |  uint32  |  uint32   |  uint32  |   var    |
-; +---------+----------+-----------+----------+----------+
+; +---------+----------+----------+-----------+----------+----------+
+; |   key   | checksum | num args | args size | arg size | arg data |
+; +---------+----------+----------+-----------+----------+----------+
+; | 32 byte |  uint32  |  uint32  |  uint32   |  uint32  |   var    |
+; +---------+----------+----------+-----------+----------+----------+
 
 .code
 
@@ -19,31 +17,38 @@ ELSE
 ENDIF
 
   ; 32 bytes decrypt key
-  db 0BBh, 0DEh, 0F5h, 00Ah
-  db 0E1h, 0CFh, 0B8h, 022h
-  db 06Dh, 065h, 0CCh, 06Dh
-  db 067h, 0FFh, 0F5h, 0EBh
-  db 02Ah, 095h, 0A2h, 0F3h
-  db 025h, 09Ah, 055h, 0B7h
-  db 03Eh, 051h, 0F8h, 005h
-  db 03Ah, 0F5h, 076h, 00Eh
+  db 01Dh, 08Ch, 017h, 045h
+  db 07Dh, 0B7h, 003h, 0DEh
+  db 050h, 000h, 0F9h, 081h
+  db 037h, 01Dh, 0BDh, 0B3h
+  db 057h, 073h, 031h, 092h
+  db 04Fh, 076h, 082h, 020h
+  db 0E4h, 065h, 0CCh, 068h
+  db 082h, 03Dh, 035h, 0EEh
+
+  ; 4 bytes checksum
+  db 0E9h, 018h, 0D6h, 091h
 
   ; record the number of the arguments
-  db 002h, 000h, 000h, 000h
+  db 003h, 000h, 000h, 000h
   ; record the total argument data size
-  db 018h, 000h, 000h, 000h
+  db 01Ch, 000h, 000h, 000h
 
   ; record the size of the argument-1
-  db 040h, 0DAh, 0F5h, 00Ah
+  db 0E6h, 088h, 017h, 045h
   ; argument-1 data
-  db 099h, 0E1h, 0DAh, 004h
+  db 005h, 099h, 061h, 0F8h
 
   ; record the size of the argument-2
-  db 073h, 069h, 0CCh, 06Dh
+  db 04Eh, 00Ch, 0F9h, 081h
   ; argument-2 data
-  db 006h, 0FFh, 0F5h, 0EBh
-  db 029h, 095h, 0A2h, 0F3h
-  db 024h, 09Ah, 055h, 0D4h
+  db 056h, 01Dh, 0BDh, 0B3h
+  db 054h, 073h, 031h, 092h
+  db 04Eh, 076h, 082h, 043h
+
+  ; record the size of the argument-3
+  db 0E4h, 065h, 0CCh, 068h
+  ; argument-3 data(empty)
 
 IFDEF _WIN32
   _Argument_Stub@0 endp
