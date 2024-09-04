@@ -320,7 +320,7 @@ bool AS_GetValue(uint index, void* value, uint32* size)
         void* src = store->Address + offset + 4;
         uint32 sz = *(uint32*)(store->Address + offset);
         mem_copy(value, src, sz);
-        // set argument size
+        // receive argument size
         if (size != NULL)
         {
             *size = sz;
@@ -363,12 +363,19 @@ bool AS_GetPointer(uint index, void** pointer, uint32* size)
             offset += 4 + *(uint32*)(store->Address + offset);
             continue;
         }
-        // set argument pointer
-        *pointer = (void*)(store->Address + offset + 4);
-        // set argument size
+        // get argument size
+        uint32 sz = *(uint32*)(store->Address + offset);
+        // receive argument pointer
+        if (sz != 0)
+        {
+            *pointer = (void*)(store->Address + offset + 4);
+        } else {
+            *pointer = NULL;
+        }
+        // receive argument size
         if (size != NULL)
         {
-            *size = *(uint32*)(store->Address + offset);
+            *size = sz;
         }
         found = true;
         break;
