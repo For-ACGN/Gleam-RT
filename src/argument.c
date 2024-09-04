@@ -9,19 +9,20 @@
 #include "argument.h"
 #include "debug.h"
 
-// +---------+----------+-----------+----------+----------+
-// |   key   | num args | args size | arg size | arg data |
-// +---------+----------+-----------+----------+----------+
-// | 32 byte |  uint32  |  uint32   |  uint32  |   var    |
-// +---------+----------+-----------+----------+----------+
+// +---------+----------+----------+-----------+----------+----------+
+// |   key   | checksum | num args | args size | arg size | arg data |
+// +---------+----------+----------+-----------+----------+----------+
+// | 32 byte |  uint32  |  uint32  |  uint32   |  uint32  |   var    |
+// +---------+----------+----------+-----------+----------+----------+
 
-#define ARG_CRYPTO_KEY_SIZE   32
-#define ARG_HEADER_DATA_SIZE (32 + 4 + 4)
+#define ARG_CRYPTO_KEY_SIZE 32
+#define ARG_HEADER_SIZE     (32 + 4 + 4 + 4)
 
-#define ARG_OFFSET_CRYPTO_KEY (0 + 0)
-#define ARG_OFFSET_NUM_ARGS   (0 + 32)
-#define ARG_OFFSET_ARGS_SIZE  (32 + 4)
-#define ARG_OFFSET_FIRST_ARG  (36 + 4)
+#define ARG_OFFSET_CRYPTO_KEY (0)
+#define ARG_OFFSET_CHECKSUM   (32)
+#define ARG_OFFSET_NUM_ARGS   (32 + 4)
+#define ARG_OFFSET_ARGS_SIZE  (32 + 4 + 4)
+#define ARG_OFFSET_FIRST_ARG  (32 + 4 + 4 + 4)
 
 typedef struct {
     // store options
@@ -220,6 +221,8 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     store->NumArgs = *(uint32*)(stub + ARG_OFFSET_NUM_ARGS);
     // copy encrypted arguments to new memory page
     mem_copy(mem, addr, size);
+    // check decrypted data
+    uint32 checksum = 0;
     // decrypted arguments
     byte* key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
     byte* data = (byte*)mem;
@@ -231,6 +234,9 @@ static errno loadArguments(ArgumentStore* store, Context* context)
         b ^= *(key + keyIdx);
         *data = b;
         last = b;
+        // update checksum
+        checksum += checksum << 1;
+        checksum += b;
         // update key index
         keyIdx++;
         if (keyIdx >= ARG_CRYPTO_KEY_SIZE)
@@ -242,7 +248,13 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     // clean argument stub after decrypt
     if (!context->NotEraseInstruction)
     {
-        RandBuf((byte*)stub, ARG_HEADER_DATA_SIZE + size);
+        RandBuf((byte*)stub, ARG_HEADER_SIZE + size);
+    }
+    // validate checksum
+    uint32 expected = *(uint32*)(stub + ARG_OFFSET_CHECKSUM);
+    if (checksum != expected)
+    {
+        return ERR_ARGUMENT_CHECKSUM;
     }
     dbg_log("[argument]", "mem page: 0x%zX", store->Address);
     dbg_log("[argument]", "num args: %zu", store->NumArgs);
