@@ -24,7 +24,8 @@ echo [Runtime Methods]
 hash_api -fmt 64 -conc -func RT_GetProcAddressByName
 hash_api -fmt 64 -conc -func RT_GetProcAddressByHash
 hash_api -fmt 64 -conc -func RT_GetProcAddressOriginal
-hash_api -fmt 64 -conc -func RT_GetArgument
+hash_api -fmt 64 -conc -func RT_GetArgValue
+hash_api -fmt 64 -conc -func RT_GetArgPointer
 hash_api -fmt 64 -conc -func RT_EraseArgument
 hash_api -fmt 64 -conc -func RT_EraseAllArgs
 echo.
@@ -96,7 +97,8 @@ echo [Runtime Methods]
 hash_api -fmt 32 -conc -func RT_GetProcAddressByName
 hash_api -fmt 32 -conc -func RT_GetProcAddressByHash
 hash_api -fmt 32 -conc -func RT_GetProcAddressOriginal
-hash_api -fmt 32 -conc -func RT_GetArgument
+hash_api -fmt 32 -conc -func RT_GetArgValue
+hash_api -fmt 32 -conc -func RT_GetArgPointer
 hash_api -fmt 32 -conc -func RT_EraseArgument
 hash_api -fmt 32 -conc -func RT_EraseAllArgs
 echo.
