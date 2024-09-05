@@ -32,11 +32,11 @@ static bool TestEncryptBuf()
     printf_s("=======TestEncryptBuf begin========\n");
 
     byte key[CRYPTO_KEY_SIZE];
-    RandBuf(&key[0], sizeof(key));
+    RandBuf(key, sizeof(key));
 
     byte data1[128];
     byte data2[128];
-    RandBuf(&data1[0], 64);
+    RandBuf(data1, 64);
 
     // write repetitive and orderly data
     for (byte i = 0; i < 16; i++)
@@ -51,30 +51,30 @@ static bool TestEncryptBuf()
     {
         data1[i + 64] = 0;
     }
-    mem_copy(&data2[0], &data1[0], sizeof(data1));
+    mem_copy(data2, data1, sizeof(data1));
     data2[0]++;
 
     // write repetitive and orderly iv
     byte iv1[CRYPTO_IV_SIZE];
     byte iv2[CRYPTO_IV_SIZE];
-    RandBuf(&iv1[0], sizeof(iv1));
-    RandBuf(&iv2[0], sizeof(iv2));
+    RandBuf(iv1, sizeof(iv1));
+    RandBuf(iv2, sizeof(iv2));
     // for (byte i = 0; i < CRYPTO_IV_SIZE; i++)
     // {
     //     iv1[i] = i;
     // }
-    // mem_copy(&iv2[0], &iv1[0], sizeof(iv1));
+    // mem_copy(iv2, iv1, sizeof(iv1));
 
     printf_s("plain data:\n");
-    printHexBytes(&data1[0], sizeof(data1));
-    printHexBytes(&data2[0], sizeof(data2));
+    printHexBytes(data1, sizeof(data1));
+    printHexBytes(data2, sizeof(data2));
 
     printf_s("cipher data:\n");
-    EncryptBuf(&data1[0], sizeof(data1), &key[0], &iv1[0]);
-    printHexBytes(&data1[0], sizeof(data1));
+    EncryptBuf(data1, sizeof(data1), key, iv1);
+    printHexBytes(data1, sizeof(data1));
 
-    EncryptBuf(&data2[0], sizeof(data2), &key[0], &iv2[0]);
-    printHexBytes(&data2[0], sizeof(data2));
+    EncryptBuf(data2, sizeof(data2), key, iv2);
+    printHexBytes(data2, sizeof(data2));
 
     printf_s("=======TestEncryptBuf passed=======\n\n");
     return true;
@@ -85,25 +85,25 @@ static bool TestDecryptBuf()
     printf_s("=======TestDecryptBuf begin========\n");
 
     byte key[CRYPTO_KEY_SIZE];
-    RandBuf(&key[0], sizeof(key));
+    RandBuf(key, sizeof(key));
 
     byte data1[64];
     byte data2[64];
-    RandBuf(&data1[0], sizeof(data1));
-    mem_copy(&data2[0], &data1[0], sizeof(data1));
+    RandBuf(data1, sizeof(data1));
+    mem_copy(data2, data1, sizeof(data1));
 
     byte iv[CRYPTO_IV_SIZE];
-    RandBuf(&iv[0], sizeof(iv));
+    RandBuf(iv, sizeof(iv));
 
     printf_s("plain data:\n");
-    printHexBytes(&data2[0], sizeof(data2));
+    printHexBytes(data2, sizeof(data2));
 
-    EncryptBuf(&data2[0], sizeof(data2), &key[0], &iv[0]);
+    EncryptBuf(data2, sizeof(data2), key, iv);
 
     printf_s("cipher data:\n");
-    printHexBytes(&data2[0], sizeof(data2));
+    printHexBytes(data2, sizeof(data2));
 
-    DecryptBuf(&data2[0], sizeof(data2), &key[0], &iv[0]);
+    DecryptBuf(data2, sizeof(data2), key, iv);
 
     // compare the decrypted data
     for (uint i = 0; i < sizeof(data1); i++)
