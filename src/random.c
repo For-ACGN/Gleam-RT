@@ -13,6 +13,10 @@ static uintptr getStackAddr();
 
 void RandBuf(byte* buf, int64 size)
 {
+    if (size < 1)
+    {
+        return;
+    }
     uint64 seed = RandUint64((uint64)(buf));
     for (int64 i = 0; i < size; i++)
     {
