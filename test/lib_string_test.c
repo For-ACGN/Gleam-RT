@@ -19,10 +19,12 @@ bool TestLibString()
     };
     for (int i = 0; i < arrlen(tests); i++)
     {
+        printf_s("--------------------------------\n");
         if (!tests[i]())
         {
             return false;
         }
+        printf_s("--------------------------------\n\n");
     }
     return true;
 }
