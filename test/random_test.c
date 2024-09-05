@@ -36,7 +36,7 @@ static void TestRandBuf()
     printf_s("========TestRandBuf begin==========\n");
 
     byte buf[16];
-    RandBuf(&buf[0], 16);
+    RandBuf(buf, 16);
 
     printf_s("buf: ");
     for (int i = 0; i < sizeof(buf); i++)
