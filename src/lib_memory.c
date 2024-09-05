@@ -12,6 +12,10 @@
 __declspec(noinline)
 bool mem_equal(void* dst, void* src, uint size)
 {
+    if (size == 0)
+    {
+        return true;
+    }
     byte* d = (byte*)dst;
     byte* s = (byte*)src;
     for (uint i = 0; i < size; i++)
@@ -29,6 +33,10 @@ bool mem_equal(void* dst, void* src, uint size)
 __declspec(noinline)
 bool mem_zero(void* dst, uint size)
 {
+    if (size == 0)
+    {
+        return true;
+    }
     byte* d = (byte*)dst;
     for (uint i = 0; i < size; i++)
     {
@@ -44,6 +52,10 @@ bool mem_zero(void* dst, uint size)
 __declspec(noinline)
 void mem_copy(void* dst, void* src, uint size)
 {
+    if (size == 0)
+    {
+        return;
+    }
     byte* d = (byte*)dst;
     byte* s = (byte*)src;
     for (uint i = 0; i < size; i++)
@@ -57,6 +69,10 @@ void mem_copy(void* dst, void* src, uint size)
 __declspec(noinline)
 void mem_set(void* ptr, byte val, uint num)
 {
+    if (num == 0)
+    {
+        return;
+    }
     byte* addr = (byte*)ptr;
     for (uint i = 0; i < num; i++)
     {
@@ -68,6 +84,10 @@ void mem_set(void* ptr, byte val, uint num)
 __declspec(noinline)
 void mem_clean(void* ptr, uint num)
 {
+    if (num == 0)
+    {
+        return;
+    }
     mem_set(ptr, 0, num);
 }
 
