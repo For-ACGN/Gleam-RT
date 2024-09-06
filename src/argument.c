@@ -250,16 +250,12 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     uint32 expected = *(uint32*)(stub + ARG_OFFSET_CHECKSUM);
     if (checksum != expected)
     {
-        errno = ERR_ARGUMENT_CHECKSUM;
+        return ERR_ARGUMENT_CHECKSUM;
     }
     // clean argument stub after decrypt
     if (!context->NotEraseInstruction)
     {
         RandBuf((byte*)stub, ARG_HEADER_SIZE + size);
-    }
-    if (errno != NO_ERROR)
-    {
-        return errno;
     }
     dbg_log("[argument]", "mem page: 0x%zX", store->Address);
     dbg_log("[argument]", "num args: %zu", store->NumArgs);
