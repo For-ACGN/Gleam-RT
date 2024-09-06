@@ -25,7 +25,7 @@
 #define EVENT_TYPE_SLEEP 0x01
 #define EVENT_TYPE_STOP  0x02
 
-// for IAT hooks
+// about IAT hooks
 typedef struct {
     void* Proc;
     void* Hook;
@@ -1688,7 +1688,7 @@ errno RT_Exit()
         uintptr size  = end - begin;
         eraseMemory(begin, size);
         begin = (uintptr)(GetFuncAddr(&rt_epilogue));
-        end   = (uintptr)(GetFuncAddr(&Epilogue));
+        end   = (uintptr)(GetFuncAddr(&Argument_Stub));
         size  = end - begin;
         eraseMemory(begin, size);
     }
