@@ -1695,20 +1695,27 @@ errno RT_Exit()
     return err;
 }
 
-// must disable compiler optimize, otherwise eraseMemory()
-// will be replaced to the mem_set() in lib_memory.c.
-#pragma optimize("", off)
+__declspec(noinline)
 static void eraseMemory(uintptr address, uintptr size)
 {
     byte* addr = (byte*)address;
     for (uintptr i = 0; i < size; i++)
     {
-        *addr += (byte)(address + i);
-        *addr |= (byte)(address ^ 0xFF);
+        byte b = *addr;
+        if (i > 0)
+        {
+            byte prev = *(byte*)(address + i - 1);
+            b -= prev;
+            b ^= prev;
+            b += prev;
+            b |= prev;
+        }
+        b += (byte)(address + i);
+        b |= (byte)(address ^ 0xFF);
+        *addr = b;
         addr++;
     }
 }
-#pragma optimize("", on)
 
 // prevent it be linked to Epilogue.
 #pragma optimize("", off)
