@@ -1,0 +1,7 @@
+github.com/For-ACGN/monkey v0.0.0-20240317114606-276cb1362405 h1:v0o9a8CBYTKnCOCq0dWJInqd6fyS/tn35Ddp1V212GM=
+github.com/RSSU-Shellcode/RT-Argument v0.0.0-20240907084405-f71965719026 h1:AhCFNlu2xyYAna7b9/Z1k99d4Jn5Yz7szvFqMlr6gjU=
+github.com/RSSU-Shellcode/RT-Argument v0.0.0-20240907084405-f71965719026/go.mod h1:TgEgIdKso8f81hN54tugv3e6CRwu0Ux0hNozM/Dbf3Y=
+github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
+github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
+github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
+gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
