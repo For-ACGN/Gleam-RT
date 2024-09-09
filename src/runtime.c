@@ -31,12 +31,8 @@ typedef struct {
 } Hook;
 
 typedef struct {
-    // temp context
-    Runtime_Opts* Options;
-
-    // store options
-    void* BootInstAddress;
-    bool  NotEraseInstruction;
+    // store options from argument
+    Runtime_Opts Options;
 
     // API addresses
     GetSystemInfo_t         GetSystemInfo;
@@ -120,10 +116,12 @@ static bool rt_unlock();
 static void* allocRuntimeMemPage();
 static void* calculateEpilogue();
 static bool  initRuntimeAPI(Runtime* runtime);
-static bool  adjustPageProtect(Runtime* runtime);
+static bool  adjustPageProtect(Runtime* runtime, DWORD* old);
+static bool  recoverPageProtect(Runtime* runtime, DWORD protect);
 static bool  updateRuntimePointer(Runtime* runtime);
 static bool  recoverRuntimePointer(Runtime* runtime);
 static errno initRuntimeEnvironment(Runtime* runtime);
+static errno initSubmodules(Runtime* runtime);
 static errno initLibraryTracker(Runtime* runtime, Context* context);
 static errno initMemoryTracker(Runtime* runtime, Context* context);
 static errno initThreadTracker(Runtime* runtime, Context* context);
@@ -182,13 +180,12 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         };
         opts = &opt;
     }
-    runtime->Options = opts;
-    runtime->BootInstAddress     = opts->BootInstAddress;
-    runtime->NotEraseInstruction = opts->NotEraseInstruction;
+    runtime->Options = *opts;
     // set runtime data
     runtime->MainMemPage = memPage;
     runtime->Epilogue    = calculateEpilogue();
     // initialize runtime
+    DWORD oldProtect = 0;
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -197,7 +194,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
             errno = ERR_RUNTIME_INIT_API;
             break;
         }
-        if (!adjustPageProtect(runtime))
+        if (!adjustPageProtect(runtime, &oldProtect))
         {
             errno = ERR_RUNTIME_ADJUST_PROTECT;
             break;
@@ -212,6 +209,11 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         {
             break;
         }
+        errno = initSubmodules(runtime);
+        if (errno != NO_ERROR)
+        {
+            break;
+        }
         if (!initIATHooks(runtime))
         {
             errno = ERR_RUNTIME_INIT_IAT_HOOKS;
@@ -222,6 +224,13 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     if (errno == NO_ERROR || errno > ERR_RUNTIME_ADJUST_PROTECT)
     {
         eraseRuntimeMethods(runtime);
+    }
+    if (oldProtect != 0)
+    {
+        if (!recoverPageProtect(runtime, oldProtect) && errno == NO_ERROR)
+        {
+            errno = ERR_RUNTIME_RECOVER_PROTECT;
+        }
     }
     if (errno == NO_ERROR && !flushInstructionCache(runtime))
     {
@@ -393,26 +402,6 @@ static bool initRuntimeAPI(Runtime* runtime)
     return true;
 }
 
-// change memory protect for dynamic update pointer that hard encode.
-static bool adjustPageProtect(Runtime* runtime)
-{
-    if (runtime->Options->NotAdjustProtect)
-    {
-        return true;
-    }
-    void* init = GetFuncAddr(&InitRuntime);
-    void* addr = runtime->BootInstAddress;
-    if (addr == NULL || (uintptr)addr > (uintptr)init)
-    {
-        addr = init;
-    }
-    uintptr begin = (uintptr)(addr);
-    uintptr end   = (uintptr)(runtime->Epilogue);
-    uint    size  = end - begin;
-    uint32  old;
-    return runtime->VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &old);
-}
-
 // CANNOT merge updateRuntimePointer and recoverRuntimePointer 
 // to one function with two arguments, otherwise the compiler
 // will generate the incorrect instructions.
@@ -504,10 +493,15 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         return ERR_RUNTIME_CREATE_EVENT_MUTEX;
     }
     runtime->hMutexEvent = hMutexEvent;
+    return NO_ERROR;
+}
+
+static errno initSubmodules(Runtime* runtime)
+{
     // create context data for initialize other modules
     Context context = {
-        .NotEraseInstruction = runtime->Options->NotEraseInstruction,
-        .TrackCurrentThread  = runtime->Options->TrackCurrentThread,
+        .NotEraseInstruction = runtime->Options.NotEraseInstruction,
+        .TrackCurrentThread  = runtime->Options.TrackCurrentThread,
 
         .MainMemPage = (uintptr)(runtime->MainMemPage),
         .PageSize    = runtime->PageSize,
@@ -528,6 +522,7 @@ static errno initRuntimeEnvironment(Runtime* runtime)
         .lock    = GetFuncAddr(&RT_lock_mods),
         .unlock  = GetFuncAddr(&RT_unlock_mods),
     };
+
     typedef errno (*submodule_t)(Runtime* runtime, Context* context);
     submodule_t submodules[] = 
     {
@@ -685,7 +680,7 @@ static bool initIATHooks(Runtime* runtime)
 __declspec(noinline)
 static void eraseRuntimeMethods(Runtime* runtime)
 {
-    if (runtime->NotEraseInstruction)
+    if (runtime->Options.NotEraseInstruction)
     {
         return;
     }
@@ -695,11 +690,56 @@ static void eraseRuntimeMethods(Runtime* runtime)
     RandBuf((byte*)begin, (int64)size);
 }
 
+// ======================== these instructions will not be erased ========================
+
+// change memory protect for dynamic update pointer that hard encode.
+static bool adjustPageProtect(Runtime* runtime, DWORD* old)
+{
+    if (runtime->Options.NotAdjustProtect)
+    {
+        return true;
+    }
+    void* init = GetFuncAddr(&InitRuntime);
+    void* addr = runtime->Options.BootInstAddress;
+    if (addr == NULL || (uintptr)addr > (uintptr)init)
+    {
+        addr = init;
+    }
+    uintptr begin = (uintptr)(addr);
+    uintptr end   = (uintptr)(runtime->Epilogue);
+    uint    size  = end - begin;
+    if (old == NULL)
+    {
+        DWORD oldProtect = 0;
+        old = &oldProtect;
+    }
+    return runtime->VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, old);
+}
+
+static bool recoverPageProtect(Runtime* runtime, DWORD protect)
+{
+    if (runtime->Options.NotAdjustProtect)
+    {
+        return true;
+    }
+    void* init = GetFuncAddr(&InitRuntime);
+    void* addr = runtime->Options.BootInstAddress;
+    if (addr == NULL || (uintptr)addr > (uintptr)init)
+    {
+        addr = init;
+    }
+    uintptr begin = (uintptr)(addr);
+    uintptr end   = (uintptr)(runtime->Epilogue);
+    uint    size  = end - begin;
+    uint32  old;
+    return runtime->VirtualProtect(addr, size, protect, &old);
+}
+
 __declspec(noinline)
 static bool flushInstructionCache(Runtime* runtime)
 {
     void* init = GetFuncAddr(&InitRuntime);
-    void* addr = runtime->BootInstAddress;
+    void* addr = runtime->Options.BootInstAddress;
     if (addr == NULL || (uintptr)addr > (uintptr)init)
     {
         addr = init;
@@ -1532,7 +1572,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     // store core Windows API before encrypt
     FlushInstructionCache_t flush = runtime->FlushInstructionCache;
     // build shield context before encrypt
-    uintptr beginAddress = (uintptr)(runtime->BootInstAddress);
+    uintptr beginAddress = (uintptr)(runtime->Options.BootInstAddress);
     uintptr runtimeAddr  = (uintptr)(GetFuncAddr(&InitRuntime));
     if (beginAddress == 0 || beginAddress > runtimeAddr)
     {
@@ -1652,8 +1692,11 @@ errno RT_Exit()
         return err;
     }
 
-    // must record options before clean runtime
-    bool notEraseInst = runtime->NotEraseInstruction;
+    DWORD oldProtect;
+    if (!adjustPageProtect(runtime, &oldProtect))
+    {
+        return ERR_RUNTIME_ADJUST_PROTECT;
+    }
 
     // clean runtime modules
     typedef errno (*submodule_t)();
@@ -1675,15 +1718,8 @@ errno RT_Exit()
         }
     }
 
-    // clean runtime resource
-    errno enclr = cleanRuntime(runtime);
-    if (enclr != NO_ERROR && err == NO_ERROR)
-    {
-        err = enclr;
-    }
-
     // recover instructions for generate shellcode
-    if (notEraseInst)
+    if (runtime->Options.NotEraseInstruction)
     {
         if (!recoverRuntimePointer(runtime) && err == NO_ERROR)
         {
@@ -1691,8 +1727,23 @@ errno RT_Exit()
         }
     }
 
+    // must copy structure before clean runtime
+    Runtime clone;
+    mem_clean(&clone, sizeof(Runtime));
+    mem_copy(&clone, runtime, sizeof(Runtime));
+
+    // clean runtime resource
+    errno enclr = cleanRuntime(runtime);
+    if (enclr != NO_ERROR && err == NO_ERROR)
+    {
+        err = enclr;
+    }
+
+    // must replace it until reach here
+    runtime = &clone;
+
     // erase runtime instructions except this function
-    if (!notEraseInst)
+    if (!runtime->Options.NotEraseInstruction)
     {
         uintptr begin = (uintptr)(GetFuncAddr(&InitRuntime));
         uintptr end   = (uintptr)(GetFuncAddr(&RT_Exit));
@@ -1702,6 +1753,26 @@ errno RT_Exit()
         end   = (uintptr)(GetFuncAddr(&Argument_Stub));
         size  = end - begin;
         eraseMemory(begin, size);
+    }
+
+    // recover memory project
+    if (runtime->Options.NotAdjustProtect)
+    {
+        return err;
+    }
+    void* init = GetFuncAddr(&InitRuntime);
+    void* addr = runtime->Options.BootInstAddress;
+    if (addr == NULL || (uintptr)addr > (uintptr)init)
+    {
+        addr = init;
+    }
+    uintptr begin = (uintptr)(addr);
+    uintptr end = (uintptr)(runtime->Epilogue);
+    uint    size = end - begin;
+    uint32  old;
+    if (!runtime->VirtualProtect(addr, size, oldProtect, &old) && err == NO_ERROR)
+    {
+        err = ERR_RUNTIME_RECOVER_PROTECT;
     }
     return err;
 }
