@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"strings"
 	
 	"github.com/RSSU-Shellcode/RT-Argument"
 )
@@ -20,15 +19,11 @@ func main() {
 	checkError(err)
 	
 	fmt.Println(dumpBytesHex(stub))
-	
-	args, err = argument.Decode(stub)
-	checkError(err)
-	fmt.Println(args)
 }
 
 func dumpBytesHex(b []byte) string {
 	n := len(b)
-	builder := strings.Builder{}
+	builder := bytes.Buffer{}
 	builder.Grow(len("0FFh, ")*n - len(", "))
 	buf := make([]byte, 2)
 	var counter = 0
@@ -40,13 +35,17 @@ func dumpBytesHex(b []byte) string {
 		builder.WriteString("0")
 		builder.Write(bytes.ToUpper(buf))
 		builder.WriteString("h")
+		if i == n-1 {
+			builder.WriteString("\r\n")
+			break
+		}
 		counter++
 		if counter != 4 {
 			builder.WriteString(", ")
 			continue
 		}
-		builder.WriteString("\r\n")
 		counter = 0
+		builder.WriteString("\r\n")
 	}
 	return builder.String()
 }
