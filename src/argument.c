@@ -9,21 +9,6 @@
 #include "argument.h"
 #include "debug.h"
 
-// +---------+----------+----------+-----------+----------+----------+
-// |   key   | checksum | num args | args size | arg size | arg data |
-// +---------+----------+----------+-----------+----------+----------+
-// | 32 byte |  uint32  |  uint32  |  uint32   |  uint32  |   var    |
-// +---------+----------+----------+-----------+----------+----------+
-
-#define ARG_CRYPTO_KEY_SIZE 32
-#define ARG_HEADER_SIZE     (32 + 4 + 4 + 4)
-
-#define ARG_OFFSET_CRYPTO_KEY (0)
-#define ARG_OFFSET_CHECKSUM   (32)
-#define ARG_OFFSET_NUM_ARGS   (32 + 4)
-#define ARG_OFFSET_ARGS_SIZE  (32 + 4 + 4)
-#define ARG_OFFSET_FIRST_ARG  (32 + 4 + 4 + 4)
-
 typedef struct {
     // store options
     bool NotEraseInstruction;
