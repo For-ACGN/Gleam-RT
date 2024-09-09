@@ -17,7 +17,6 @@
 #include "argument.h"
 #include "shield.h"
 #include "runtime.h"
-#include "epilogue.h"
 #include "debug.h"
 
 #define MAIN_MEM_PAGE_SIZE 8192
@@ -57,6 +56,7 @@ typedef struct {
 
     // runtime data
     void*  MainMemPage; // store all structures
+    void*  Epilogue;    // store shellcode epilogue
     uint32 PageSize;    // for memory management
     HANDLE hProcess;    // for simulate kernel32.Sleep
     HANDLE hMutex;      // global method mutex
@@ -118,6 +118,7 @@ static bool rt_lock();
 static bool rt_unlock();
 
 static void* allocRuntimeMemPage();
+static void* calculateEpilogue();
 static bool  initRuntimeAPI(Runtime* runtime);
 static bool  adjustPageProtect(Runtime* runtime);
 static bool  updateRuntimePointer(Runtime* runtime);
@@ -184,7 +185,9 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     runtime->Options = opts;
     runtime->BootInstAddress     = opts->BootInstAddress;
     runtime->NotEraseInstruction = opts->NotEraseInstruction;
+    // set runtime data
     runtime->MainMemPage = memPage;
+    runtime->Epilogue    = calculateEpilogue();
     // initialize runtime
     errno errno = NO_ERROR;
     for (;;)
@@ -314,6 +317,14 @@ static void* allocRuntimeMemPage()
     return addr;
 }
 
+static void* calculateEpilogue()
+{
+    uintptr stub = (uintptr)(GetFuncAddr(&Argument_Stub));
+    uint32  size = *(uint32*)(stub + ARG_OFFSET_ARGS_SIZE);
+    size += ARG_OFFSET_ARGS_SIZE + sizeof(uint32);
+    return (void*)(stub + size);
+}
+
 static bool initRuntimeAPI(Runtime* runtime)
 {
     typedef struct { 
@@ -396,7 +407,7 @@ static bool adjustPageProtect(Runtime* runtime)
         addr = init;
     }
     uintptr begin = (uintptr)(addr);
-    uintptr end   = (uintptr)(GetFuncAddr(&Epilogue));
+    uintptr end   = (uintptr)(runtime->Epilogue);
     uint    size  = end - begin;
     uint32  old;
     return runtime->VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &old);
@@ -694,7 +705,7 @@ static bool flushInstructionCache(Runtime* runtime)
         addr = init;
     }
     uintptr begin = (uintptr)(addr);
-    uintptr end   = (uintptr)(GetFuncAddr(&Epilogue));
+    uintptr end   = (uintptr)(runtime->Epilogue);
     uint    size  = end - begin;
     return runtime->FlushInstructionCache(CURRENT_PROCESS, addr, size);
 }
@@ -1527,7 +1538,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     {
         beginAddress = runtimeAddr;
     }
-    uintptr endAddress = (uintptr)(GetFuncAddr(&Shield_Stub));
+    uintptr endAddress = (uintptr)(runtime->Epilogue);
     Shield_Ctx ctx = {
         .BeginAddress = beginAddress,
         .EndAddress   = endAddress,
