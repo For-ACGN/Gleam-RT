@@ -731,7 +731,7 @@ static bool recoverPageProtect(Runtime* runtime, DWORD protect)
     uintptr begin = (uintptr)(addr);
     uintptr end   = (uintptr)(runtime->Epilogue);
     uint    size  = end - begin;
-    uint32  old;
+    DWORD   old;
     return runtime->VirtualProtect(addr, size, protect, &old);
 }
 
@@ -1570,7 +1570,8 @@ __declspec(noinline)
 static errno sleep(Runtime* runtime, uint32 milliseconds)
 {
     // store core Windows API before encrypt
-    FlushInstructionCache_t flush = runtime->FlushInstructionCache;
+    FlushInstructionCache_t flushInstCache = runtime->FlushInstructionCache;
+    VirtualProtect_t        virtualProtect = runtime->VirtualProtect;
     // build shield context before encrypt
     uintptr beginAddress = (uintptr)(runtime->Options.BootInstAddress);
     uintptr runtimeAddr  = (uintptr)(GetFuncAddr(&InitRuntime));
@@ -1597,15 +1598,28 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     void* buf = runtime->MainMemPage;
     // encrypt main page
     EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
+    // must adjust protect before call shield stub // TODO update protect
+    void* addr = (void*)beginAddress;
+    DWORD size = (DWORD)(endAddress - beginAddress);
+    DWORD oldProtect;
+    if (!virtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &oldProtect))
+    {
+        return ERR_RUNTIME_ADJUST_PROTECT;
+    }
     // call shield!!!
     if (!DefenseRT(&ctx))
     {
         return ERR_RUNTIME_DEFENSE_RT;
     }
+    // TODO remove this call, stub will adjust it
+    if (!virtualProtect(addr, size, oldProtect, &oldProtect))
+    {
+        return ERR_RUNTIME_RECOVER_PROTECT;
+    }
     // flush instruction cache after decrypt
     void* baseAddr = (void*)beginAddress;
     uint  instSize = (uintptr)(GetFuncAddr(&DefenseRT)) - beginAddress;
-    if (!flush(CURRENT_PROCESS, baseAddr, instSize))
+    if (!flushInstCache(CURRENT_PROCESS, baseAddr, instSize))
     {
         return ERR_RUNTIME_FLUSH_INST_CACHE;
     }
@@ -1742,6 +1756,17 @@ errno RT_Exit()
     // must replace it until reach here
     runtime = &clone;
 
+    // must calculate before erase instructions
+    void* init = GetFuncAddr(&InitRuntime);
+    void* addr = runtime->Options.BootInstAddress;
+    if (addr == NULL || (uintptr)addr > (uintptr)init)
+    {
+        addr = init;
+    }
+    uintptr begin = (uintptr)(addr);
+    uintptr end   = (uintptr)(runtime->Epilogue);
+    SIZE_T  size  = (SIZE_T)(end - begin);
+
     // erase runtime instructions except this function
     if (!runtime->Options.NotEraseInstruction)
     {
@@ -1756,23 +1781,13 @@ errno RT_Exit()
     }
 
     // recover memory project
-    if (runtime->Options.NotAdjustProtect)
+    if (!runtime->Options.NotAdjustProtect)
     {
-        return err;
-    }
-    void* init = GetFuncAddr(&InitRuntime);
-    void* addr = runtime->Options.BootInstAddress;
-    if (addr == NULL || (uintptr)addr > (uintptr)init)
-    {
-        addr = init;
-    }
-    uintptr begin = (uintptr)(addr);
-    uintptr end = (uintptr)(runtime->Epilogue);
-    uint    size = end - begin;
-    uint32  old;
-    if (!runtime->VirtualProtect(addr, size, oldProtect, &old) && err == NO_ERROR)
-    {
-        err = ERR_RUNTIME_RECOVER_PROTECT;
+        DWORD old;
+        if (!runtime->VirtualProtect(addr, size, oldProtect, &old) && err == NO_ERROR)
+        {
+            err = ERR_RUNTIME_RECOVER_PROTECT;
+        }
     }
     return err;
 }
