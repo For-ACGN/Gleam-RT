@@ -30,7 +30,10 @@ int __cdecl main()
 bool testShellcode(bool erase)
 {
     Runtime_Opts opt = {
+        .BootInstAddress     = NULL,
         .NotEraseInstruction = !erase,
+        .NotAdjustProtect    = false,
+        .TrackCurrentThread  = false,
     };
     Runtime_M* RuntimeM = InitRuntime(&opt);
     if (RuntimeM == NULL)
@@ -63,19 +66,6 @@ bool saveShellcode()
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Argument_Stub);
     uintptr size  = end - begin;
-    // skip 0xCC instructions at the tail
-    uint num0xCC = 0;
-    for (;;)
-    {
-        end--;
-        if (*(byte*)end != 0xCC)
-        {
-            break;
-        }
-        num0xCC++;
-    }
-    size -= num0xCC;
-    // write shellcode
     size_t  n = fwrite((byte*)begin, (size_t)size, 1, file);
     if (n != 1)
     {
