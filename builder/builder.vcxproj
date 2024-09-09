@@ -134,7 +134,6 @@
     <ClInclude Include="..\include\runtime.h" />
     <ClInclude Include="..\include\shield.h" />
     <ClInclude Include="..\include\debug.h" />
-    <ClInclude Include="..\include\epilogue.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="builder.c" />
@@ -171,7 +170,6 @@
     </MASM>
     <MASM Include="..\asm\shield_stub.asm" />
     <MASM Include="..\asm\args_stub.asm" />
-    <MASM Include="..\asm\epilogue.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

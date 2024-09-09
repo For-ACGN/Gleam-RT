@@ -100,9 +100,6 @@
     <ClInclude Include="..\include\context.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\epilogue.h">
-      <Filter>Header</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\list_md.h">
       <Filter>Header</Filter>
     </ClInclude>
@@ -148,9 +145,6 @@
       <Filter>Assembly</Filter>
     </MASM>
     <MASM Include="..\asm\args_stub.asm">
-      <Filter>Assembly</Filter>
-    </MASM>
-    <MASM Include="..\asm\epilogue.asm">
       <Filter>Assembly</Filter>
     </MASM>
     <MASM Include="..\asm\msvc\llmul.asm">
