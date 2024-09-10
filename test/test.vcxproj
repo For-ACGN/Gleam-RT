@@ -22,7 +22,7 @@
     <ClInclude Include="..\include\list_md.h" />
     <ClInclude Include="..\include\random.h" />
     <ClInclude Include="..\include\crypto.h" />
-	<ClInclude Include="..\include\compress.h" />
+    <ClInclude Include="..\include\compress.h" />
     <ClInclude Include="..\include\win_api.h" />
     <ClInclude Include="..\include\context.h" />
     <ClInclude Include="..\include\errno.h" />
@@ -34,7 +34,6 @@
     <ClInclude Include="..\include\runtime.h" />
     <ClInclude Include="..\include\shield.h" />
     <ClInclude Include="..\include\debug.h" />
-    <ClInclude Include="..\include\epilogue.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test_main.c" />
@@ -53,7 +52,7 @@
     <ClCompile Include="..\src\list_md.c" />
     <ClCompile Include="..\src\random.c" />
     <ClCompile Include="..\src\crypto.c" />
-	<ClCompile Include="..\src\compress.c" />
+    <ClCompile Include="..\src\compress.c" />
     <ClCompile Include="..\src\win_api.c" />
     <ClCompile Include="..\src\errno.c" />
     <ClCompile Include="..\src\library.c" />
@@ -65,9 +64,8 @@
     <ClCompile Include="..\src\debug.c" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="..\asm\shield_stub.asm" />
+    <MASM Include="..\asm\align_stub.asm" />
     <MASM Include="..\asm\args_stub.asm" />
-    <MASM Include="..\asm\epilogue.asm" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
