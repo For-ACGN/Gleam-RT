@@ -206,8 +206,6 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     store->NumArgs = *(uint32*)(stub + ARG_OFFSET_NUM_ARGS);
     // copy encrypted arguments to new memory page
     mem_copy(mem, addr, size);
-    // check decrypted data
-    uint32 checksum = 0;
     // decrypted arguments
     byte* key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
     byte* data = (byte*)mem;
@@ -219,23 +217,14 @@ static errno loadArguments(ArgumentStore* store, Context* context)
         b ^= *(key + keyIdx);
         *data = b;
         last = b;
-        // update checksum
-        checksum += checksum << 1;
-        checksum += b;
         // update key index
         keyIdx++;
         if (keyIdx >= ARG_CRYPTO_KEY_SIZE)
         {
             keyIdx = 0;
         }
+        // update address
         data++;
-    }
-    errno errno = NO_ERROR;
-    // validate checksum before clean stub
-    uint32 expected = *(uint32*)(stub + ARG_OFFSET_CHECKSUM);
-    if (checksum != expected)
-    {
-        return ERR_ARGUMENT_CHECKSUM;
     }
     // clean argument stub after decrypt
     if (!context->NotEraseInstruction)
