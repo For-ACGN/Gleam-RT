@@ -113,6 +113,7 @@ static Runtime* getRuntimePointer();
 static bool rt_lock();
 static bool rt_unlock();
 
+static bool  isValidArgumentStub();
 static void* allocRuntimeMemPage();
 static void* calculateEpilogue();
 static bool  initRuntimeAPI(Runtime* runtime);
@@ -153,6 +154,12 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     if (!InitDebugger())
     {
         SetLastErrno(ERR_RUNTIME_INIT_DEBUGGER);
+        return NULL;
+    }
+    // check argument stub for calculate Epilogue
+    if (!isValidArgumentStub())
+    {
+        SetLastErrno(ERR_RUNTIME_INVALID_ARGS_STUB);
         return NULL;
     }
     // alloc memory for store runtime structure
@@ -301,7 +308,21 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     return module;
 }
 
-// allocate memory for store structures.
+static bool isValidArgumentStub()
+{
+    uintptr stubAddr = (uintptr)(GetFuncAddr(&Argument_Stub));
+    // calculate header checksum
+    uint32 checksum = 0;
+    for (uintptr i = 0; i < ARG_OFFSET_CHECKSUM; i++)
+    {
+        byte b = *(byte*)(stubAddr + i);
+        checksum += checksum << 1;
+        checksum += b;
+    }
+    uint32 expected = *(uint32*)(stubAddr + ARG_OFFSET_CHECKSUM);
+    return checksum = expected;
+}
+
 static void* allocRuntimeMemPage()
 {
 #ifdef _WIN64
@@ -1789,6 +1810,9 @@ errno RT_Exit()
             err = ERR_RUNTIME_RECOVER_PROTECT;
         }
     }
+
+    // clean stack that store cloned structure data 
+    eraseMemory((uintptr)(runtime), sizeof(Runtime));
     return err;
 }
 
@@ -1814,7 +1838,7 @@ static void eraseMemory(uintptr address, uintptr size)
     }
 }
 
-// prevent it be linked to Epilogue.
+// prevent it be linked to other functions.
 #pragma optimize("", off)
 static void rt_epilogue()
 {
