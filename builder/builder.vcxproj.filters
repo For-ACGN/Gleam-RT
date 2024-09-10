@@ -141,9 +141,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="..\asm\shield_stub.asm">
-      <Filter>Assembly</Filter>
-    </MASM>
     <MASM Include="..\asm\args_stub.asm">
       <Filter>Assembly</Filter>
     </MASM>
@@ -158,6 +155,9 @@
     </MASM>
     <MASM Include="..\asm\msvc\ullshr.asm">
       <Filter>Assembly\MSVC</Filter>
+    </MASM>
+    <MASM Include="..\asm\align_stub.asm">
+      <Filter>Assembly</Filter>
     </MASM>
   </ItemGroup>
 </Project>
