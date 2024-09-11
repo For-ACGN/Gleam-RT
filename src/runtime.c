@@ -320,7 +320,7 @@ static bool isValidArgumentStub()
         checksum += b;
     }
     uint32 expected = *(uint32*)(stubAddr + ARG_OFFSET_CHECKSUM);
-    return checksum = expected;
+    return checksum == expected;
 }
 
 static void* allocRuntimeMemPage()
