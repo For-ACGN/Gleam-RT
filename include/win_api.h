@@ -20,7 +20,7 @@ typedef struct {
     uint32 TextPointerToRawData;
 } PE_Info;
 
-uint32 GetModuleFileName(HMODULE hModule, byte* name, uint32 size);
+uint16 GetModuleFileName(HMODULE hModule, byte* name, uint16 maxSize);
 void   ParsePEImage(byte* address, PE_Info* info);
 
 #endif // WIN_API_H
