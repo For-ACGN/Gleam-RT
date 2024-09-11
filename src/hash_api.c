@@ -131,12 +131,12 @@ void* FindAPI(uint hash, uint key)
             byte* exportName = (byte*)(modBase + funcRVA);
             byte* src = exportName;
             uint  dot = 0;
-            for (uint i = 0;; i++)
+            for (uint j = 0;; j++)
             {
                 byte b = *src;
                 if (b == '.')
                 {
-                    dot = i;
+                    dot = j;
                 }
                 if (b == 0x00)
                 {
@@ -162,9 +162,9 @@ void* FindAPI(uint hash, uint key)
             // build hash and key
             byte* module   = &dllName[0];
             byte* function = (byte*)((uintptr)exportName + dot + 1);
-            uint key  = finHash + (uint)function;
-            uint hash = HashAPI_A(module, function, key);
-            return FindAPI(hash, key);
+            uint k = finHash + (uint)function;
+            uint h = HashAPI_A(module, function, k);
+            return FindAPI(h, k);
         }
     }
     return NULL;
