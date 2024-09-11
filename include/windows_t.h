@@ -99,7 +99,7 @@ typedef struct __declspec(align(16)) {
     QWORD LastExceptionFromRIP;
 } CONTEXT;
 #elif _WIN32
-typedef struct __declspec(align(16)) {
+typedef struct {
     DWORD ControlWord;
     DWORD StatusWord;
 	DWORD TagWord;
@@ -111,7 +111,7 @@ typedef struct __declspec(align(16)) {
     DWORD CR0NPXState;
 } FS_AREA;
 
-typedef struct __declspec(align(16)) {
+typedef struct {
     DWORD   ContextFlags;
     DWORD   DR0;
     DWORD   DR1;
