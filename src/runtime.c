@@ -1262,6 +1262,11 @@ errno RT_ExitProcess(UINT uExitCode)
         return errlm;
     }
 
+    if (uExitCode == 0)
+    {
+        // TODO disable watchdog ?
+    }
+
     errno errno = NO_ERROR;
     for (;;)
     {
@@ -1777,16 +1782,13 @@ errno RT_Exit()
     // must replace it until reach here
     runtime = &clone;
 
-    // must calculate before erase instructions
+    // must calculate address before erase instructions
     void* init = GetFuncAddr(&InitRuntime);
     void* addr = runtime->Options.BootInstAddress;
     if (addr == NULL || (uintptr)addr > (uintptr)init)
     {
         addr = init;
     }
-    uintptr begin = (uintptr)(addr);
-    uintptr end   = (uintptr)(runtime->Epilogue);
-    SIZE_T  size  = (SIZE_T)(end - begin);
 
     // erase runtime instructions except this function
     if (!runtime->Options.NotEraseInstruction)
@@ -1804,6 +1806,9 @@ errno RT_Exit()
     // recover memory project
     if (!runtime->Options.NotAdjustProtect)
     {
+        uintptr begin = (uintptr)(addr);
+        uintptr end   = (uintptr)(runtime->Epilogue);
+        SIZE_T  size  = (SIZE_T)(end - begin);
         DWORD old;
         if (!runtime->VirtualProtect(addr, size, oldProtect, &old) && err == NO_ERROR)
         {
@@ -1840,9 +1845,14 @@ static void eraseMemory(uintptr address, uintptr size)
 
 // prevent it be linked to other functions.
 #pragma optimize("", off)
+
+#pragma warning(push)
+#pragma warning(disable: 4189)
 static void rt_epilogue()
 {
     byte var = 1;
     return;
 }
+#pragma warning(pop)
+
 #pragma optimize("", on)
