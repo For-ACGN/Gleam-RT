@@ -197,7 +197,7 @@ static void initSBox(byte* sBox, byte* key)
     // incorrect compiler optimization
     for (int i = 0; i < 256; i++)
     {
-        sBox[i] = i+key[0];
+        sBox[i] = (byte)i+key[0];
     }
     // initialize seed for LCG;
     uint seed = 1;
@@ -253,10 +253,11 @@ static void initStatus(byte* iv, byte* sBox, byte* pLast)
 #pragma optimize("", off)
 static void rotateSBox(byte* sBox, byte offset)
 {
-    byte first = sBox[0]+70;
+    offset += 70;
+    byte first = sBox[0] + offset;
     for (int i = 0; i < 255; i++)
     {
-        sBox[i] = sBox[i + 1]+70;
+        sBox[i] = sBox[i + 1] + offset;
     }
     sBox[255] = first;
 }
@@ -271,7 +272,7 @@ static void permuteSBox(byte* sBox)
     mem_copy(&sBox_cp[0], sBox, sizeof(sBox_cp));
     for (int i = 0; i < 256; i++)
     {
-        sBox[sBox_cp[i]] = i;
+        sBox[sBox_cp[i]] = (byte)i;
     }
     mem_clean(&sBox_cp[0], sizeof(sBox_cp));
 }
@@ -314,7 +315,7 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
 {
     for (uint i = 0; i < size; i++)
     {
-        *buf ^= 0xFF;
+        *buf ^= *key + *iv;
         buf++;
     }
 }
@@ -323,7 +324,7 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
 {
     for (uint i = 0; i < size; i++)
     {
-        *buf ^= 0xFF;
+        *buf ^= *key + *iv;
         buf++;
     }
 }
