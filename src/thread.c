@@ -57,12 +57,12 @@ HANDLE TT_CreateThread(
     POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
     LPVOID lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId
 );
-void   TT_ExitThread(DWORD dwExitCode);
-uint32 TT_SuspendThread(HANDLE hThread);
-uint32 TT_ResumeThread(HANDLE hThread);
-bool   TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext);
-bool   TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext);
-bool   TT_TerminateThread(HANDLE hThread, DWORD dwExitCode);
+void  TT_ExitThread(DWORD dwExitCode);
+DWORD TT_SuspendThread(HANDLE hThread);
+DWORD TT_ResumeThread(HANDLE hThread);
+BOOL  TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext);
+BOOL  TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext);
+BOOL  TT_TerminateThread(HANDLE hThread, DWORD dwExitCode);
 
 // methods for runtime
 HANDLE TT_ThdNew(void* address, void* parameter, bool track);
@@ -619,17 +619,17 @@ static void delThread(ThreadTracker* tracker, uint32 threadID)
 }
 
 __declspec(noinline)
-uint32 TT_SuspendThread(HANDLE hThread)
+DWORD TT_SuspendThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
     if (tracker->Lock() != NO_ERROR)
     {
-        return -1;
+        return (DWORD)(-1);
     }
 
-    uint32 count = tracker->SuspendThread(hThread);
-    if (count != -1)
+    DWORD count = tracker->SuspendThread(hThread);
+    if (count != (DWORD)(-1))
     {
         tracker->numSuspend++;
     }
@@ -637,23 +637,23 @@ uint32 TT_SuspendThread(HANDLE hThread)
 
     if (tracker->Unlock() != NO_ERROR)
     {
-        return -1;
+        return (DWORD)(-1);
     }
     return count;
 }
 
 __declspec(noinline)
-uint32 TT_ResumeThread(HANDLE hThread)
+DWORD TT_ResumeThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
     if (tracker->Lock() != NO_ERROR)
     {
-        return -1;
+        return (DWORD)(-1);
     }
 
-    uint32 count = tracker->ResumeThread(hThread);
-    if (count != -1)
+    DWORD count = tracker->ResumeThread(hThread);
+    if (count != (DWORD)(-1))
     {
         tracker->numSuspend--;
     }
@@ -661,13 +661,13 @@ uint32 TT_ResumeThread(HANDLE hThread)
 
     if (tracker->Unlock() != NO_ERROR)
     {
-        return -1;
+        return (DWORD)(-1);
     }
     return count;
 }
 
 __declspec(noinline)
-bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
+BOOL TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
@@ -676,7 +676,7 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
         return false;
     }
 
-    bool success = tracker->GetThreadContext(hThread, lpContext);
+    BOOL success = tracker->GetThreadContext(hThread, lpContext);
 
     dbg_log("[thread]", "GetThreadContext: 0x%zX", hThread);
 
@@ -688,7 +688,7 @@ bool TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 }
 
 __declspec(noinline)
-bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
+BOOL TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
@@ -697,7 +697,7 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
         return false;
     }
 
-    bool success = tracker->SetThreadContext(hThread, lpContext);
+    BOOL success = tracker->SetThreadContext(hThread, lpContext);
 
     dbg_log("[thread]", "SetThreadContext: 0x%zX", hThread);
 
@@ -709,7 +709,7 @@ bool TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 }
 
 __declspec(noinline)
-bool TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
+BOOL TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
@@ -793,7 +793,7 @@ errno TT_Suspend()
             continue;
         }
         uint32 count = tracker->SuspendThread(thread->hThread);
-        if (count == -1)
+        if (count == (DWORD)(-1))
         {
             delThread(tracker, thread->threadID);
             errno = ERR_THREAD_SUSPEND;
@@ -848,7 +848,7 @@ errno TT_Resume()
             continue;
         }
         uint32 count = tracker->ResumeThread(thread->hThread);
-        if (count == -1)
+        if (count == (DWORD)(-1))
         {
             delThread(tracker, thread->threadID);
             errno = ERR_THREAD_RESUME;
