@@ -30,13 +30,13 @@
     errno errno = runtime->Hide();
     if (errno != NO_ERROR)
     {
-        printf_s("failed to hide: 0x%lX\n", errno);
+        printf_s("failed to hide: 0x%X\n", errno);
         return false;
     }
     errno = runtime->Recover();
     if (errno != NO_ERROR)
     {
-        printf_s("failed to recover: 0x%lX\n", errno);
+        printf_s("failed to recover: 0x%X\n", errno);
         return false;
     }
 
@@ -66,19 +66,19 @@
     errno = runtime->Hide();
     if (errno != NO_ERROR)
     {
-        printf_s("failed to hide: 0x%lX\n", errno);
+        printf_s("failed to hide: 0x%X\n", errno);
         return false;
     }
     errno = runtime->Recover();
     if (errno != NO_ERROR)
     {
-        printf_s("failed to recover: 0x%lX\n", errno);
+        printf_s("failed to recover: 0x%X\n", errno);
         return false;
     }
     errno = runtime->SleepHR(1000);
     if (errno != NO_ERROR)
     {
-        printf_s("failed to call SleepHR: 0x%lX\n", errno);
+        printf_s("failed to call SleepHR: 0x%X\n", errno);
         return false;
     }
 
