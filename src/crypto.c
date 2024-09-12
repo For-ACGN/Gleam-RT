@@ -14,11 +14,9 @@
 
 #ifndef FAST_CRYPTO
 
-static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
-static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast);
-static void initSBox(byte* sBox, byte* key);
-static void initStatus(byte* iv, byte* sBox, byte* pLast);
-static void rotateSBox(byte* sBox, byte key);
+static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox);
+static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox);
+static void initSBox(byte* sBox, byte* key, byte* iv);
 static void permuteSBox(byte* sBox);
 static byte negBit(byte b, uint8 n);
 static byte swapBit(byte b, uint8 p1, uint8 p2);
@@ -33,23 +31,18 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
     {
         return;
     }
-    // use "mem_clean" for prevent incorrect compiler
-    // optimize and generate incorrect shellcode
     byte sBox[256];
-    mem_clean(&sBox, sizeof(sBox));
-    initSBox(&sBox[0], key);
-    byte last = 170;
-    initStatus(iv, &sBox[0], &last);
-    encryptBuf(buf, size, key, &sBox[0], &last);
+    initSBox(sBox, key, iv);
+    encryptBuf(buf, size, key, sBox);
 }
 
-static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
+static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox)
 {
     // initialize status
     uint kIdx = 0;
     byte dCtr = 0;
     uint bCtr = 0;
-    byte last = *pLast;
+    byte last = 1;
     byte cKey;
     byte data;
     // encrypt buffer
@@ -85,13 +78,6 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         // update last
         last = data;
 
-        // rotate S-Box
-        if (bCtr >= 65536)
-        {
-            rotateSBox(sBox, cKey);
-            bCtr = 0;
-        }
-
         // update key index
         kIdx++;
         if (kIdx >= CRYPTO_KEY_SIZE)
@@ -103,8 +89,6 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         dCtr += (kIdx + cKey + last) % 16;
         bCtr += (kIdx + cKey + last) % 32;
     }
-    // save status
-    *pLast = last;
 }
 
 void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
@@ -113,24 +97,19 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
     {
         return;
     }
-    // use "mem_clean" for prevent incorrect compiler
-    // optimize and generate incorrect shellcode
     byte sBox[256];
-    mem_clean(&sBox, sizeof(sBox)); 
-    initSBox(&sBox[0], key);
-    byte last = 170;
-    initStatus(iv, &sBox[0], &last);
-    permuteSBox(&sBox[0]);
-    decryptBuf(buf, size, key, &sBox[0], &last);
+    initSBox(sBox, key, iv);
+    permuteSBox(sBox);
+    decryptBuf(buf, size, key, sBox);
 }
 
-static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
+static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox)
 {
     // initialize status
     uint kIdx = 0;
     byte dCtr = 0;
     uint bCtr = 0;
-    byte last = *pLast;
+    byte last = 1;
     byte cKey;
     byte data;
     // decrypt buffer
@@ -166,15 +145,6 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         // write byte to the buffer
         *(buf + i) = data;
 
-        // rotate S-Box
-        if (bCtr >= 65536)
-        {
-            permuteSBox(&sBox[0]);
-            rotateSBox(sBox, cKey);
-            permuteSBox(&sBox[0]);
-            bCtr = 0;
-        }
-
         // update key index
         kIdx++;
         if (kIdx >= CRYPTO_KEY_SIZE)
@@ -186,82 +156,46 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox, byte* pLast)
         dCtr += (kIdx + cKey + last) % 16;
         bCtr += (kIdx + cKey + last) % 32;
     }
-    // save status
-    *pLast = last;
 }
 
-static void initSBox(byte* sBox, byte* key)
+static void initSBox(byte* sBox, byte* key, byte* iv)
 {
+    // offset is used to prevent incorrect optimization
+    byte offset = key[0];
     // initialize S-Box byte array
-    // "+key[0]" is used to prevent
-    // incorrect compiler optimization
     for (int i = 0; i < 256; i++)
     {
-        sBox[i] = (byte)i+key[0];
+        sBox[i] = (byte)i + offset;
     }
-    // initialize seed for LCG;
+    // initialize seed for XOR Shift;
     uint seed = 1;
     for (int i = 0; i < CRYPTO_KEY_SIZE; i++)
     {
         seed *= *(key + i);
     }
-    uint a = *(uint32*)(key + 10);
-    uint c = *(uint32*)(key + 24);
-    // generate S-Box from key
+    for (int i = 0; i < CRYPTO_IV_SIZE; i++)
+    {
+        seed *= *(iv + i);
+    }
+    // generate S-Box from key and iv
     for (int i = 0; i < CRYPTO_KEY_SIZE; i++)
     {
         byte k = *(key + i);
-        byte t = k;
-        byte idx;
-        byte swap;
-        for (int j = 0; j < t; j++)
+        for (int j = 0; j < CRYPTO_IV_SIZE; j++)
         {
-            idx = (byte)(seed) + k;
-            swap = sBox[idx];
+            k += *(iv + j);
+            // swap array item
+            byte idx  = (byte)(seed) + k;
+            byte swap = sBox[idx];
             sBox[idx] = sBox[0];
             sBox[0] = swap;
-            // update LCG status
-            seed = (a * seed + c) % UINT32_MAX;
-            k++;
+            // update xor shift 64 seed
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
         }
     }
 }
-
-static void initStatus(byte* iv, byte* sBox, byte* pLast)
-{
-    byte idxA = 100;
-    byte idxB = 170;
-    for (int i = 0; i < CRYPTO_IV_SIZE; i++)
-    {
-        // swap S-Box item
-        idxA += *(iv + i) + 1;
-        idxB *= *(iv + i) + 2;
-        byte prev  = sBox[idxA];
-        sBox[idxA] = sBox[idxB];
-        sBox[idxB] = prev;
-        // update last byte
-        *pLast += idxA % ((idxB % 64) + 1);
-        *pLast += idxB % ((idxA % 64) + 1);
-        // update swap index
-        idxA += *pLast;
-        idxB *= *pLast;
-    }
-}
-
-// must disable compiler optimization for
-// prevent generate incorrect shellcode
-#pragma optimize("", off)
-static void rotateSBox(byte* sBox, byte offset)
-{
-    offset += 70;
-    byte first = sBox[0] + offset;
-    for (int i = 0; i < 255; i++)
-    {
-        sBox[i] = sBox[i + 1] + offset;
-    }
-    sBox[255] = first;
-}
-#pragma optimize("", on)
 
 static void permuteSBox(byte* sBox)
 {
