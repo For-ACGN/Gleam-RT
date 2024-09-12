@@ -9,7 +9,6 @@
 // shellcode to be incorrect.
 #pragma optimize("", off)
 
-__declspec(noinline)
 bool mem_equal(void* dst, void* src, uint size)
 {
     if (size == 0)
@@ -30,7 +29,6 @@ bool mem_equal(void* dst, void* src, uint size)
     return true;
 }
 
-__declspec(noinline)
 bool mem_zero(void* dst, uint size)
 {
     if (size == 0)
@@ -49,7 +47,6 @@ bool mem_zero(void* dst, uint size)
     return true;
 }
 
-__declspec(noinline)
 void mem_copy(void* dst, void* src, uint size)
 {
     if (size == 0)
@@ -66,7 +63,6 @@ void mem_copy(void* dst, void* src, uint size)
     }
 }
 
-__declspec(noinline)
 void mem_set(void* ptr, byte val, uint num)
 {
     if (num == 0)
@@ -81,7 +77,6 @@ void mem_set(void* ptr, byte val, uint num)
     }
 }
 
-__declspec(noinline)
 void mem_clean(void* ptr, uint num)
 {
     if (num == 0)
