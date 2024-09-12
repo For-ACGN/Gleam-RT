@@ -14,6 +14,8 @@
 
 #ifndef FAST_CRYPTO
 
+#define PARALLEL_LEVEL 8
+
 static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox);
 static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox);
 static void initSBox(byte* sBox, byte* key, byte* iv);
@@ -33,11 +35,58 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
     }
     byte sBox[256];
     initSBox(sBox, key, iv);
+    return;
     encryptBuf(buf, size, key, sBox);
 }
 
 static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox)
 {
+    uint remaining = size;
+    for (uintptr i = 0; i < size; i += PARALLEL_LEVEL)
+    {
+        if (remaining < PARALLEL_LEVEL)
+        {
+            break;
+        }
+
+
+
+        buf[i + 0] = sBox[buf[i + 0]];
+
+
+        buf[i + 1] = sBox[buf[i + 1]];
+        buf[i + 2] = sBox[buf[i + 2]];
+        buf[i + 3] = sBox[buf[i + 3]];
+        buf[i + 4] = sBox[buf[i + 4]];
+        buf[i + 5] = sBox[buf[i + 5]];
+        buf[i + 6] = sBox[buf[i + 6]];
+        buf[i + 7] = sBox[buf[i + 7]];
+
+        remaining -= PARALLEL_LEVEL;
+    }
+    // process remaining not aligned data
+    for (uintptr i = 0; i < size; i++)
+    {
+
+
+
+        buf[i] = sBox[buf[i]];
+    }
+
+    return;
+
+
+
+    byte seed = 0;
+
+    seed ^= seed << 13;
+    seed ^= seed >> 7;
+    seed ^= seed << 17;
+
+
+
+
+
     // initialize status
     uint kIdx = 0;
     byte dCtr = 0;
@@ -100,11 +149,42 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
     byte sBox[256];
     initSBox(sBox, key, iv);
     permuteSBox(sBox);
+    return;
     decryptBuf(buf, size, key, sBox);
 }
 
 static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox)
 {
+    uint remaining = size;
+    for (uintptr i = 0; i < size; i += PARALLEL_LEVEL)
+    {
+        if (remaining < PARALLEL_LEVEL)
+        {
+            break;
+        }
+
+        buf[i + 0] = sBox[buf[i + 0]];
+        buf[i + 1] = sBox[buf[i + 1]];
+        buf[i + 2] = sBox[buf[i + 2]];
+        buf[i + 3] = sBox[buf[i + 3]];
+        buf[i + 4] = sBox[buf[i + 4]];
+        buf[i + 5] = sBox[buf[i + 5]];
+        buf[i + 6] = sBox[buf[i + 6]];
+        buf[i + 7] = sBox[buf[i + 7]];
+
+        remaining -= PARALLEL_LEVEL;
+    }
+    // process remaining not aligned data
+    for (uintptr i = 0; i < size; i++)
+    {
+        buf[i] = sBox[buf[i]];
+    }
+
+    return;
+
+
+
+
     // initialize status
     uint kIdx = 0;
     byte dCtr = 0;
@@ -177,38 +257,30 @@ static void initSBox(byte* sBox, byte* key, byte* iv)
     {
         seed *= *(iv + i);
     }
-    // generate S-Box from key and iv
-    for (int i = 0; i < CRYPTO_KEY_SIZE; i++)
+    // generate S-Box from random index
+    for (int i = 0; i < 128; i++)
     {
-        byte k = *(key + i);
-        for (int j = 0; j < CRYPTO_IV_SIZE; j++)
-        {
-            k += *(iv + j);
-            // swap array item
-            byte idx  = (byte)(seed) + k;
-            byte swap = sBox[idx];
-            sBox[idx] = sBox[0];
-            sBox[0] = swap;
-            // update xor shift 64 seed
-            seed ^= seed << 13;
-            seed ^= seed >> 7;
-            seed ^= seed << 17;
-        }
+        // swap array item
+        byte idx0 = (byte)(seed+32);
+        byte idx1 = (byte)(seed+64);
+        byte swap = sBox[idx0];
+        sBox[idx0] = sBox[idx1];
+        sBox[idx1] = swap;
+        // update xor shift 64 seed
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
     }
 }
 
 static void permuteSBox(byte* sBox)
 {
-    // use "mem_clean" for prevent incorrect compiler
-    // optimize and generate incorrect shellcode
-    byte sBox_cp[256];
-    mem_clean(&sBox_cp, sizeof(sBox_cp));
-    mem_copy(&sBox_cp[0], sBox, sizeof(sBox_cp));
+    byte buf[256];
+    mem_copy(buf, sBox, sizeof(buf));
     for (int i = 0; i < 256; i++)
     {
-        sBox[sBox_cp[i]] = (byte)i;
+        sBox[buf[i]] = (byte)i;
     }
-    mem_clean(&sBox_cp[0], sizeof(sBox_cp));
 }
 
 static byte negBit(byte b, uint8 n)
@@ -247,18 +319,20 @@ static byte rol(byte value, uint8 bits)
 
 void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
 {
+    byte b = *key + *iv;
     for (uint i = 0; i < size; i++)
     {
-        *buf ^= *key + *iv;
+        *buf ^= b;
         buf++;
     }
 }
 
 void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
 {
+    byte b = *key + *iv;
     for (uint i = 0; i < size; i++)
     {
-        *buf ^= *key + *iv;
+        *buf ^= b;
         buf++;
     }
 }
