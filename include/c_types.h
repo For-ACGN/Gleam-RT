@@ -1,10 +1,17 @@
 #ifndef C_TYPES_H
 #define C_TYPES_H
 
-// disable warnings for /W4
+// disable special warnings for /Wall
 #pragma warning(disable: 4057)
 #pragma warning(disable: 4152)
+#pragma warning(disable: 4255)
 #pragma warning(disable: 4459)
+#pragma warning(disable: 4710)
+#pragma warning(disable: 4711)
+#pragma warning(disable: 4820)
+#pragma warning(disable: 4826)
+#pragma warning(disable: 5045)
+#pragma warning(disable: 5250)
 
 // reference basic types from Go
 typedef char      int8;
