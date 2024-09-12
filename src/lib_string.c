@@ -9,7 +9,6 @@
 // shellcode to be incorrect.
 #pragma optimize("", off)
 
-__declspec(noinline)
 uint strlen_a(ascii s)
 {
     uint l = 0;
@@ -25,7 +24,6 @@ uint strlen_a(ascii s)
     return l;
 }
 
-__declspec(noinline)
 uint strlen_w(utf16 s)
 {
     uint l = 0;
@@ -41,7 +39,6 @@ uint strlen_w(utf16 s)
     return l;
 }
 
-__declspec(noinline)
 int strcmp_a(ascii a, ascii b)
 {
     for (;;)
@@ -67,7 +64,6 @@ int strcmp_a(ascii a, ascii b)
     }
 }
 
-__declspec(noinline)
 int strcmp_w(utf16 a, utf16 b)
 {
     for (;;)
