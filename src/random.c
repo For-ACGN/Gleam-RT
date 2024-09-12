@@ -17,8 +17,15 @@ void RandBuf(byte* buf, int64 size)
     {
         return;
     }
-    uint64 seed = RandUint64((uint64)(buf));
-    for (int64 i = 0; i < size; i++)
+    // limit the max loop times
+    uint64 times = size; 
+    if (times > 16)
+    {
+        times = 16;
+    }
+    // generate seed from buffer address
+    uint64 seed = (uint64)(buf);
+    for (int64 i = 0; i < times; i++)
     {
         byte b = *(buf + i);
         if (b == 0)
@@ -30,9 +37,12 @@ void RandBuf(byte* buf, int64 size)
     }
     for (int64 i = 0; i < size; i++)
     {
-        seed = RandUint64(seed);
+        // xor shift 64
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        // write generate byte
         *(buf + i) = (byte)seed;
-        seed += seed % 256;
     }
 }
 
@@ -108,7 +118,6 @@ static uint64 rand(uint64 seed, uint64 mod)
         seed += ror(seed, 1);        
         seed += ror(seed, 17);
         seed = (a * seed + c);
-
         // xor shift 64
         seed ^= seed << 13;
         seed ^= seed >> 7;
