@@ -996,14 +996,11 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page)
         return false;
     }
     // generate new key and IV
-    RandBuf(&page->key[0], CRYPTO_KEY_SIZE);
-    RandBuf(&page->iv[0], CRYPTO_IV_SIZE);
-    // use "mem_clean" for prevent incorrect compiler
-    // optimize and generate incorrect shellcode
+    RandBuf(page->key, CRYPTO_KEY_SIZE);
+    RandBuf(page->iv, CRYPTO_IV_SIZE);
     byte key[CRYPTO_KEY_SIZE];
-    mem_clean(&key, sizeof(key));
-    deriveKey(tracker, page, &key[0]);
-    EncryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
+    deriveKey(tracker, page, key);
+    EncryptBuf((byte*)(page->address), tracker->PageSize, key, page->iv);
     return true;
 }
 
@@ -1052,12 +1049,9 @@ static bool decryptPage(MemoryTracker* tracker, memPage* page)
     {
         return true;
     }
-    // use "mem_clean" for prevent incorrect compiler
-    // optimize and generate incorrect shellcode
     byte key[CRYPTO_KEY_SIZE];
-    mem_clean(&key, sizeof(key));
-    deriveKey(tracker, page, &key[0]);
-    DecryptBuf((byte*)(page->address), tracker->PageSize, &key[0], &page->iv[0]);
+    deriveKey(tracker, page, key);
+    DecryptBuf((byte*)(page->address), tracker->PageSize, key, page->iv);
     if (!recoverPageProtect(tracker, page))
     {
         return false;
@@ -1082,11 +1076,13 @@ static bool isEmptyPage(MemoryTracker* tracker, memPage* page)
 
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key)
 {
+    // copy original key
+    mem_copy(key, page->key, CRYPTO_KEY_SIZE);
+    // cover some bytes
     uintptr addr = (uintptr)page;
     addr += ((uintptr)tracker) << (sizeof(uintptr)/2);
     addr += ((uintptr)tracker->VirtualAlloc) >> 4;
     addr += ((uintptr)tracker->VirtualFree)  >> 6;
-    mem_copy(key+0, &page->key[0], CRYPTO_KEY_SIZE);
     mem_copy(key+4, &addr, sizeof(uintptr));
 }
 
