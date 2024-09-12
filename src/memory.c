@@ -629,7 +629,6 @@ static void protectPage(MemoryTracker* tracker, uintptr address, uint size, uint
     register uint  len   = pages->Len;
     register uint  index = 0;
     register memPage* page;
-    bool found = false;
     for (uint num = 0; num < len; index++)
     {
         page = List_Get(pages, index);
@@ -746,7 +745,7 @@ static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock
     register memRegion* region;
 
     // record region size and set locker
-    uint regionSize;
+    uint regionSize = 0;
     bool found = false;
     for (uint num = 0; num < len; index++)
     {
@@ -765,7 +764,7 @@ static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock
         found = true;
         break;
     }
-    if (!found)
+    if (!found || regionSize == 0)
     {
         return false;
     }
@@ -920,8 +919,6 @@ void* MT_MemRealloc(void* address, uint size)
 __declspec(noinline)
 bool MT_MemFree(void* address)
 {
-    MemoryTracker* tracker = getTrackerPointer();
-
     if (address == NULL)
     {
         return true;
