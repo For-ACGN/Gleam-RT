@@ -38,14 +38,14 @@ bool testShellcode(bool erase)
     Runtime_M* RuntimeM = InitRuntime(&opt);
     if (RuntimeM == NULL)
     {
-        printf_s("failed to initialize runtime: 0x%lX\n", GetLastErrno());
+        printf_s("failed to initialize runtime: 0x%X\n", GetLastErrno());
         return false;
     }
     printf_s("RuntimeM: 0x%llX\n", (uint64)RuntimeM);
     errno errno = RuntimeM->Exit();
     if (errno != NO_ERROR)
     {
-        printf_s("failed to exit runtime: 0x%lX\n", errno);
+        printf_s("failed to exit runtime: 0x%X\n", errno);
         return false;
     }
     return true;
