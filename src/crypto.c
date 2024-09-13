@@ -35,7 +35,6 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
     }
     byte sBox[256];
     initSBox(sBox, key, iv);
-    return;
     encryptBuf(buf, size, key, sBox);
 }
 
@@ -49,10 +48,7 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox)
             break;
         }
 
-
-
         buf[i + 0] = sBox[buf[i + 0]];
-
 
         buf[i + 1] = sBox[buf[i + 1]];
         buf[i + 2] = sBox[buf[i + 2]];
@@ -65,16 +61,13 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox)
         remaining -= PARALLEL_LEVEL;
     }
     // process remaining not aligned data
-    for (uintptr i = 0; i < size; i++)
-    {
-
-
-
-        buf[i] = sBox[buf[i]];
-    }
+    // for (uintptr i = 0; i < size; i++)
+    // {
+    // 
+    //     buf[i] = sBox[buf[i]];
+    // }
 
     return;
-
 
 
     byte seed = 0;
@@ -149,7 +142,6 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
     byte sBox[256];
     initSBox(sBox, key, iv);
     permuteSBox(sBox);
-    return;
     decryptBuf(buf, size, key, sBox);
 }
 
@@ -175,10 +167,10 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox)
         remaining -= PARALLEL_LEVEL;
     }
     // process remaining not aligned data
-    for (uintptr i = 0; i < size; i++)
-    {
-        buf[i] = sBox[buf[i]];
-    }
+    // for (uintptr i = 0; i < size; i++)
+    // {
+    //     buf[i] = sBox[buf[i]];
+    // }
 
     return;
 
@@ -240,12 +232,12 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox)
 
 static void initSBox(byte* sBox, byte* key, byte* iv)
 {
-    // offset is used to prevent incorrect optimization
-    byte offset = key[0];
     // initialize S-Box byte array
     for (int i = 0; i < 256; i++)
     {
-        sBox[i] = (byte)i + offset;
+        // + key[0] is used to prevent 
+        // incorrect compiler optimization
+        sBox[i] = (byte)i + key[0];
     }
     // initialize seed for XOR Shift;
     uint seed = 1;
