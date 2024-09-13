@@ -18,7 +18,7 @@ void RandBuf(byte* buf, int64 size)
         return;
     }
     // limit the max loop times
-    uint64 times = size; 
+    int64 times = size; 
     if (times > 16)
     {
         times = 16;
