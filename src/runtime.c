@@ -1323,6 +1323,7 @@ errno RT_SleepHR(DWORD dwMilliseconds)
     // for test submodule faster
 #ifndef RELEASE_MODE
     dwMilliseconds = 5 + (DWORD)RandUintN(0, 50);
+    dwMilliseconds = 1; // TODO remove it
 #endif
     
     errno errno = NO_ERROR;
@@ -1758,15 +1759,6 @@ errno RT_Exit()
         }
     }
 
-    // recover instructions for generate shellcode
-    if (runtime->Options.NotEraseInstruction)
-    {
-        if (!recoverRuntimePointer(runtime) && err == NO_ERROR)
-        {
-            err = ERR_RUNTIME_EXIT_RECOVER_INST;
-        }
-    }
-
     // must copy structure before clean runtime
     Runtime clone;
     mem_clean(&clone, sizeof(Runtime));
@@ -1779,6 +1771,9 @@ errno RT_Exit()
         err = enclr;
     }
 
+    // store original pointer for recover instructions
+    Runtime* stub = runtime;
+
     // must replace it until reach here
     runtime = &clone;
 
@@ -1788,6 +1783,15 @@ errno RT_Exit()
     if (addr == NULL || (uintptr)addr > (uintptr)init)
     {
         addr = init;
+    }
+
+    // recover instructions for generate shellcode
+    if (runtime->Options.NotEraseInstruction)
+    {
+        if (!recoverRuntimePointer(stub) && err == NO_ERROR)
+        {
+            err = ERR_RUNTIME_EXIT_RECOVER_INST;
+        }
     }
 
     // erase runtime instructions except this function
