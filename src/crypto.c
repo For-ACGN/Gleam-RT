@@ -40,32 +40,34 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
 
 static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox)
 {
-    uint remaining = size;
-    for (uintptr i = 0; i < size; i += PARALLEL_LEVEL)
+    uintptr i  = 0;
+    uint limit = size - (size % PARALLEL_LEVEL);
+    for (; i < limit; i += PARALLEL_LEVEL)
     {
-        if (remaining < PARALLEL_LEVEL)
-        {
-            break;
-        }
+        byte b0 = buf[i + 0];
+        byte b1 = buf[i + 1];
+        byte b2 = buf[i + 2];
+        byte b3 = buf[i + 3];
+        byte b4 = buf[i + 4];
+        byte b5 = buf[i + 5];
+        byte b6 = buf[i + 6];
+        byte b7 = buf[i + 7];
 
-        buf[i + 0] = sBox[buf[i + 0]];
-
-        buf[i + 1] = sBox[buf[i + 1]];
-        buf[i + 2] = sBox[buf[i + 2]];
-        buf[i + 3] = sBox[buf[i + 3]];
-        buf[i + 4] = sBox[buf[i + 4]];
-        buf[i + 5] = sBox[buf[i + 5]];
-        buf[i + 6] = sBox[buf[i + 6]];
-        buf[i + 7] = sBox[buf[i + 7]];
-
-        remaining -= PARALLEL_LEVEL;
+        buf[i + 0] = sBox[b0];
+        buf[i + 1] = sBox[b1];
+        buf[i + 2] = sBox[b2];
+        buf[i + 3] = sBox[b3];
+        buf[i + 4] = sBox[b4];
+        buf[i + 5] = sBox[b5];
+        buf[i + 6] = sBox[b6];
+        buf[i + 7] = sBox[b7];
     }
     // process remaining not aligned data
-    // for (uintptr i = 0; i < size; i++)
-    // {
-    // 
-    //     buf[i] = sBox[buf[i]];
-    // }
+    uint remaining = size - limit;
+    for (; i < remaining; i++)
+    {
+        buf[i] = sBox[buf[i]];
+    }
 
     return;
 
@@ -147,30 +149,34 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
 
 static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox)
 {
-    uint remaining = size;
-    for (uintptr i = 0; i < size; i += PARALLEL_LEVEL)
+    uintptr i  = 0;
+    uint limit = size - (size % PARALLEL_LEVEL);
+    for (; i < limit; i += PARALLEL_LEVEL)
     {
-        if (remaining < PARALLEL_LEVEL)
-        {
-            break;
-        }
+        byte b0 = buf[i + 0];
+        byte b1 = buf[i + 1];
+        byte b2 = buf[i + 2];
+        byte b3 = buf[i + 3];
+        byte b4 = buf[i + 4];
+        byte b5 = buf[i + 5];
+        byte b6 = buf[i + 6];
+        byte b7 = buf[i + 7];
 
-        buf[i + 0] = sBox[buf[i + 0]];
-        buf[i + 1] = sBox[buf[i + 1]];
-        buf[i + 2] = sBox[buf[i + 2]];
-        buf[i + 3] = sBox[buf[i + 3]];
-        buf[i + 4] = sBox[buf[i + 4]];
-        buf[i + 5] = sBox[buf[i + 5]];
-        buf[i + 6] = sBox[buf[i + 6]];
-        buf[i + 7] = sBox[buf[i + 7]];
-
-        remaining -= PARALLEL_LEVEL;
+        buf[i + 0] = sBox[b0];
+        buf[i + 1] = sBox[b1];
+        buf[i + 2] = sBox[b2];
+        buf[i + 3] = sBox[b3];
+        buf[i + 4] = sBox[b4];
+        buf[i + 5] = sBox[b5];
+        buf[i + 6] = sBox[b6];
+        buf[i + 7] = sBox[b7];
     }
     // process remaining not aligned data
-    // for (uintptr i = 0; i < size; i++)
-    // {
-    //     buf[i] = sBox[buf[i]];
-    // }
+    uint remaining = size - limit;
+    for (; i < remaining; i++)
+    {
+        buf[i] = sBox[buf[i]];
+    }
 
     return;
 
@@ -224,9 +230,6 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox)
             kIdx = 0;
         }
 
-        // update counter
-        dCtr += (kIdx + cKey + last) % 16;
-        bCtr += (kIdx + cKey + last) % 32;
     }
 }
 
@@ -243,7 +246,7 @@ static void initSBox(byte* sBox, byte* key, byte* iv)
     uint seed = 1;
     for (int i = 0; i < CRYPTO_KEY_SIZE; i++)
     {
-        seed *= *(key + i);
+        seed += *(key + i);
     }
     for (int i = 0; i < CRYPTO_IV_SIZE; i++)
     {
