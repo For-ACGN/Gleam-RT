@@ -87,8 +87,8 @@ static bool TestDecryptBuf()
     byte key[CRYPTO_KEY_SIZE];
     RandBuf(key, sizeof(key));
 
-    byte data1[64];
-    byte data2[64];
+    byte data1[64+4];
+    byte data2[64+4];
     RandBuf(data1, sizeof(data1));
     mem_copy(data2, data1, sizeof(data1));
 
