@@ -49,6 +49,11 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
     // initialize random seeds
     for (int i = 0; i < 8; i++)
     {
+        seeds[i] *= (uint32)(key[i * 4 + 0]) << 0;
+        seeds[i] *= (uint32)(key[i * 4 + 1]) << 8;
+        seeds[i] *= (uint32)(key[i * 4 + 2]) << 16;
+        seeds[i] *= (uint32)(key[i * 4 + 3]) << 24;
+
         seeds[i] ^= (uint32)(key[i * 4 + 0]) << 0;
         seeds[i] ^= (uint32)(key[i * 4 + 1]) << 8;
         seeds[i] ^= (uint32)(key[i * 4 + 2]) << 16;
@@ -111,41 +116,50 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         b6 ^= seed6;
         b7 ^= seed7;
 
-        b0 = negBit(b0, seed0 % 8);
-        b1 = negBit(b1, seed1 % 8);
-        b2 = negBit(b2, seed2 % 8);
-        b3 = negBit(b3, seed3 % 8);
-        b4 = negBit(b4, seed4 % 8);
-        b5 = negBit(b5, seed5 % 8);
-        b6 = negBit(b6, seed6 % 8);
-        b7 = negBit(b7, seed7 % 8);
+        b0 = negBit(b0, (seed0>>8) % 8);
+        b1 = negBit(b1, (seed1>>8) % 8);
+        b2 = negBit(b2, (seed2>>8) % 8);
+        b3 = negBit(b3, (seed3>>8) % 8);
+        b4 = negBit(b4, (seed4>>8) % 8);
+        b5 = negBit(b5, (seed5>>8) % 8);
+        b6 = negBit(b6, (seed6>>8) % 8);
+        b7 = negBit(b7, (seed7>>8) % 8);
 
-        b0 = swapBit(b0, seed0 % 8, (seed0 + 1) % 8);
-        b1 = swapBit(b1, seed1 % 8, (seed1 + 1) % 8);
-        b2 = swapBit(b2, seed2 % 8, (seed2 + 1) % 8);
-        b3 = swapBit(b3, seed3 % 8, (seed3 + 1) % 8);
-        b4 = swapBit(b4, seed4 % 8, (seed4 + 1) % 8);
-        b5 = swapBit(b5, seed5 % 8, (seed5 + 1) % 8);
-        b6 = swapBit(b6, seed6 % 8, (seed6 + 1) % 8);
-        b7 = swapBit(b7, seed7 % 8, (seed7 + 1) % 8);
+        b0 = swapBit(b0, (seed0 >> 16) % 8, (seed0 + 1) % 8);
+        b1 = swapBit(b1, (seed1 >> 16) % 8, (seed1 + 1) % 8);
+        b2 = swapBit(b2, (seed2 >> 16) % 8, (seed2 + 1) % 8);
+        b3 = swapBit(b3, (seed3 >> 16) % 8, (seed3 + 1) % 8);
+        b4 = swapBit(b4, (seed4 >> 16) % 8, (seed4 + 1) % 8);
+        b5 = swapBit(b5, (seed5 >> 16) % 8, (seed5 + 1) % 8);
+        b6 = swapBit(b6, (seed6 >> 16) % 8, (seed6 + 1) % 8);
+        b7 = swapBit(b7, (seed7 >> 16) % 8, (seed7 + 1) % 8);
 
-        b0 = ror(b0, seed0 % 8);
-        b1 = ror(b1, seed1 % 8);
-        b2 = ror(b2, seed2 % 8);
-        b3 = ror(b3, seed3 % 8);
-        b4 = ror(b4, seed4 % 8);
-        b5 = ror(b5, seed5 % 8);
-        b6 = ror(b6, seed6 % 8);
-        b7 = ror(b7, seed7 % 8);
+        b0 ^= seed0 >> 8;
+        b1 ^= seed1 >> 8;
+        b2 ^= seed2 >> 8;
+        b3 ^= seed3 >> 8;
+        b4 ^= seed4 >> 8;
+        b5 ^= seed5 >> 8;
+        b6 ^= seed6 >> 8;
+        b7 ^= seed7 >> 8;
 
-        b0 ^= seed0;
-        b1 ^= seed1;
-        b2 ^= seed2;
-        b3 ^= seed3;
-        b4 ^= seed4;
-        b5 ^= seed5;
-        b6 ^= seed6;
-        b7 ^= seed7;
+        b0 = ror(b0, (seed0 >> 24) % 8);
+        b1 = ror(b1, (seed1 >> 24) % 8);
+        b2 = ror(b2, (seed2 >> 24) % 8);
+        b3 = ror(b3, (seed3 >> 24) % 8);
+        b4 = ror(b4, (seed4 >> 24) % 8);
+        b5 = ror(b5, (seed5 >> 24) % 8);
+        b6 = ror(b6, (seed6 >> 24) % 8);
+        b7 = ror(b7, (seed7 >> 24) % 8);
+
+        b0 ^= (seed0 >> 16);
+        b1 ^= (seed1 >> 16);
+        b2 ^= (seed2 >> 16);
+        b3 ^= (seed3 >> 16);
+        b4 ^= (seed4 >> 16);
+        b5 ^= (seed5 >> 16);
+        b6 ^= (seed6 >> 16);
+        b7 ^= (seed7 >> 16);
 
         // permutation
         b0 = sBox[b0];
@@ -178,68 +192,10 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
     seeds[6] = seed6;
     seeds[7] = seed7;
 
-
-
     // process remaining not aligned data
     for (; i < size; i++)
     {
         buf[i] = sBox[buf[i]];
-    }
-
-    return;
-
-
-
-    // initialize status
-    uint kIdx = 0;
-    byte dCtr = 0;
-    uint bCtr = 0;
-    byte last = 1;
-    byte cKey;
-    byte data;
-    // encrypt buffer
-    for (uintptr i = 0; i < size; i++)
-    {
-        // update current key byte
-        cKey = *(key + kIdx);
-
-        // read byte from buffer
-        data = *(buf + i);
-
-        data ^= dCtr;
-        data = negBit(data, dCtr % 8);
-        data = swapBit(data, dCtr % 8, cKey % 8);
-        data = ror(data, dCtr % 8);
-        data = sBox[data]; // permutation
-
-        data ^= last;
-        data = negBit(data, last % 8);
-        data = swapBit(data, last % 8, cKey % 8);
-        data = ror(data, last % 8);
-        data = sBox[data]; // permutation
-
-        data ^= cKey;
-        data = negBit(data, cKey % 8);
-        data = swapBit(data, last % 8, cKey % 8);
-        data = ror(data, cKey % 8);
-        data = sBox[data]; // permutation
-
-        // write byte to the buffer
-        *(buf + i) = data;
-
-        // update last
-        last = data;
-
-        // update key index
-        kIdx++;
-        if (kIdx >= CRYPTO_KEY_SIZE)
-        {
-            kIdx = 0;
-        }
-
-        // update counter
-        dCtr += (kIdx + cKey + last) % 16;
-        bCtr += (kIdx + cKey + last) % 32;
     }
 }
 
