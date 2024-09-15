@@ -1,6 +1,7 @@
 #include "build.h"
 #include "c_types.h"
 #include "lib_memory.h"
+#include "random.h"
 #include "crypto.h"
 
 // !!!!!!!!  It is NOT cryptographically secure  !!!!!!!!!
@@ -16,11 +17,10 @@
 
 #define PARALLEL_LEVEL 8
 
-static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox);
-static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox);
+static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox);
+static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox);
 static void initSBox(byte* sBox, byte* key, byte* iv);
 static void permuteSBox(byte* sBox);
-static uint xorShift(uint seed);
 static byte negBit(byte b, uint8 n);
 static byte swapBit(byte b, uint8 p1, uint8 p2);
 static byte ror(byte value, uint8 bits);
@@ -36,15 +36,52 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
     }
     byte sBox[256];
     initSBox(sBox, key, iv);
-    encryptBuf(buf, size, key, sBox);
+    encryptBuf(buf, size, key, iv, sBox);
 }
 
-static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox)
+static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
 {
+    // just generate from random data
+    uint32 seeds[8] = {
+        0xFA1C345C, 0xAF16C47C, 0x1C553A02, 0x9EDAC545,
+        0xC942A49C, 0x5FE323EC, 0x9A1934AC, 0x2CB443C1,
+    };
+    // initialize random seeds
+    for (int i = 0; i < 8; i++)
+    {
+        seeds[i] ^= (uint32)(key[i * 4 + 0]) << 0;
+        seeds[i] ^= (uint32)(key[i * 4 + 1]) << 8;
+        seeds[i] ^= (uint32)(key[i * 4 + 2]) << 16;
+        seeds[i] ^= (uint32)(key[i * 4 + 3]) << 24;
+
+        seeds[i] ^= (uint32)(iv[i * 2 + 0]) << 8;
+        seeds[i] ^= (uint32)(iv[i * 2 + 1]) << 24;
+    }
+
+    // load random seeds
+    uint32 seed0 = seeds[0];
+    uint32 seed1 = seeds[1];
+    uint32 seed2 = seeds[2];
+    uint32 seed3 = seeds[3];
+    uint32 seed4 = seeds[4];
+    uint32 seed5 = seeds[5];
+    uint32 seed6 = seeds[6];
+    uint32 seed7 = seeds[7];
+
     uintptr i = 0;
     uint limit = size - (size % PARALLEL_LEVEL);
     for (; i < limit; i += PARALLEL_LEVEL)
     {
+        // update seeds
+        seed0 = XORShift32(seed0);
+        seed1 = XORShift32(seed1);
+        seed2 = XORShift32(seed2);
+        seed3 = XORShift32(seed3);
+        seed4 = XORShift32(seed4);
+        seed5 = XORShift32(seed5);
+        seed6 = XORShift32(seed6);
+        seed7 = XORShift32(seed7);
+
         // load plain data
         byte b0 = buf[i + 0];
         byte b1 = buf[i + 1];
@@ -54,6 +91,61 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox)
         byte b5 = buf[i + 5];
         byte b6 = buf[i + 6];
         byte b7 = buf[i + 7];
+
+        // permutation
+        b0 = sBox[b0];
+        b1 = sBox[b1];
+        b2 = sBox[b2];
+        b3 = sBox[b3];
+        b4 = sBox[b4];
+        b5 = sBox[b5];
+        b6 = sBox[b6];
+        b7 = sBox[b7];
+
+        b0 ^= seed0;
+        b1 ^= seed1;
+        b2 ^= seed2;
+        b3 ^= seed3;
+        b4 ^= seed4;
+        b5 ^= seed5;
+        b6 ^= seed6;
+        b7 ^= seed7;
+
+        b0 = negBit(b0, seed0 % 8);
+        b1 = negBit(b1, seed1 % 8);
+        b2 = negBit(b2, seed2 % 8);
+        b3 = negBit(b3, seed3 % 8);
+        b4 = negBit(b4, seed4 % 8);
+        b5 = negBit(b5, seed5 % 8);
+        b6 = negBit(b6, seed6 % 8);
+        b7 = negBit(b7, seed7 % 8);
+
+        b0 = swapBit(b0, seed0 % 8, (seed0 + 1) % 8);
+        b1 = swapBit(b1, seed1 % 8, (seed1 + 1) % 8);
+        b2 = swapBit(b2, seed2 % 8, (seed2 + 1) % 8);
+        b3 = swapBit(b3, seed3 % 8, (seed3 + 1) % 8);
+        b4 = swapBit(b4, seed4 % 8, (seed4 + 1) % 8);
+        b5 = swapBit(b5, seed5 % 8, (seed5 + 1) % 8);
+        b6 = swapBit(b6, seed6 % 8, (seed6 + 1) % 8);
+        b7 = swapBit(b7, seed7 % 8, (seed7 + 1) % 8);
+
+        b0 = ror(b0, seed0 % 8);
+        b1 = ror(b1, seed1 % 8);
+        b2 = ror(b2, seed2 % 8);
+        b3 = ror(b3, seed3 % 8);
+        b4 = ror(b4, seed4 % 8);
+        b5 = ror(b5, seed5 % 8);
+        b6 = ror(b6, seed6 % 8);
+        b7 = ror(b7, seed7 % 8);
+
+        b0 ^= seed0;
+        b1 ^= seed1;
+        b2 ^= seed2;
+        b3 ^= seed3;
+        b4 ^= seed4;
+        b5 ^= seed5;
+        b6 ^= seed6;
+        b7 ^= seed7;
 
         // permutation
         b0 = sBox[b0];
@@ -75,6 +167,19 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox)
         buf[i + 6] = b6;
         buf[i + 7] = b7;
     }
+
+    // update random seeds
+    seeds[0] = seed0;
+    seeds[1] = seed1;
+    seeds[2] = seed2;
+    seeds[3] = seed3;
+    seeds[4] = seed4;
+    seeds[5] = seed5;
+    seeds[6] = seed6;
+    seeds[7] = seed7;
+
+
+
     // process remaining not aligned data
     for (; i < size; i++)
     {
@@ -147,10 +252,10 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
     byte sBox[256];
     initSBox(sBox, key, iv);
     permuteSBox(sBox);
-    decryptBuf(buf, size, key, sBox);
+    decryptBuf(buf, size, key, iv, sBox);
 }
 
-static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox)
+static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
 {
     uintptr i  = 0;
     uint limit = size - (size % PARALLEL_LEVEL);
@@ -261,7 +366,7 @@ static void initSBox(byte* sBox, byte* key, byte* iv)
         sBox[i] = (byte)i + key[0];
     }
     // initialize seed for XOR Shift;
-    uint seed = 1;
+    uint32 seed = 0x2294FD61;
     for (int i = 0; i < CRYPTO_KEY_SIZE; i++)
     {
         seed += *(key + i);
@@ -274,7 +379,7 @@ static void initSBox(byte* sBox, byte* key, byte* iv)
     for (int i = 0; i < 128; i++)
     {
         // swap array item
-        seed = xorShift(seed);
+        seed = XORShift32(seed);
         byte idx0 = (byte)(seed+32);
         byte idx1 = (byte)(seed+64);
         byte swap = sBox[idx0];
@@ -291,20 +396,6 @@ static void permuteSBox(byte* sBox)
     {
         sBox[buf[i]] = (byte)i;
     }
-}
-
-static uint xorShift(uint seed)
-{
-#ifdef _WIN64
-    seed ^= seed << 13;
-    seed ^= seed >> 7;
-    seed ^= seed << 17;
-#elif _WIN32
-    seed ^= seed << 13;
-    seed ^= seed >> 17;
-    seed ^= seed << 5;
-#endif
-    return seed;
 }
 
 static byte negBit(byte b, uint8 n)
