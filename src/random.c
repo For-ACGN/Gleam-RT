@@ -2,9 +2,6 @@
 #include "rel_addr.h"
 #include "random.h"
 
-// [reference]
-// https://en.wikipedia.org/wiki/Xorshift
-
 static uint64  rand(uint64 seed, uint64 mod);
 static uint64  ror(uint64 value, uint8 bits);
 static uintptr getStackAddr();
@@ -139,5 +136,35 @@ static uintptr getStackAddr()
     return (uintptr)(&stack);
 }
 #pragma warning(pop)
+
+uint XORShift(uint seed)
+{
+#ifdef _WIN32
+    seed ^= seed << 13;
+    seed ^= seed >> 17;
+    seed ^= seed << 5;
+#elif _WIN64
+    seed ^= seed << 13;
+    seed ^= seed >> 7;
+    seed ^= seed << 17;
+#endif
+    return seed;
+}
+
+uint32 XORShift32(uint32 seed)
+{
+    seed ^= seed << 13;
+    seed ^= seed >> 17;
+    seed ^= seed << 5;
+    return seed;
+}
+
+uint64 XORShift64(uint64 seed)
+{
+    seed ^= seed << 13;
+    seed ^= seed >> 7;
+    seed ^= seed << 17;
+    return seed;
+}
 
 #pragma optimize("t", off)
