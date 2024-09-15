@@ -20,6 +20,7 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox);
 static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox);
 static void initSBox(byte* sBox, byte* key, byte* iv);
 static void permuteSBox(byte* sBox);
+static uint xorShift(uint seed);
 static byte negBit(byte b, uint8 n);
 static byte swapBit(byte b, uint8 p1, uint8 p2);
 static byte ror(byte value, uint8 bits);
@@ -40,10 +41,11 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv)
 
 static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox)
 {
-    uintptr i  = 0;
+    uintptr i = 0;
     uint limit = size - (size % PARALLEL_LEVEL);
     for (; i < limit; i += PARALLEL_LEVEL)
     {
+        // load plain data
         byte b0 = buf[i + 0];
         byte b1 = buf[i + 1];
         byte b2 = buf[i + 2];
@@ -53,32 +55,33 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* sBox)
         byte b6 = buf[i + 6];
         byte b7 = buf[i + 7];
 
-        buf[i + 0] = sBox[b0];
-        buf[i + 1] = sBox[b1];
-        buf[i + 2] = sBox[b2];
-        buf[i + 3] = sBox[b3];
-        buf[i + 4] = sBox[b4];
-        buf[i + 5] = sBox[b5];
-        buf[i + 6] = sBox[b6];
-        buf[i + 7] = sBox[b7];
+        // permutation
+        b0 = sBox[b0];
+        b1 = sBox[b1];
+        b2 = sBox[b2];
+        b3 = sBox[b3];
+        b4 = sBox[b4];
+        b5 = sBox[b5];
+        b6 = sBox[b6];
+        b7 = sBox[b7];
+
+        // store cipher data
+        buf[i + 0] = b0;
+        buf[i + 1] = b1;
+        buf[i + 2] = b2;
+        buf[i + 3] = b3;
+        buf[i + 4] = b4;
+        buf[i + 5] = b5;
+        buf[i + 6] = b6;
+        buf[i + 7] = b7;
     }
     // process remaining not aligned data
-    uint remaining = size - limit;
-    for (; i < remaining; i++)
+    for (; i < size; i++)
     {
         buf[i] = sBox[buf[i]];
     }
 
     return;
-
-
-    byte seed = 0;
-
-    seed ^= seed << 13;
-    seed ^= seed >> 7;
-    seed ^= seed << 17;
-
-
 
 
 
@@ -153,6 +156,7 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox)
     uint limit = size - (size % PARALLEL_LEVEL);
     for (; i < limit; i += PARALLEL_LEVEL)
     {
+        // load cipher data
         byte b0 = buf[i + 0];
         byte b1 = buf[i + 1];
         byte b2 = buf[i + 2];
@@ -162,18 +166,29 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox)
         byte b6 = buf[i + 6];
         byte b7 = buf[i + 7];
 
-        buf[i + 0] = sBox[b0];
-        buf[i + 1] = sBox[b1];
-        buf[i + 2] = sBox[b2];
-        buf[i + 3] = sBox[b3];
-        buf[i + 4] = sBox[b4];
-        buf[i + 5] = sBox[b5];
-        buf[i + 6] = sBox[b6];
-        buf[i + 7] = sBox[b7];
+
+        // permutation
+        b0 = sBox[b0];
+        b1 = sBox[b1];
+        b2 = sBox[b2];
+        b3 = sBox[b3];
+        b4 = sBox[b4];
+        b5 = sBox[b5];
+        b6 = sBox[b6];
+        b7 = sBox[b7];
+
+        // store plain data
+        buf[i + 0] = b0;
+        buf[i + 1] = b1;
+        buf[i + 2] = b2;
+        buf[i + 3] = b3;
+        buf[i + 4] = b4;
+        buf[i + 5] = b5;
+        buf[i + 6] = b6;
+        buf[i + 7] = b7;
     }
     // process remaining not aligned data
-    uint remaining = size - limit;
-    for (; i < remaining; i++)
+    for (; i < size; i++)
     {
         buf[i] = sBox[buf[i]];
     }
@@ -230,6 +245,9 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* sBox)
             kIdx = 0;
         }
 
+        // update counter
+        dCtr += (kIdx + cKey + last) % 16;
+        bCtr += (kIdx + cKey + last) % 32;
     }
 }
 
@@ -256,15 +274,12 @@ static void initSBox(byte* sBox, byte* key, byte* iv)
     for (int i = 0; i < 128; i++)
     {
         // swap array item
+        seed = xorShift(seed);
         byte idx0 = (byte)(seed+32);
         byte idx1 = (byte)(seed+64);
         byte swap = sBox[idx0];
         sBox[idx0] = sBox[idx1];
         sBox[idx1] = swap;
-        // update xor shift 64 seed
-        seed ^= seed << 13;
-        seed ^= seed >> 7;
-        seed ^= seed << 17;
     }
 }
 
@@ -276,6 +291,20 @@ static void permuteSBox(byte* sBox)
     {
         sBox[buf[i]] = (byte)i;
     }
+}
+
+static uint xorShift(uint seed)
+{
+#ifdef _WIN64
+    seed ^= seed << 13;
+    seed ^= seed >> 7;
+    seed ^= seed << 17;
+#elif _WIN32
+    seed ^= seed << 13;
+    seed ^= seed >> 17;
+    seed ^= seed << 5;
+#endif
+    return seed;
 }
 
 static byte negBit(byte b, uint8 n)
