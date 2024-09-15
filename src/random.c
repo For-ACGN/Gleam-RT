@@ -139,14 +139,14 @@ static uintptr getStackAddr()
 
 uint XORShift(uint seed)
 {
-#ifdef _WIN32
-    seed ^= seed << 13;
-    seed ^= seed >> 17;
-    seed ^= seed << 5;
-#elif _WIN64
+#ifdef _WIN64
     seed ^= seed << 13;
     seed ^= seed >> 7;
     seed ^= seed << 17;
+#elif _WIN32
+    seed ^= seed << 13;
+    seed ^= seed >> 17;
+    seed ^= seed << 5;
 #endif
     return seed;
 }
