@@ -3,6 +3,9 @@
 
 #include "c_types.h"
 
+// [reference]
+// https://en.wikipedia.org/wiki/Xorshift
+
 // RandBuf is used to fill random bytes to the memory.
 void RandBuf(byte* buf, int64 size);
 
@@ -35,5 +38,10 @@ int64 RandInt64N(uint64 seed, int64 n);
 
 // RandUint64N is used to generate random uint64 with range.
 uint64 RandUint64N(uint64 seed, uint64 n);
+
+// for generate random data fast.
+uint   XORShift(uint seed);
+uint32 XORShift32(uint32 seed);
+uint64 XORShift64(uint64 seed);
 
 #endif // RANDOM_H
