@@ -85,14 +85,15 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         seed7 = XORShift32(seed7);
 
         // load plain data
-        byte b0 = buf[i + 0];
-        byte b1 = buf[i + 1];
-        byte b2 = buf[i + 2];
-        byte b3 = buf[i + 3];
-        byte b4 = buf[i + 4];
-        byte b5 = buf[i + 5];
-        byte b6 = buf[i + 6];
-        byte b7 = buf[i + 7];
+        uint64 block = *(uint64*)(buf + i);
+        byte b0 = (byte)(block >> 0);
+        byte b1 = (byte)(block >> 8);
+        byte b2 = (byte)(block >> 16);
+        byte b3 = (byte)(block >> 24);
+        byte b4 = (byte)(block >> 32);
+        byte b5 = (byte)(block >> 40);
+        byte b6 = (byte)(block >> 48);
+        byte b7 = (byte)(block >> 56);
 
         // permutation
         b0 = sBox[b0];
@@ -178,14 +179,16 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         b7 = sBox[b7];
 
         // store cipher data
-        buf[i + 0] = b0;
-        buf[i + 1] = b1;
-        buf[i + 2] = b2;
-        buf[i + 3] = b3;
-        buf[i + 4] = b4;
-        buf[i + 5] = b5;
-        buf[i + 6] = b6;
-        buf[i + 7] = b7;
+        block = 0;
+        block += (uint64)(b0) << 0;
+        block += (uint64)(b1) << 8;
+        block += (uint64)(b2) << 16;
+        block += (uint64)(b3) << 24;
+        block += (uint64)(b4) << 32;
+        block += (uint64)(b5) << 40;
+        block += (uint64)(b6) << 48;
+        block += (uint64)(b7) << 56;
+        *(uint64*)(buf + i) = block;
     }
 
     // update random seeds
@@ -288,14 +291,15 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         seed7 = XORShift32(seed7);
 
         // load cipher data
-        byte b0 = buf[i + 0];
-        byte b1 = buf[i + 1];
-        byte b2 = buf[i + 2];
-        byte b3 = buf[i + 3];
-        byte b4 = buf[i + 4];
-        byte b5 = buf[i + 5];
-        byte b6 = buf[i + 6];
-        byte b7 = buf[i + 7];
+        uint64 block = *(uint64*)(buf + i);
+        byte b0 = (byte)(block >> 0);
+        byte b1 = (byte)(block >> 8);
+        byte b2 = (byte)(block >> 16);
+        byte b3 = (byte)(block >> 24);
+        byte b4 = (byte)(block >> 32);
+        byte b5 = (byte)(block >> 40);
+        byte b6 = (byte)(block >> 48);
+        byte b7 = (byte)(block >> 56);
 
         // permutation
         b0 = sBox[b0];
@@ -381,14 +385,16 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         b7 = sBox[b7];
 
         // store plain data
-        buf[i + 0] = b0;
-        buf[i + 1] = b1;
-        buf[i + 2] = b2;
-        buf[i + 3] = b3;
-        buf[i + 4] = b4;
-        buf[i + 5] = b5;
-        buf[i + 6] = b6;
-        buf[i + 7] = b7;
+        block = 0;
+        block += (uint64)(b0) << 0;
+        block += (uint64)(b1) << 8;
+        block += (uint64)(b2) << 16;
+        block += (uint64)(b3) << 24;
+        block += (uint64)(b4) << 32;
+        block += (uint64)(b5) << 40;
+        block += (uint64)(b6) << 48;
+        block += (uint64)(b7) << 56;
+        *(uint64*)(buf + i) = block;
     }
 
     // update random seeds
