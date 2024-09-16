@@ -71,9 +71,8 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
     uint32 seed6 = seeds[6];
     uint32 seed7 = seeds[7];
 
-    uintptr i = 0;
     uint limit = size - (size % PARALLEL_LEVEL);
-    for (; i < limit; i += PARALLEL_LEVEL)
+    for (uint i = 0; i < limit; i += PARALLEL_LEVEL)
     {
         // update seeds
         seed0 = XORShift32(seed0);
@@ -200,9 +199,32 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
     seeds[7] = seed7;
 
     // process remaining not aligned data
-    for (; i < size; i++)
+    for (uint i = limit; i < size; i++)
     {
-        buf[i] = sBox[buf[i]];
+        // get and update seed
+        uint32 seed = seeds[i % 8];
+        seed = XORShift32(seed);
+
+        // load plain data
+        byte b = buf[i];
+
+        // permutation
+        b = sBox[b];
+
+        // xor and ror
+        b ^= seed;
+        b = ror(b, (seed >> 8) % 8);
+        b ^= seed >> 8;
+        b = ror(b, (seed >> 16) % 8);
+        b ^= (seed >> 16);
+        b = ror(b, (seed >> 24) % 8);
+        b ^= (seed >> 24);
+
+        // permutation
+        b = sBox[b];
+
+        // store cipher data
+        buf[i] = b;
     }
 }
 
@@ -252,9 +274,8 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
     uint32 seed6 = seeds[6];
     uint32 seed7 = seeds[7];
 
-    uintptr i = 0;
     uint limit = size - (size % PARALLEL_LEVEL);
-    for (; i < limit; i += PARALLEL_LEVEL)
+    for (uint i = 0; i < limit; i += PARALLEL_LEVEL)
     {
         // update seeds
         seed0 = XORShift32(seed0);
@@ -381,9 +402,32 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
     seeds[7] = seed7;
 
     // process remaining not aligned data
-    for (; i < size; i++)
+    for (uint i = limit; i < size; i++)
     {
-        buf[i] = sBox[buf[i]];
+        // get and update seed
+        uint32 seed = seeds[i % 8];
+        seed = XORShift32(seed);
+
+        // load cipher data
+        byte b = buf[i];
+
+        // permutation
+        b = sBox[b];
+
+       // xor and rol
+        b ^= (seed >> 24);
+        b = rol(b, (seed >> 24) % 8);
+        b ^= (seed >> 16);
+        b = rol(b, (seed >> 16) % 8);
+        b ^= seed >> 8;
+        b = rol(b, (seed >> 8) % 8);
+        b ^= seed;
+
+        // permutation
+        b = sBox[b];
+
+        // store plain data
+        buf[i] = b;
     }
 }
 
