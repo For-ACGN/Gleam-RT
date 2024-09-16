@@ -62,14 +62,14 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
     }
 
     // load random seeds
-    uint32 seed0 = seeds[0];
-    uint32 seed1 = seeds[1];
-    uint32 seed2 = seeds[2];
-    uint32 seed3 = seeds[3];
-    uint32 seed4 = seeds[4];
-    uint32 seed5 = seeds[5];
-    uint32 seed6 = seeds[6];
-    uint32 seed7 = seeds[7];
+    register uint32 seed0 = seeds[0];
+    register uint32 seed1 = seeds[1];
+    register uint32 seed2 = seeds[2];
+    register uint32 seed3 = seeds[3];
+    register uint32 seed4 = seeds[4];
+    register uint32 seed5 = seeds[5];
+    register uint32 seed6 = seeds[6];
+    register uint32 seed7 = seeds[7];
 
     uint limit = size - (size % PARALLEL_LEVEL);
     for (uint i = 0; i < limit; i += PARALLEL_LEVEL)
@@ -86,14 +86,14 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
 
         // load plain data
         uint64 block = *(uint64*)(buf + i);
-        byte b0 = (byte)(block >> 0);
-        byte b1 = (byte)(block >> 8);
-        byte b2 = (byte)(block >> 16);
-        byte b3 = (byte)(block >> 24);
-        byte b4 = (byte)(block >> 32);
-        byte b5 = (byte)(block >> 40);
-        byte b6 = (byte)(block >> 48);
-        byte b7 = (byte)(block >> 56);
+        register byte b0 = (byte)(block >> 0);
+        register byte b1 = (byte)(block >> 8);
+        register byte b2 = (byte)(block >> 16);
+        register byte b3 = (byte)(block >> 24);
+        register byte b4 = (byte)(block >> 32);
+        register byte b5 = (byte)(block >> 40);
+        register byte b6 = (byte)(block >> 48);
+        register byte b7 = (byte)(block >> 56);
 
         // permutation
         b0 = sBox[b0];
@@ -268,14 +268,14 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
     }
 
     // load random seeds
-    uint32 seed0 = seeds[0];
-    uint32 seed1 = seeds[1];
-    uint32 seed2 = seeds[2];
-    uint32 seed3 = seeds[3];
-    uint32 seed4 = seeds[4];
-    uint32 seed5 = seeds[5];
-    uint32 seed6 = seeds[6];
-    uint32 seed7 = seeds[7];
+    register uint32 seed0 = seeds[0];
+    register uint32 seed1 = seeds[1];
+    register uint32 seed2 = seeds[2];
+    register uint32 seed3 = seeds[3];
+    register uint32 seed4 = seeds[4];
+    register uint32 seed5 = seeds[5];
+    register uint32 seed6 = seeds[6];
+    register uint32 seed7 = seeds[7];
 
     uint limit = size - (size % PARALLEL_LEVEL);
     for (uint i = 0; i < limit; i += PARALLEL_LEVEL)
@@ -292,14 +292,14 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
 
         // load cipher data
         uint64 block = *(uint64*)(buf + i);
-        byte b0 = (byte)(block >> 0);
-        byte b1 = (byte)(block >> 8);
-        byte b2 = (byte)(block >> 16);
-        byte b3 = (byte)(block >> 24);
-        byte b4 = (byte)(block >> 32);
-        byte b5 = (byte)(block >> 40);
-        byte b6 = (byte)(block >> 48);
-        byte b7 = (byte)(block >> 56);
+        register byte b0 = (byte)(block >> 0);
+        register byte b1 = (byte)(block >> 8);
+        register byte b2 = (byte)(block >> 16);
+        register byte b3 = (byte)(block >> 24);
+        register byte b4 = (byte)(block >> 32);
+        register byte b5 = (byte)(block >> 40);
+        register byte b6 = (byte)(block >> 48);
+        register byte b7 = (byte)(block >> 56);
 
         // permutation
         b0 = sBox[b0];
