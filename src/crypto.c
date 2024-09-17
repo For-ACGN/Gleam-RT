@@ -189,6 +189,18 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         block += (uint64)(b6) << 48;
         block += (uint64)(b7) << 56;
         *(uint64*)(buf + i) = block;
+
+        // diffuse seed
+        uint32 diff0 = (uint32)(block >> 0);
+        uint32 diff1 = (uint32)(block >> 32);
+        seed0 ^= diff0;
+        seed1 ^= diff0;
+        seed2 ^= diff0;
+        seed3 ^= diff0;
+        seed4 ^= diff1;
+        seed5 ^= diff1;
+        seed6 ^= diff1;
+        seed7 ^= diff1;
     }
 
     // update random seeds
@@ -384,6 +396,18 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         b6 = sBox[b6];
         b7 = sBox[b7];
 
+        // diffuse seed
+        uint32 diff0 = (uint32)(block >> 0);
+        uint32 diff1 = (uint32)(block >> 32);
+        seed0 ^= diff0;
+        seed1 ^= diff0;
+        seed2 ^= diff0;
+        seed3 ^= diff0;
+        seed4 ^= diff1;
+        seed5 ^= diff1;
+        seed6 ^= diff1;
+        seed7 ^= diff1;
+
         // store plain data
         block = 0;
         block += (uint64)(b0) << 0;
@@ -395,8 +419,6 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         block += (uint64)(b6) << 48;
         block += (uint64)(b7) << 56;
         *(uint64*)(buf + i) = block;
-
-        // TODO update seed
     }
 
     // update random seeds
