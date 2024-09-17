@@ -20,7 +20,7 @@
 static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox);
 static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox);
 static void initSBox(byte* sBox, byte* key, byte* iv);
-static void permuteSBox(byte* sBox);
+static void reverseSBox(byte* sBox);
 static byte ror(byte value, uint8 bits);
 static byte rol(byte value, uint8 bits);
 
@@ -95,7 +95,7 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         register byte b6 = (byte)(block >> 48);
         register byte b7 = (byte)(block >> 56);
 
-        // permutation
+        // substitution
         b0 = sBox[b0];
         b1 = sBox[b1];
         b2 = sBox[b2];
@@ -168,7 +168,7 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         b6 ^= (seed6 >> 24);
         b7 ^= (seed7 >> 24);
 
-        // permutation
+        // substitution
         b0 = sBox[b0];
         b1 = sBox[b1];
         b2 = sBox[b2];
@@ -211,7 +211,7 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         // load plain data
         byte b = buf[i];
 
-        // permutation
+        // substitution
         b = sBox[b];
 
         // xor and ror
@@ -223,7 +223,7 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         b = ror(b, (seed >> 24) % 8);
         b ^= (seed >> 24);
 
-        // permutation
+        // substitution
         b = sBox[b];
 
         // store cipher data
@@ -239,7 +239,7 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
     }
     byte sBox[256];
     initSBox(sBox, key, iv);
-    permuteSBox(sBox);
+    reverseSBox(sBox);
     decryptBuf(buf, size, key, iv, sBox);
 }
 
@@ -301,7 +301,7 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         register byte b6 = (byte)(block >> 48);
         register byte b7 = (byte)(block >> 56);
 
-        // permutation
+        // substitution
         b0 = sBox[b0];
         b1 = sBox[b1];
         b2 = sBox[b2];
@@ -374,7 +374,7 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         b6 ^= seed6;
         b7 ^= seed7;
 
-        // permutation
+        // substitution
         b0 = sBox[b0];
         b1 = sBox[b1];
         b2 = sBox[b2];
@@ -395,6 +395,8 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         block += (uint64)(b6) << 48;
         block += (uint64)(b7) << 56;
         *(uint64*)(buf + i) = block;
+
+        // TODO update seed
     }
 
     // update random seeds
@@ -417,7 +419,7 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         // load cipher data
         byte b = buf[i];
 
-        // permutation
+        // substitution
         b = sBox[b];
 
        // xor and rol
@@ -429,7 +431,7 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         b = rol(b, (seed >> 8) % 8);
         b ^= seed;
 
-        // permutation
+        // substitution
         b = sBox[b];
 
         // store plain data
@@ -469,7 +471,7 @@ static void initSBox(byte* sBox, byte* key, byte* iv)
     }
 }
 
-static void permuteSBox(byte* sBox)
+static void reverseSBox(byte* sBox)
 {
     byte buf[256];
     mem_copy(buf, sBox, sizeof(buf));
