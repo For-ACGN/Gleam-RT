@@ -23,7 +23,7 @@ int __cdecl main()
     {
         return 3;
     }
-    printf_s("save shellcode successfully");
+    printf_s("save shellcode successfully\n");
     return 0;
 }
 
@@ -53,6 +53,36 @@ bool testShellcode(bool erase)
 
 bool saveShellcode()
 {
+    uintptr begin = (uintptr)(&InitRuntime);
+    uintptr end   = (uintptr)(&Argument_Stub);
+    uintptr size  = end - begin;
+
+    // check option stub is valid
+    end -= 64;
+    if (*(byte*)end != 0xFC)
+    {
+        printf_s("invalid option stub\n");
+        return false;
+    }
+
+    // conut 0xFF for check the shellcode tail is valid
+    uint num0xFF = 0;
+    for (int i = 0; i < 16; i++)
+    {
+        end--;
+        if (*(byte*)end != 0xFF)
+        {
+            break;
+        }
+        num0xFF++;
+    }
+    if (num0xFF != 16)
+    {
+        printf_s("invalid shellcode tail\n");
+        return false;
+    }
+
+    // extract shellcode to file
 #ifdef _WIN64
     FILE* file = fopen("../dist/GleamRT_x64.bin", "wb");
 #elif _WIN32
@@ -60,16 +90,13 @@ bool saveShellcode()
 #endif
     if (file == NULL)
     {
-        printf_s("failed to create shellcode output file");
+        printf_s("failed to create shellcode output file\n");
         return false;
     }
-    uintptr begin = (uintptr)(&InitRuntime);
-    uintptr end   = (uintptr)(&Argument_Stub);
-    uintptr size  = end - begin;
-    size_t  n = fwrite((byte*)begin, (size_t)size, 1, file);
+    size_t n = fwrite((byte*)begin, (size_t)size, 1, file);
     if (n != 1)
     {
-        printf_s("failed to save shellcode");
+        printf_s("failed to save shellcode\n");
         return false;
     }
     fclose(file);
