@@ -65,6 +65,7 @@
   </ItemGroup>
   <ItemGroup>
     <MASM Include="..\asm\align_stub.asm" />
+	<MASM Include="..\asm\opts_stub.asm" />
     <MASM Include="..\asm\args_stub.asm" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
