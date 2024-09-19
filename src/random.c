@@ -75,7 +75,12 @@ uint64 RandUint64(uint64 seed)
 
 int RandIntN(uint64 seed, int n)
 {
-    return RandInt(seed) % n;
+    int num = RandInt(seed) % n;
+    if (num < 0)
+    {
+        return -num;
+    }
+    return num;
 }
 
 uint RandUintN(uint64 seed, uint n)
@@ -85,7 +90,12 @@ uint RandUintN(uint64 seed, uint n)
 
 int64 RandInt64N(uint64 seed, int64 n)
 {
-    return RandInt64(seed) % n;
+    int64 num = RandInt64(seed) % n;
+    if (num < 0)
+    {
+        return -num;
+    }
+    return num;
 }
 
 uint64 RandUint64N(uint64 seed, uint64 n)
