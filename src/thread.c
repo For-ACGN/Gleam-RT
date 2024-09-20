@@ -37,8 +37,8 @@ typedef struct {
     CloseHandle_t         CloseHandle;
 
     // runtime methods
-    rt_lock_t   Lock;
-    rt_unlock_t Unlock;
+    rt_lock_t   RT_Lock;
+    rt_unlock_t RT_Unlock;
 
     // protect data
     HANDLE hMutex;
@@ -263,7 +263,7 @@ static bool recoverTrackerPointer(ThreadTracker* tracker)
 __declspec(noinline)
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
 {
-    // create mutex
+    // create global mutex
     HANDLE hMutex = context->CreateMutexA(NULL, false, NULL);
     if (hMutex == NULL)
     {
@@ -294,8 +294,8 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
         }
     }
     // copy runtime methods
-    tracker->Lock   = context->lock;
-    tracker->Unlock = context->unlock;
+    tracker->RT_Lock   = context->lock;
+    tracker->RT_Unlock = context->unlock;
     return true;
 }
 
@@ -623,7 +623,7 @@ DWORD TT_SuspendThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tracker->Lock() != NO_ERROR)
+    if (tracker->RT_Lock() != NO_ERROR)
     {
         return (DWORD)(-1);
     }
@@ -635,7 +635,7 @@ DWORD TT_SuspendThread(HANDLE hThread)
     }
     dbg_log("[thread]", "SuspendThread: 0x%zX", hThread);
 
-    if (tracker->Unlock() != NO_ERROR)
+    if (tracker->RT_Unlock() != NO_ERROR)
     {
         return (DWORD)(-1);
     }
@@ -647,7 +647,7 @@ DWORD TT_ResumeThread(HANDLE hThread)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tracker->Lock() != NO_ERROR)
+    if (tracker->RT_Lock() != NO_ERROR)
     {
         return (DWORD)(-1);
     }
@@ -659,7 +659,7 @@ DWORD TT_ResumeThread(HANDLE hThread)
     }
     dbg_log("[thread]", "ResumeThread: 0x%zX", hThread);
 
-    if (tracker->Unlock() != NO_ERROR)
+    if (tracker->RT_Unlock() != NO_ERROR)
     {
         return (DWORD)(-1);
     }
@@ -671,7 +671,7 @@ BOOL TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tracker->Lock() != NO_ERROR)
+    if (tracker->RT_Lock() != NO_ERROR)
     {
         return false;
     }
@@ -680,7 +680,7 @@ BOOL TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 
     dbg_log("[thread]", "GetThreadContext: 0x%zX", hThread);
 
-    if (tracker->Unlock() != NO_ERROR)
+    if (tracker->RT_Unlock() != NO_ERROR)
     {
         return false;
     }
@@ -692,7 +692,7 @@ BOOL TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tracker->Lock() != NO_ERROR)
+    if (tracker->RT_Lock() != NO_ERROR)
     {
         return false;
     }
@@ -701,7 +701,7 @@ BOOL TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext)
 
     dbg_log("[thread]", "SetThreadContext: 0x%zX", hThread);
 
-    if (tracker->Unlock() != NO_ERROR)
+    if (tracker->RT_Unlock() != NO_ERROR)
     {
         return false;
     }
@@ -713,7 +713,7 @@ BOOL TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    if (tracker->Lock() != NO_ERROR)
+    if (tracker->RT_Lock() != NO_ERROR)
     {
         return false;
     }
@@ -726,7 +726,7 @@ BOOL TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
 
     dbg_log("[thread]", "TerminateThread: %lu", threadID);
 
-    if (tracker->Unlock() != NO_ERROR)
+    if (tracker->RT_Unlock() != NO_ERROR)
     {
         return false;
     }
@@ -872,11 +872,36 @@ errno TT_KillAll()
     }
 
     List* threads = &tracker->Threads;
-    errno errno   = NO_ERROR;
+
+    uint  len   = threads->Len;
+    uint  index = 0;
+    errno errno = NO_ERROR;
+
+    // suspend all threads before terminate    
+    for (uint num = 0; num < len; index++)
+    {
+        thread* thread = List_Get(threads, index);
+        if (thread->threadID == 0)
+        {
+            continue;
+        }
+        // skip self thread
+        if (thread->threadID == currentTID)
+        {
+            num++;
+            continue;
+        }
+        uint32 count = tracker->SuspendThread(thread->hThread);
+        if (count == (DWORD)(-1))
+        {
+            errno = ERR_THREAD_SUSPEND;
+        }
+        num++;
+    }
 
     // terminate all threads
-    uint index = 0;
-    for (uint num = 0; num < threads->Len; index++)
+    index = 0;
+    for (uint num = 0; num < len; index++)
     {
         thread* thread = List_Get(threads, index);
         if (thread->threadID == 0)
@@ -889,6 +914,10 @@ errno TT_KillAll()
             if (!tracker->TerminateThread(thread->hThread, 0))
             {
                 errno = ERR_THREAD_TERMINATE;
+            }
+            if (tracker->WaitForSingleObject(thread->hThread, 1000) != WAIT_OBJECT_0)
+            {
+                errno = ERR_THREAD_WAIT_TERMINATE;
             }
         }
         if (!tracker->CloseHandle(thread->hThread))
@@ -916,11 +945,36 @@ errno TT_Clean()
     }
 
     List* threads = &tracker->Threads;
-    errno errno   = NO_ERROR;
 
-    // terminate threads
-    uint index = 0;
-    for (uint num = 0; num < threads->Len; index++)
+    uint  len   = threads->Len;
+    uint  index = 0;
+    errno errno = NO_ERROR;
+
+    // suspend all threads before terminate
+    for (uint num = 0; num < len; index++)
+    {
+        thread* thread = List_Get(threads, index);
+        if (thread->threadID == 0)
+        {
+            continue;
+        }
+        // skip self thread
+        if (thread->threadID == currentTID)
+        {
+            num++;
+            continue;
+        }
+        uint32 count = tracker->SuspendThread(thread->hThread);
+        if (count == (DWORD)(-1) && errno == NO_ERROR)
+        {
+            errno = ERR_THREAD_SUSPEND;
+        }
+        num++;
+    }
+
+    // terminate all threads
+    index = 0;
+    for (uint num = 0; num < len; index++)
     {
         thread* thread = List_Get(threads, index);
         if (thread->threadID == 0)
@@ -933,6 +987,13 @@ errno TT_Clean()
             if (!tracker->TerminateThread(thread->hThread, 0) && errno == NO_ERROR)
             {
                 errno = ERR_THREAD_TERMINATE;
+            }
+            if (tracker->WaitForSingleObject(thread->hThread, 1000) != WAIT_OBJECT_0)
+            {
+                if (errno == NO_ERROR)
+                {
+                    errno = ERR_THREAD_WAIT_TERMINATE;
+                }
             }
         }
         if (!tracker->CloseHandle(thread->hThread) && errno == NO_ERROR)
