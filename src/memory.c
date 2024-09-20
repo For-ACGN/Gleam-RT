@@ -696,11 +696,6 @@ BOOL MT_VirtualLock(LPVOID address, SIZE_T size)
     return success;
 }
 
-static bool lock_memory(MemoryTracker* tracker, uintptr address)
-{
-    return set_memory_locker(tracker, address, true);
-}
-
 __declspec(noinline)
 BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
 {
@@ -728,6 +723,11 @@ BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
         return false;
     }
     return success;
+}
+
+static bool lock_memory(MemoryTracker* tracker, uintptr address)
+{
+    return set_memory_locker(tracker, address, true);
 }
 
 static bool unlock_memory(MemoryTracker* tracker, uintptr address)
@@ -1096,8 +1096,9 @@ errno MT_FreeAll()
     errno errno   = NO_ERROR;
 
     // decommit memory pages
+    uint len   = pages->Len;
     uint index = 0;
-    for (uint num = 0; num < pages->Len; index++)
+    for (uint num = 0; num < len; index++)
     {
         memPage* page = List_Get(pages, index);
         if (page->address == 0)
@@ -1115,12 +1116,17 @@ errno MT_FreeAll()
         {
             errno = ERR_MEMORY_CLEAN_PAGE;
         }
+        if (!List_Delete(pages, index))
+        {
+            errno = ERR_MEMORY_DELETE_PAGE;
+        }
         num++;
     }
 
     // release reserved memory region
+    len   = regions->Len;
     index = 0;
-    for (uint num = 0; num < regions->Len; index++)
+    for (uint num = 0; num < len; index++)
     {
         memRegion* region = List_Get(regions, index);
         if (region->address == 0)
@@ -1137,6 +1143,10 @@ errno MT_FreeAll()
         if (!tracker->VirtualFree((LPVOID)(region->address), 0, MEM_RELEASE))
         {
             errno = ERR_MEMORY_CLEAN_REGION;
+        }
+        if (!List_Delete(regions, index))
+        {
+            errno = ERR_MEMORY_DELETE_REGION;
         }
         num++;
     }
@@ -1218,17 +1228,7 @@ errno MT_Clean()
 
 static bool cleanPage(MemoryTracker* tracker, memPage* page)
 {
-    // try to fill random data before decommit memory page.
-    if (!adjustPageProtect(tracker, page))
-    {
-        return false;
-    }
-    byte* address = (byte*)(page->address);
-    RandBuf(address, tracker->PageSize);
-    if (!recoverPageProtect(tracker, page))
-    {
-        return false;
-    }
-    DWORD size = (DWORD)(tracker->PageSize);
-    return tracker->VirtualFree(address, size, MEM_DECOMMIT);
+    LPVOID addr = (LPVOID)(page->address);
+    DWORD  size = (DWORD)(tracker->PageSize);
+    return tracker->VirtualFree(addr, size, MEM_DECOMMIT);
 }
