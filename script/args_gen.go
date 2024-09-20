@@ -5,19 +5,17 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	
-	"github.com/RSSU-Shellcode/RT-Argument"
+
+	"github.com/RSSU-Shellcode/GRT-Config/argument"
 )
 
 func main() {
-	args := [][]byte{
-		{0x78, 0x56, 0x34, 0x12},
-		[]byte("aaaabbbbccc\x00"),
-		make([]byte, 0),
-	}
-	stub, err := argument.Encode(args)
+	arg0 := []byte{0x78, 0x56, 0x34, 0x12}
+	arg1 := []byte("aaaabbbbccc\x00")
+	arg2 := make([]byte, 0)
+	stub, err := argument.Encode(arg0, arg1, arg2)
 	checkError(err)
-	
+
 	fmt.Println(dumpBytesHex(stub))
 }
 
