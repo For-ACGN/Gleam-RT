@@ -106,7 +106,7 @@ errno RT_unlock_mods();
 #ifdef _WIN64
     #define RUNTIME_POINTER 0x7FABCDEF111111FF
 #elif _WIN32
-    #define RUNTIME_POINTER 0x7FABCDFF
+    #define RUNTIME_POINTER 0x7FAB11FF
 #endif
 static Runtime* getRuntimePointer();
 
@@ -714,6 +714,7 @@ static void eraseRuntimeMethods(Runtime* runtime)
 // ======================== these instructions will not be erased ========================
 
 // change memory protect for dynamic update pointer that hard encode.
+__declspec(noinline)
 static bool adjustPageProtect(Runtime* runtime, DWORD* old)
 {
     if (runtime->Options.NotAdjustProtect)
@@ -737,6 +738,7 @@ static bool adjustPageProtect(Runtime* runtime, DWORD* old)
     return runtime->VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, old);
 }
 
+__declspec(noinline)
 static bool recoverPageProtect(Runtime* runtime, DWORD protect)
 {
     if (runtime->Options.NotAdjustProtect)
@@ -1267,15 +1269,17 @@ errno RT_ExitProcess(UINT uExitCode)
         // TODO disable watchdog ?
     }
 
-    errno errno = NO_ERROR;
-    for (;;)
+    errno err = NO_ERROR;
+
+    errno etk = runtime->ThreadTracker->KillAll();
+    if (etk != NO_ERROR && err == NO_ERROR)
     {
-        errno = runtime->ThreadTracker->KillAll();
-        if (errno != NO_ERROR)
-        {
-            break;
-        }
-        break;
+        err = etk;
+    }
+    errno etf = runtime->MemoryTracker->FreeAll();
+    if (etf != NO_ERROR && err == NO_ERROR)
+    {
+        err = etf;
     }
 
     errlm = RT_unlock_mods();
@@ -1288,9 +1292,9 @@ errno RT_ExitProcess(UINT uExitCode)
         return ERR_RUNTIME_UNLOCK;
     }
 
-    if (errno != NO_ERROR)
+    if (err != NO_ERROR)
     {
-        return errno;
+        return err;
     }
     // exit current thread
     runtime->ThreadTracker->Exit();
@@ -1323,7 +1327,6 @@ errno RT_SleepHR(DWORD dwMilliseconds)
     // for test submodule faster
 #ifndef RELEASE_MODE
     dwMilliseconds = 5 + (DWORD)RandUintN(0, 50);
-    dwMilliseconds = 1; // TODO remove it
 #endif
     
     errno errno = NO_ERROR;
@@ -1786,6 +1789,8 @@ errno RT_Exit()
     }
 
     // recover instructions for generate shellcode
+    // must call it after call cleanRuntime, otherwise
+    // trigger will get the incorrect runtime address
     if (runtime->Options.NotEraseInstruction)
     {
         if (!recoverRuntimePointer(stub) && err == NO_ERROR)
@@ -1808,6 +1813,7 @@ errno RT_Exit()
     }
 
     // recover memory project
+    // TODO move it to cleaner stub
     if (!runtime->Options.NotAdjustProtect)
     {
         uintptr begin = (uintptr)(addr);
