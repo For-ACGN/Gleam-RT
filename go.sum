@@ -1,6 +1,6 @@
 github.com/For-ACGN/monkey v0.0.0-20240317114606-276cb1362405 h1:v0o9a8CBYTKnCOCq0dWJInqd6fyS/tn35Ddp1V212GM=
-github.com/RSSU-Shellcode/RT-Argument v0.0.0-20240910062617-294409e421b0 h1:hJqjd4mjlbaZRSEWRdXU26AWMyhOc2WOw9bpsxQrlk4=
-github.com/RSSU-Shellcode/RT-Argument v0.0.0-20240910062617-294409e421b0/go.mod h1:TgEgIdKso8f81hN54tugv3e6CRwu0Ux0hNozM/Dbf3Y=
+github.com/RSSU-Shellcode/GRT-Config v0.0.0-20240919084404-a405045a989c h1:1oavtQ1lD6muOJGvWWoFcmPWKeHpJ4nqTaVMunes5Ec=
+github.com/RSSU-Shellcode/GRT-Config v0.0.0-20240919084404-a405045a989c/go.mod h1:LT5s7K5brcM0sQiYs+Ua4opMs9OzzF6S8qvUrHSdprc=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=

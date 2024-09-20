@@ -3,5 +3,5 @@ module github.com/RSSU-Shellcode/Gleam-RT
 go 1.20
 
 require (
-	github.com/RSSU-Shellcode/RT-Argument v0.0.0-20240910062617-294409e421b0
+	github.com/RSSU-Shellcode/GRT-Config v0.0.0-20240919084404-a405045a989c
 )
