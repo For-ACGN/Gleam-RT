@@ -6,6 +6,13 @@
 #include "hash_api.h"
 #include "errno.h"
 
+// about runtime options at the shellcode tail.
+#define OPTION_STUB_SIZE 64
+
+#define OPT_OFFSET_NOT_ERASE_INSTRUCTION    1
+#define OPT_OFFSET_NOT_ADJUST_PROTECT       2
+#define OPT_OFFSET_NOT_TRACK_CURRENT_THREAD 3
+
 // for generic shellcode development.
 typedef void (*Sleep_t)(uint32 milliseconds);
 
