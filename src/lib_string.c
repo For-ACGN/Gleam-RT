@@ -90,4 +90,57 @@ int strcmp_w(utf16 a, utf16 b)
     }
 }
 
+int strncmp_a(ascii a, ascii b, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        byte s0 = *a;
+        byte s1 = *b;
+        if (s0 == s1)
+        {
+            if (s0 == 0x00)
+            {
+                return 0;
+            }
+            a++;
+            b++;
+            continue;
+        }
+        if (s0 > s1)
+        {
+            return 1;
+        } else {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int strncmp_w(utf16 a, utf16 b, int n)
+{
+    for (int i = 0; i < n; i++)
+    {
+        uint16 s0 = *a;
+        uint16 s1 = *b;
+        if (s0 == s1)
+        {
+            if (s0 == 0x0000)
+            {
+                return 0;
+            }
+            a++;
+            b++;
+            continue;
+        }
+        if (s0 > s1)
+        {
+            return 1;
+        } else
+        {
+            return -1;
+        }
+    }
+    return 0;
+}
+
 #pragma optimize("", on)
