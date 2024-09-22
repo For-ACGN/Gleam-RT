@@ -24,4 +24,16 @@ int strcmp_a(ascii a, ascii b);
 // if a < b, return -1
 int strcmp_w(utf16 a, utf16 b);
 
+// strncmp_a is used to compare two ACSII strings with length.
+// if a = b, return 0
+// if a > b, return 1
+// if a < b, return -1
+int strncmp_a(ascii a, ascii b, int n);
+
+// strncmp_w is used to compare two Unicode strings with length.
+// if a = b, return 0
+// if a > b, return 1
+// if a < b, return -1
+int strncmp_w(utf16 a, utf16 b, int n);
+
 #endif // LIB_STRING_H
