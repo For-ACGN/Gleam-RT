@@ -53,6 +53,7 @@ bool  LT_Lock();
 bool  LT_Unlock();
 errno LT_Encrypt();
 errno LT_Decrypt();
+errno LT_FreeAll();
 errno LT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
@@ -126,6 +127,7 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
     module->Unlock  = GetFuncAddr(&LT_Unlock);
     module->Encrypt = GetFuncAddr(&LT_Encrypt);
     module->Decrypt = GetFuncAddr(&LT_Decrypt);
+    module->FreeAll = GetFuncAddr(&LT_FreeAll);
     module->Clean   = GetFuncAddr(&LT_Clean);
     return module;
 }
@@ -475,6 +477,15 @@ BOOL LT_FreeLibrary(HMODULE hLibModule)
     bool success = true;
     for (;;)
     {
+        if (hLibModule == NULL)
+        {
+            errno errno = LT_FreeAll();
+            if (errno != NO_ERROR)
+            {
+                success = false;
+            }
+            break;
+        }
         if (!tracker->FreeLibrary(hLibModule))
         {
             success = false;
@@ -554,7 +565,7 @@ static bool delModule(LibraryTracker* tracker, HMODULE hModule)
     }
     // search module and decrease counter
     List*  modules = &tracker->Modules;
-    module mod  = {
+    module mod = {
         .hModule = hModule,
     };
     uint index;
@@ -618,6 +629,36 @@ errno LT_Decrypt()
 
     dbg_log("[library]", "modules: %zu", list->Len);
     return NO_ERROR;
+}
+
+__declspec(noinline)
+errno LT_FreeAll()
+{
+    LibraryTracker* tracker = getTrackerPointer();
+
+    List* modules = &tracker->Modules;
+    errno errno   = NO_ERROR;
+
+    uint len   = modules->Len;
+    uint index = 0;
+    for (uint num = 0; num < len; index++)
+    {
+        module* module = List_Get(modules, index);
+        if (module->hModule == NULL)
+        {
+            continue;
+        }
+        if (!cleanModule(tracker, module))
+        {
+            errno = ERR_LIBRARY_CLEAN_MODULE;
+        }
+        if (!List_Delete(modules, index))
+        {
+            errno = ERR_LIBRARY_DELETE_MODULE;
+        }
+        num++;
+    }
+    return errno;
 }
 
 __declspec(noinline)
