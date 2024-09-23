@@ -10,6 +10,7 @@ typedef bool  (*LibLock_t)();
 typedef bool  (*LibUnlock_t)();
 typedef errno (*LibEncrypt_t)();
 typedef errno (*LibDecrypt_t)();
+typedef errno (*LibFreeAll_t)();
 typedef errno (*LibClean_t)();
 
 typedef struct {
@@ -24,6 +25,7 @@ typedef struct {
     LibUnlock_t  Unlock;
     LibEncrypt_t Encrypt;
     LibDecrypt_t Decrypt;
+    LibFreeAll_t FreeAll;
     LibClean_t   Clean;
 } LibraryTracker_M;
 
