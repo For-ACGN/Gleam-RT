@@ -3,6 +3,7 @@
 #include "windows_t.h"
 #include "rel_addr.h"
 #include "lib_memory.h"
+#include "lib_string.h"
 #include "hash_api.h"
 #include "random.h"
 #include "crypto.h"
@@ -965,6 +966,7 @@ void* RT_realloc(void* address, uint size)
     void* newAddr = RT_malloc(size);
     if (newAddr == NULL)
     {
+        // TODO free memory
         return NULL;
     }
     // copy data to new memory
@@ -977,6 +979,8 @@ void* RT_realloc(void* address, uint size)
     }
     return newAddr;
 }
+
+// TODO add calloc
 
 __declspec(noinline)
 bool RT_free(void* address)
@@ -1088,17 +1092,24 @@ void* RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 __declspec(noinline)
 void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
 {
+    Runtime* runtime = getRuntimePointer();
+
+    // process ordinal import
+    if (lpProcName <= (LPCSTR)(0xFFFF))
+    {
+        return runtime->GetProcAddress(hModule, lpProcName);
+    }
     // use "mem_clean" for prevent incorrect compiler
     // optimize and generate incorrect shellcode
     byte module[MAX_PATH];
     mem_clean(&module, sizeof(module));
     // get module file name
-    if (GetModuleFileName(hModule, &module[0], sizeof(module)) == 0)
+    if (GetModuleFileName(hModule, module, sizeof(module)) == 0)
     {
         return NULL;
     }
-    // check is internal methods
-    void* method = getRuntimeMethods(&module[0], lpProcName);
+    // check is runtime internal methods
+    void* method = getRuntimeMethods(module, lpProcName);
     if (method != NULL)
     {
         return method;
@@ -1106,10 +1117,22 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
     // generate key for calculate Windows API hash
     uint key  = RandUint((uint64)(hModule) + (uint64)(lpProcName));
     uint hash = HashAPI_W((uint16*)(&module[0]), (byte*)lpProcName, key);
-    return RT_GetProcAddressByHash(hash, key, hook);
+    // try to find Windows API by hash
+    void* proc = RT_GetProcAddressByHash(hash, key, hook);
+    if (proc != NULL)
+    {
+        return proc;
+    }
+    // if failed to found, use original GetProcAddress
+    // must skip runtime internel methods like "RT_Method"
+    byte  preifx[4] = { 'R', 'T', '_', 0x00 };
+    ascii procName  = (ascii)lpProcName;
+    if (strncmp_a(procName, preifx, 3) == 0)
+    {
+        return NULL;
+    }
+    return runtime->GetProcAddress(hModule, lpProcName);
 }
-
-// TODO process ordinal import
 
 __declspec(noinline)
 void* RT_GetProcAddressByHash(uint hash, uint key, bool hook)
@@ -1276,6 +1299,12 @@ errno RT_ExitProcess(UINT uExitCode)
     {
         err = etk;
     }
+    // TODO add release objects
+    // errno elf = runtime->LibraryTracker->FreeAll();
+    // if (elf != NO_ERROR && err == NO_ERROR)
+    // {
+    //     err = elf;
+    // }
     errno etf = runtime->MemoryTracker->FreeAll();
     if (etf != NO_ERROR && err == NO_ERROR)
     {
@@ -1747,10 +1776,10 @@ errno RT_Exit()
     submodule_t submodules[] = 
     {
         runtime->ThreadTracker->Clean,
-        runtime->ArgumentStore->Clean,
         runtime->ResourceTracker->Clean,
-        runtime->MemoryTracker->Clean,
         runtime->LibraryTracker->Clean,
+        runtime->MemoryTracker->Clean,
+        runtime->ArgumentStore->Clean,
     };
     errno enmod = NO_ERROR;
     for (int i = 0; i < arrlen(submodules); i++)
