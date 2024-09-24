@@ -28,12 +28,24 @@ int strcmp_w(utf16 a, utf16 b);
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
-int strncmp_a(ascii a, ascii b, int n);
+int strncmp_a(ascii a, ascii b, int64 n);
 
 // strncmp_w is used to compare two Unicode strings with length.
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
-int strncmp_w(utf16 a, utf16 b, int n);
+int strncmp_w(utf16 a, utf16 b, int64 n);
+
+// strcpy_a is used to copy source ACSII string to destination.
+uint strcpy_a(ascii dst, ascii src);
+
+// strcpy_w is used to copy source Unicode string to destination.
+uint strcpy_w(utf16 dst, utf16 src);
+
+// strcpy_a is used to copy source ACSII string to destination with length.
+uint strncpy_a(ascii dst, ascii src, int64 n);
+
+// strcpy_w is used to copy source Unicode string to destination with length.
+uint strncpy_w(utf16 dst, utf16 src, int64 n);
 
 #endif // LIB_STRING_H
