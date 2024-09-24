@@ -90,9 +90,9 @@ int strcmp_w(utf16 a, utf16 b)
     }
 }
 
-int strncmp_a(ascii a, ascii b, int n)
+int strncmp_a(ascii a, ascii b, int64 n)
 {
-    for (int i = 0; i < n; i++)
+    for (int64 i = 0; i < n; i++)
     {
         byte s0 = *a;
         byte s1 = *b;
@@ -116,9 +116,9 @@ int strncmp_a(ascii a, ascii b, int n)
     return 0;
 }
 
-int strncmp_w(utf16 a, utf16 b, int n)
+int strncmp_w(utf16 a, utf16 b, int64 n)
 {
-    for (int i = 0; i < n; i++)
+    for (int64 i = 0; i < n; i++)
     {
         uint16 s0 = *a;
         uint16 s1 = *b;
@@ -141,6 +141,82 @@ int strncmp_w(utf16 a, utf16 b, int n)
         }
     }
     return 0;
+}
+
+uint strcpy_a(ascii dst, ascii src)
+{
+    uint l = 0;
+    for (;;)
+    {
+        byte s = *src;
+        if (s == 0x00)
+        {
+            break;
+        }
+        *dst = s;
+
+        l++;
+        dst++;
+        src++;
+    }
+    return l;
+}
+
+uint strcpy_w(utf16 dst, utf16 src)
+{
+    uint l = 0;
+    for (;;)
+    {
+        uint16 s = *src;
+        if (s == 0x0000)
+        {
+            break;
+        }
+        *dst = s;
+
+        l++;
+        dst++;
+        src++;
+    }
+    return l;
+}
+
+uint strncpy_a(ascii dst, ascii src, int64 n)
+{
+    uint l = 0;
+    for (int64 i = 0; i < n; i++)
+    {
+        byte s = *src;
+        if (s == 0x00)
+        {
+            break;
+        }
+        *dst = s;
+
+        l++;
+        dst++;
+        src++;
+    }
+    return l;
+}
+
+uint strncpy_w(utf16 dst, utf16 src, int64 n)
+{
+    uint l = 0;
+    for (int64 i = 0; i < n; i++)
+    {
+        uint16 s = *src;
+        if (s == 0x0000)
+        {
+            break;
+        }
+        *dst = s;
+
+        l++;
+        dst++;
+        src++;
+    }
+    return l;
 }
 
 #pragma optimize("", on)
