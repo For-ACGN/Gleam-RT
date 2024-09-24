@@ -403,3 +403,7 @@ FodyWeavers.xsd
 
 # Ignore JetBrains GoLand
 .idea
+
+# Ignore generated assmebly modules in the dist directory
+dist/*.asm
+dist/*.inst
