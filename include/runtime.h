@@ -7,7 +7,8 @@
 #include "errno.h"
 
 // about runtime options at the shellcode tail.
-#define OPTION_STUB_SIZE 64
+#define OPTION_STUB_SIZE  64
+#define OPTION_STUB_MAGIC 0xFC
 
 #define OPT_OFFSET_NOT_ERASE_INSTRUCTION    1
 #define OPT_OFFSET_NOT_ADJUST_PROTECT       2
@@ -30,8 +31,9 @@ typedef uint (*Compress_t)(void* dst, void* src);
 typedef uint (*Decompress_t)(void* dst, void* src);
 
 typedef void* (*MemAlloc_t)(uint size);
-typedef void* (*MemRealloc_t)(void* address, uint size);
-typedef bool  (*MemFree_t)(void* address);
+typedef void* (*MemCalloc_t)(uint num, uint size);
+typedef void* (*MemRealloc_t)(void* ptr, uint size);
+typedef void  (*MemFree_t)(void* ptr);
 
 typedef HANDLE (*ThdNew_t)(void* address, void* parameter, bool track);
 typedef void   (*ThdExit_t)();
@@ -106,6 +108,7 @@ typedef struct {
 
     // memory tracker
     MemAlloc_t   MemAlloc;
+    MemCalloc_t  MemCalloc;
     MemRealloc_t MemRealloc;
     MemFree_t    MemFree;
 
