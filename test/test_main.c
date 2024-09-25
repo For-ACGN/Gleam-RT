@@ -22,7 +22,7 @@ int __cdecl main()
             maxNameLen = len;
         }
     }
-    // ================TestHashAPI begin================
+    // ================TestFunction begin================
     uint bannerLen = (uint)16 + BANNER_END_SIZE + maxNameLen + 16;
 
     // run unit tests
