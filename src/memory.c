@@ -65,10 +65,12 @@ SIZE_T MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length);
 BOOL   MT_VirtualLock(LPVOID address, SIZE_T size);
 BOOL   MT_VirtualUnlock(LPVOID address, SIZE_T size);
 
-// methods for runtime
+// methods for runtime and hooks about msvcrt.dll
 void* MT_MemAlloc(uint size);
-void* MT_MemRealloc(void* address, uint size);
-bool  MT_MemFree(void* address);
+void* MT_MemCalloc(uint num, uint size);
+void* MT_MemRealloc(void* ptr, uint size);
+void  MT_MemFree(void* ptr);
+
 bool  MT_Lock();
 bool  MT_Unlock();
 errno MT_Encrypt();
@@ -164,6 +166,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->VirtualUnlock  = GetFuncAddr(&MT_VirtualUnlock);
     // methods for runtime
     module->Alloc   = GetFuncAddr(&MT_MemAlloc);
+    module->Calloc  = GetFuncAddr(&MT_MemCalloc);
     module->Realloc = GetFuncAddr(&MT_MemRealloc);
     module->Free    = GetFuncAddr(&MT_MemFree);
     module->Lock    = GetFuncAddr(&MT_Lock);
@@ -876,9 +879,15 @@ void* MT_MemAlloc(uint size)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
+    dbg_log("[memory]", "malloc size: %zu", size);
+
+    if (size == 0)
+    {
+        return NULL;
+    }
     // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
-    uint  pageSize = ((size / tracker->PageSize) + 1) * tracker->PageSize;
+    uint pageSize = ((size / tracker->PageSize) + 1) * tracker->PageSize;
     void* addr = MT_VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
@@ -893,41 +902,71 @@ void* MT_MemAlloc(uint size)
 }
 
 __declspec(noinline)
-void* MT_MemRealloc(void* address, uint size)
+void* MT_MemCalloc(uint num, uint size)
 {
-    if (address == NULL)
-    {
-        return MT_MemAlloc(size);
-    }
-    // allocate new memory
-    void* newAddr = MT_MemAlloc(size);
-    if (newAddr == NULL)
+    dbg_log("[memory]", "calloc num: %zu, size: %zu", num, size);
+
+    uint total = num * size;
+    if (total == 0)
     {
         return NULL;
     }
-    // copy data to new memory
-    uint oldSize = *(uint*)((uintptr)(address)-16);
-    mem_copy(newAddr, address, oldSize);
-    // free old memory
-    if (!MT_MemFree(address))
+    void* addr = MT_MemAlloc(total);
+    if (addr == NULL)
     {
         return NULL;
     }
-    return newAddr;
+    mem_clean(addr, total);
+    return addr;
 }
 
 __declspec(noinline)
-bool MT_MemFree(void* address)
+void* MT_MemRealloc(void* ptr, uint size)
 {
-    if (address == NULL)
+    dbg_log("[memory]", "realloc ptr: 0x%zX, size: %zu", ptr, size);
+
+    if (ptr == NULL)
     {
-        return true;
+        return MT_MemAlloc(size);
+    }
+    if (size == 0)
+    {
+        MT_MemFree(ptr);
+        return NULL;
+    }
+    // allocate new memory
+    void* newPtr = MT_MemAlloc(size);
+    if (newPtr == NULL)
+    {
+        MT_MemFree(ptr);
+        return NULL;
+    }
+    // copy data to new memory
+    uint oldSize = *(uint*)((uintptr)(ptr)-16);
+    mem_copy(newPtr, ptr, oldSize);
+    // free old memory
+    MT_MemFree(ptr);
+    return newPtr;
+}
+
+__declspec(noinline)
+void MT_MemFree(void* ptr)
+{
+    dbg_log("[memory]", "free ptr: 0x%zX", ptr);
+
+    if (ptr == NULL)
+    {
+        return;
     }
     // clean the buffer data before call VirtualFree.
-    void* addr = (LPVOID)((uintptr)(address)-16);
+    void* addr = (LPVOID)((uintptr)(ptr)-16);
     uint  size = *(uint*)addr;
     mem_clean((byte*)addr, size);
-    return MT_VirtualFree(addr, 0, MEM_RELEASE);
+    if (MT_VirtualFree(addr, 0, MEM_RELEASE))
+    {
+        return;
+    }
+    dbg_log("[memory]", "failed to VirtualFree: 0x%X", GetLastErrno());
 }
 
 __declspec(noinline)
@@ -1095,9 +1134,32 @@ errno MT_FreeAll()
     List* regions = &tracker->Regions;
     errno errno   = NO_ERROR;
 
-    // decommit memory pages
+    // cover memory page data
     uint len   = pages->Len;
     uint index = 0;
+    for (uint num = 0; num < len; index++)
+    {
+        memPage* page = List_Get(pages, index);
+        if (page->address == 0)
+        {
+            continue;
+        }
+        // skip locked memory page
+        if (page->lock)
+        {
+            num++;
+            continue;
+        }
+        // cover memory page
+        if (isPageProtectWriteable(page->protect))
+        {
+            RandBuf((byte*)(page->address), tracker->PageSize);
+        }
+        num++;
+    }
+
+    // decommit memory pages
+    index = 0;
     for (uint num = 0; num < len; index++)
     {
         memPage* page = List_Get(pages, index);
@@ -1161,9 +1223,26 @@ errno MT_Clean()
     List* pages   = &tracker->Pages;
     List* regions = &tracker->Regions;
     errno errno   = NO_ERROR;
-    
-    // decommit memory pages
+
+    // cover memory page data
     uint index = 0;
+    for (uint num = 0; num < pages->Len; index++)
+    {
+        memPage* page = List_Get(pages, index);
+        if (page->address == 0)
+        {
+            continue;
+        }
+        // cover memory page
+        if (isPageProtectWriteable(page->protect))
+        {
+            RandBuf((byte*)(page->address), tracker->PageSize);
+        }
+        num++;
+    }
+
+    // decommit memory pages
+    index = 0;
     for (uint num = 0; num < pages->Len; index++)
     {
         memPage* page = List_Get(pages, index);
