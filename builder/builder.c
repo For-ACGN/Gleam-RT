@@ -57,11 +57,11 @@ bool saveShellcode()
     uintptr end   = (uintptr)(&Argument_Stub);
     uintptr size  = end - begin;
 
-    // check option stub is valid
-    end -= 64;
-    if (*(byte*)end != 0xFC)
+    // check runtime option stub is valid
+    end -= OPTION_STUB_SIZE;
+    if (*(byte*)end != OPTION_STUB_MAGIC)
     {
-        printf_s("invalid option stub\n");
+        printf_s("invalid runtime option stub\n");
         return false;
     }
 
