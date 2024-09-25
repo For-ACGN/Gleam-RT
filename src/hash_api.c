@@ -205,6 +205,28 @@ static uint ror(uint value, uint bits)
 #endif
 }
 
+void* FindAPI_A(byte* module, byte* function)
+{
+#ifdef _WIN64
+    uint key = 0xA6C1B1E79D26D1E7;
+#elif _WIN32
+    uint key = 0x94645D8B;
+#endif
+    uint hash = HashAPI_A(module, function, key);
+    return FindAPI(hash, key);
+}
+
+void* FindAPI_W(uint16* module, byte* function)
+{
+#ifdef _WIN64
+    uint key = 0xA6C1B1E79D26D1E7;
+#elif _WIN32
+    uint key = 0x94645D8B;
+#endif
+    uint hash = HashAPI_W(module, function, key);
+    return FindAPI(hash, key);
+}
+
 uint HashAPI_A(byte* module, byte* function, uint key)
 {
 #ifdef _WIN64
