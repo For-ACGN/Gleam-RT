@@ -133,8 +133,8 @@ static bool  initIATHooks(Runtime* runtime);
 static bool  flushInstructionCache(Runtime* runtime);
 
 static void* getRuntimeMethods(byte* module, LPCSTR lpProcName);
-static void* getResTrackerHook(Runtime* runtime, void* proc);
-static void* replaceToHook(Runtime* runtime, void* proc);
+static void* getLazyAPIHook(Runtime* runtime, void* proc);
+static void* replaceToIATHook(Runtime* runtime, void* proc);
 
 static void  trigger();
 static errno processEvent(Runtime* runtime, bool* exit);
@@ -287,6 +287,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->GetProcAddress = GetFuncAddr(&RT_GetProcAddress);
     // memory tracker
     module->MemAlloc   = runtime->MemoryTracker->Alloc;
+    module->MemCalloc  = runtime->MemoryTracker->Calloc;
     module->MemRealloc = runtime->MemoryTracker->Realloc;
     module->MemFree    = runtime->MemoryTracker->Free;
     // thread tracker
@@ -1114,9 +1115,13 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
     {
         return method;
     }
-    // generate key for calculate Windows API hash
-    uint key  = RandUint((uint64)(hModule) + (uint64)(lpProcName));
-    uint hash = HashAPI_W((uint16*)(&module[0]), (byte*)lpProcName, key);
+    // generate hash for get Windows API address
+#ifdef _WIN64
+    uint key = 0xA6C1B1E79D26D1E7;
+#elif _WIN32
+    uint key = 0x94645D8B;
+#endif
+    uint hash = HashAPI_W((uint16*)(module), (byte*)lpProcName, key);
     // try to find Windows API by hash
     void* proc = RT_GetProcAddressByHash(hash, key, hook);
     if (proc != NULL)
@@ -1148,12 +1153,17 @@ void* RT_GetProcAddressByHash(uint hash, uint key, bool hook)
     {
         return proc;
     }
-    void* rth = getResTrackerHook(runtime, proc);
-    if (rth != proc)
+    void* lzHook = getLazyAPIHook(runtime, proc);
+    if (lzHook != proc)
     {
-        return rth;
+        return lzHook;
     }
-    return replaceToHook(runtime, proc);
+    void* iatHook = replaceToIATHook(runtime, proc);
+    if (iatHook != proc)
+    {
+        return iatHook;
+    }
+    return proc;
 }
 
 // disable optimize for use call NOT jmp to runtime->GetProcAddress.
@@ -1211,10 +1221,11 @@ static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
     return NULL;
 }
 
-// getResTrackerHook is used to FindAPI after call LoadLibrary.
+// getLazyAPIHook is used to FindAPI after call LoadLibrary.
 // Hooks in initIATHooks() are all in kernel32.dll.
-static void* getResTrackerHook(Runtime* runtime, void* proc)
+static void* getLazyAPIHook(Runtime* runtime, void* proc)
 {
+    MemoryTracker_M*   memoryTracker   = runtime->MemoryTracker;
     ResourceTracker_M* resourceTracker = runtime->ResourceTracker;
 
     typedef struct {
@@ -1223,6 +1234,10 @@ static void* getResTrackerHook(Runtime* runtime, void* proc)
     hook hooks[] =
 #ifdef _WIN64
     {
+        { 0xF33526E8D89DA508, 0xEDA6329C4F2F200E, memoryTracker->Alloc},   // msvcrt.malloc
+        { 0x499BBE04FBC79BFA, 0xC31A2116AB845FD3, memoryTracker->Calloc},  // msvcrt.calloc
+        { 0xFEE7DFC00D4FF138, 0xFDCD79409B4540BE, memoryTracker->Realloc}, // msvcrt.realloc
+        { 0xE38030369E1A493B, 0xA71437DCA268E161, memoryTracker->Free},    // msvcrt.free
         { 0x94DAFAE03484102D, 0x300F881516DC2FF5, resourceTracker->CreateFileA      },
         { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, resourceTracker->CreateFileW      },
         { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, resourceTracker->FindFirstFileA   },
@@ -1236,6 +1251,10 @@ static void* getResTrackerHook(Runtime* runtime, void* proc)
     };
 #elif _WIN32
     {
+        { 0x741595B4, 0xABC3E3AF, memoryTracker->Alloc},   // msvcrt.malloc
+        { 0x0613B03E, 0x876EF514, memoryTracker->Calloc},  // msvcrt.calloc
+        { 0x9BD791D3, 0xD0EE91DC, memoryTracker->Realloc}, // msvcrt.realloc
+        { 0xB83C96F7, 0x2C2BF526, memoryTracker->Free},    // msvcrt.free
         { 0x79796D6E, 0x6DBBA55C, resourceTracker->CreateFileA      },
         { 0x0370C4B8, 0x76254EF3, resourceTracker->CreateFileW      },
         { 0x629ADDFA, 0x749D1CC9, resourceTracker->FindFirstFileA   },
@@ -1259,7 +1278,7 @@ static void* getResTrackerHook(Runtime* runtime, void* proc)
     return proc;
 }
 
-static void* replaceToHook(Runtime* runtime, void* proc)
+static void* replaceToIATHook(Runtime* runtime, void* proc)
 {
     for (int i = 0; i < arrlen(runtime->IATHooks); i++)
     {
@@ -1300,11 +1319,12 @@ errno RT_ExitProcess(UINT uExitCode)
         err = etk;
     }
     // TODO add release objects
-    // errno elf = runtime->LibraryTracker->FreeAll();
-    // if (elf != NO_ERROR && err == NO_ERROR)
-    // {
-    //     err = elf;
-    // }
+
+    errno elf = runtime->LibraryTracker->FreeAll();
+    if (elf != NO_ERROR && err == NO_ERROR)
+    {
+        err = elf;
+    }
     errno etf = runtime->MemoryTracker->FreeAll();
     if (etf != NO_ERROR && err == NO_ERROR)
     {
