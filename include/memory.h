@@ -7,8 +7,9 @@
 #include "errno.h"
 
 typedef void* (*MemAlloc_t)(uint size);
-typedef void* (*MemRealloc_t)(void* address, uint size);
-typedef bool  (*MemFree_t)(void* address);
+typedef void* (*MemCalloc_t)(uint num, uint size);
+typedef void* (*MemRealloc_t)(void* ptr, uint size);
+typedef void  (*MemFree_t)(void* ptr);
 typedef bool  (*MemLock_t)();
 typedef bool  (*MemUnlock_t)();
 typedef errno (*MemEncrypt_t)();
@@ -25,6 +26,7 @@ typedef struct {
     VirtualUnlock_t  VirtualUnlock;
 
     MemAlloc_t   Alloc;
+    MemCalloc_t  Calloc;
     MemRealloc_t Realloc;
     MemFree_t    Free;
     MemLock_t    Lock;
