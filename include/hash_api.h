@@ -3,13 +3,15 @@
 
 #include "c_types.h"
 
-// FindAPI will not call GetProcAddress, if the module is not
-// loaded, it cannot find the target proc address.
+// FindAPI will not call GetProcAddress, if this module 
+// is not loaded, it cannot find the target proc address.
 //
-// FindAPI is support forwarded function
-// FindAPI is NOT support API Sets
+// FindAPI is support forwarded function.
+// FindAPI is NOT support API Sets.
 
 typedef void* (*FindAPI_t)(uint hash, uint key);
+typedef void* (*FindAPI_A_t)(byte* module, byte* function);
+typedef void* (*FindAPI_W_t)(uint16* module, byte* function);
 
 // FindAPI is used to find Windows API address by hash and key.
 void* FindAPI(uint hash, uint key);
