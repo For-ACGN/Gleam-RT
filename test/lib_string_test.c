@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "c_types.h"
+#include "lib_memory.h"
 #include "lib_string.h"
 #include "test.h"
 
@@ -147,24 +148,150 @@ bool TestStrcmp_w()
 
 static bool TestStrncmp_a()
 {
+    ANSI s0 = "abc";
+    ANSI s1 = "abc";
+    if (strncmp_a(s0, s1, 2) != 0)
+    {
+        printf_s("strncmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test strncmp_a with s0=s1 passed\n");
+
+    s0 = "acc";
+    s1 = "abc";
+    if (strncmp_a(s0, s1, 2) != 1)
+    {
+        printf_s("strncmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test strncmp_a with s0>s1 passed\n");
+
+    s0 = "aac";
+    s1 = "abc";
+    if (strncmp_a(s0, s1, 2) != -1)
+    {
+        printf_s("strncmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test strncmp_a with s0<s1 passed\n");
+    return true;
 }
 
 static bool TestStrncmp_w()
 {
+    UTF16 s0 = L"abc";
+    UTF16 s1 = L"abc";
+    if (strncmp_w(s0, s1, 2) != 0)
+    {
+        printf_s("strncmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test strncmp_w with s0=s1 passed\n");
+
+    s0 = L"acc";
+    s1 = L"abc";
+    if (strncmp_w(s0, s1, 2) != 1)
+    {
+        printf_s("strncmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test strncmp_w with s0>s1 passed\n");
+
+    s0 = L"aac";
+    s1 = L"abc";
+    if (strncmp_w(s0, s1, 2) != -1)
+    {
+        printf_s("strncmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test strncmp_w with s0<s1 passed\n");
+    return true;
 }
 
 static bool TestStrcpy_a()
 {
+    ANSI s = "abc";
+    byte c[8];
+    mem_init(c, sizeof(c));
+
+    if (strcpy_a(c, s) != 3)
+    {
+        printf_s("strcpy_a return incorrect value\n");
+        return false;
+    }
+
+    printf_s("test strcpy_a passed\n");
+    return true;
 }
 
 static bool TestStrcpy_w()
 {
+    UTF16 s = L"abc";
+    uint16 c[8];
+    mem_init(c, sizeof(c));
+
+    if (strcpy_w(c, s) != 3)
+    {
+        printf_s("strcpy_w return incorrect value\n");
+        return false;
+    }
+
+    printf_s("test strcpy_w passed\n");
+    return true;
 }
 
 static bool TestStrncpy_a()
 {
+    ANSI s = "abc";
+    byte c[8];
+    mem_init(c, sizeof(c));
+
+    if (strncpy_a(c, s, 3) != 3)
+    {
+        printf_s("strncpy_a return incorrect value\n");
+        return false;
+    }
+
+    if (strncpy_a(c, s, 2) != 2)
+    {
+        printf_s("strncpy_a return incorrect value\n");
+        return false;
+    }
+
+    if (strncpy_a(c, s, 4) != 3)
+    {
+        printf_s("strncpy_a return incorrect value\n");
+        return false;
+    }
+
+    printf_s("test strncpy_a passed\n");
+    return true;
 }
 
 static bool TestStrncpy_w()
 {
+    UTF16 s = L"abc";
+    uint16 c[8];
+    mem_init(c, sizeof(c));
+
+    if (strncpy_w(c, s, 3) != 3)
+    {
+        printf_s("strncpy_w return incorrect value\n");
+        return false;
+    }
+
+    if (strncpy_w(c, s, 2) != 2)
+    {
+        printf_s("strncpy_w return incorrect value\n");
+        return false;
+    }
+
+    if (strncpy_w(c, s, 4) != 3)
+    {
+        printf_s("strncpy_w return incorrect value\n");
+        return false;
+    }
+
+    printf_s("test strncpy_w passed\n");
+    return true;
 }
