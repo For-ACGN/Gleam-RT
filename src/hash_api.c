@@ -18,6 +18,7 @@ static uint calcSeedHash(uint key);
 static uint calcKeyHash(uint seed, uint key);
 static uint ror(uint value, uint bits);
 
+__declspec(noinline)
 void* FindAPI(uint hash, uint key)
 {
     uint seedHash = calcSeedHash(key);
@@ -153,14 +154,14 @@ void* FindAPI(uint hash, uint key)
             {
                 dot = 500;
             }
-            mem_copy(&dllName[0], exportName, dot + 1);
+            mem_copy(dllName, exportName, dot + 1);
             // build DLL name
             dllName[dot+1] = 'd';
             dllName[dot+2] = 'l';
             dllName[dot+3] = 'l';
             dllName[dot+4] = 0x00;
             // build hash and key
-            byte* module   = &dllName[0];
+            byte* module   = dllName;
             byte* function = (byte*)((uintptr)exportName + dot + 1);
             uint k = finHash + (uint)function;
             uint h = HashAPI_A(module, function, k);
@@ -205,6 +206,7 @@ static uint ror(uint value, uint bits)
 #endif
 }
 
+__declspec(noinline)
 void* FindAPI_A(byte* module, byte* function)
 {
 #ifdef _WIN64
@@ -216,6 +218,7 @@ void* FindAPI_A(byte* module, byte* function)
     return FindAPI(hash, key);
 }
 
+__declspec(noinline)
 void* FindAPI_W(uint16* module, byte* function)
 {
 #ifdef _WIN64
@@ -227,6 +230,7 @@ void* FindAPI_W(uint16* module, byte* function)
     return FindAPI(hash, key);
 }
 
+__declspec(noinline)
 uint HashAPI_A(byte* module, byte* function, uint key)
 {
 #ifdef _WIN64
@@ -236,6 +240,7 @@ uint HashAPI_A(byte* module, byte* function, uint key)
 #endif
 }
 
+__declspec(noinline)
 uint HashAPI_W(uint16* module, byte* function, uint key)
 {
 #ifdef _WIN64
@@ -256,6 +261,7 @@ static uint64 calcSeedHash64(uint64 key);
 static uint64 calcKeyHash64(uint64 seed, uint64 key);
 static uint64 ror64(uint64 value, uint64 bits);
 
+__declspec(noinline)
 uint64 HashAPI64_A(byte* module, byte* function, uint64 key)
 {
     uint64 seedHash = calcSeedHash64(key);
@@ -295,6 +301,7 @@ uint64 HashAPI64_A(byte* module, byte* function, uint64 key)
     return seedHash + keyHash + modHash + funcHash;
 }
 
+__declspec(noinline)
 uint64 HashAPI64_W(uint16* module, byte* function, uint64 key)
 {
     uint64 seedHash = calcSeedHash64(key);
@@ -381,6 +388,7 @@ static uint32 calcSeedHash32(uint32 key);
 static uint32 calcKeyHash32(uint32 seed, uint32 key);
 static uint32 ror32(uint32 value, uint32 bits);
 
+__declspec(noinline)
 uint32 HashAPI32_A(byte* module, byte* function, uint32 key)
 {
     uint32 seedHash = calcSeedHash32(key);
@@ -420,6 +428,7 @@ uint32 HashAPI32_A(byte* module, byte* function, uint32 key)
     return seedHash + keyHash + modHash + funcHash;
 }
 
+__declspec(noinline)
 uint32 HashAPI32_W(uint16* module, byte* function, uint32 key)
 {
     uint32 seedHash = calcSeedHash32(key);
