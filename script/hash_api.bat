@@ -34,6 +34,10 @@ echo [Runtime IAT Hooks]
 hash_api -fmt 64 -conc -func GetProcAddress
 hash_api -fmt 64 -conc -func ExitProcess
 hash_api -fmt 64 -conc -func Sleep
+hash_api -fmt 64 -conc -mod msvcrt.dll -func malloc
+hash_api -fmt 64 -conc -mod msvcrt.dll -func calloc
+hash_api -fmt 64 -conc -mod msvcrt.dll -func realloc
+hash_api -fmt 64 -conc -mod msvcrt.dll -func free
 echo.
 
 echo [Library Tracker]
@@ -107,6 +111,10 @@ echo [Runtime IAT Hooks]
 hash_api -fmt 32 -conc -func GetProcAddress
 hash_api -fmt 32 -conc -func ExitProcess
 hash_api -fmt 32 -conc -func Sleep
+hash_api -fmt 32 -conc -mod msvcrt.dll -func malloc
+hash_api -fmt 32 -conc -mod msvcrt.dll -func calloc
+hash_api -fmt 32 -conc -mod msvcrt.dll -func realloc
+hash_api -fmt 32 -conc -mod msvcrt.dll -func free
 echo.
 
 echo [Library Tracker]
