@@ -7,15 +7,27 @@ static bool TestStrlen_a();
 static bool TestStrlen_w();
 static bool TestStrcmp_a();
 static bool TestStrcmp_w();
+static bool TestStrncmp_a();
+static bool TestStrncmp_w();
+static bool TestStrcpy_a();
+static bool TestStrcpy_w();
+static bool TestStrncpy_a();
+static bool TestStrncpy_w();
 
 bool TestLibString()
 {
     test_t tests[] = 
     {
-        { TestStrlen_a },
-        { TestStrlen_w },
-        { TestStrcmp_a },
-        { TestStrcmp_w },
+        { TestStrlen_a  },
+        { TestStrlen_w  },
+        { TestStrcmp_a  },
+        { TestStrcmp_w  },
+        { TestStrncmp_a },
+        { TestStrncmp_w },
+        { TestStrcpy_a  },
+        { TestStrcpy_w  },
+        { TestStrncpy_a },
+        { TestStrncpy_w },
     };
     for (int i = 0; i < arrlen(tests); i++)
     {
@@ -31,9 +43,9 @@ bool TestLibString()
 
 bool TestStrlen_a()
 {
-    ascii str = "ascii";
+    ANSI str = "ansi";
 
-    if (strlen_a(str) != 5)
+    if (strlen_a(str) != 4)
     {
         printf_s("strlen_a return incorrect length\n");
         return false;
@@ -52,7 +64,7 @@ bool TestStrlen_a()
 
 bool TestStrlen_w()
 {
-    utf16 str = L"unicode";
+    UTF16 str = L"unicode";
 
     if (strlen_w(str) != 7)
     {
@@ -73,8 +85,8 @@ bool TestStrlen_w()
 
 bool TestStrcmp_a()
 {
-    ascii s0 = "abc";
-    ascii s1 = "abc";
+    ANSI s0 = "abc";
+    ANSI s1 = "abc";
     if (strcmp_a(s0, s1) != 0)
     {
         printf_s("strcmp_a return incorrect value\n");
@@ -104,8 +116,8 @@ bool TestStrcmp_a()
 
 bool TestStrcmp_w()
 {
-    utf16 s0 = L"abc";
-    utf16 s1 = L"abc";
+    UTF16 s0 = L"abc";
+    UTF16 s1 = L"abc";
     if (strcmp_w(s0, s1) != 0)
     {
         printf_s("strcmp_w return incorrect value\n");
@@ -131,4 +143,28 @@ bool TestStrcmp_w()
     }
     printf_s("test strcmp_w with s0<s1 passed\n");
     return true;
+}
+
+static bool TestStrncmp_a()
+{
+}
+
+static bool TestStrncmp_w()
+{
+}
+
+static bool TestStrcpy_a()
+{
+}
+
+static bool TestStrcpy_w()
+{
+}
+
+static bool TestStrncpy_a()
+{
+}
+
+static bool TestStrncpy_w()
+{
 }
