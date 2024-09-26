@@ -9,6 +9,45 @@
 // shellcode to be incorrect.
 #pragma optimize("", off)
 
+void mem_copy(void* dst, void* src, uint size)
+{
+    if (size == 0)
+    {
+        return;
+    }
+    byte* d = (byte*)dst;
+    byte* s = (byte*)src;
+    for (uint i = 0; i < size; i++)
+    {
+        *d = *s;
+        d++;
+        s++;
+    }
+}
+
+void mem_init(void* ptr, uint num)
+{
+    if (num == 0)
+    {
+        return;
+    }
+    mem_set(ptr, 0, num);
+}
+
+void mem_set(void* ptr, byte val, uint num)
+{
+    if (num == 0)
+    {
+        return;
+    }
+    byte* addr = (byte*)ptr;
+    for (uint i = 0; i < num; i++)
+    {
+        *addr = val;
+        addr++;
+    }
+}
+
 bool mem_equal(void* dst, void* src, uint size)
 {
     if (size == 0)
@@ -29,61 +68,22 @@ bool mem_equal(void* dst, void* src, uint size)
     return true;
 }
 
-bool mem_zero(void* dst, uint size)
+bool mem_is_zero(void* ptr, uint size)
 {
     if (size == 0)
     {
         return true;
     }
-    byte* d = (byte*)dst;
+    byte* p = (byte*)ptr;
     for (uint i = 0; i < size; i++)
     {
-        if (*d != 0)
+        if (*p != 0)
         {
             return false;
         }
-        d++;
+        p++;
     }
     return true;
-}
-
-void mem_copy(void* dst, void* src, uint size)
-{
-    if (size == 0)
-    {
-        return;
-    }
-    byte* d = (byte*)dst;
-    byte* s = (byte*)src;
-    for (uint i = 0; i < size; i++)
-    {
-        *d = *s;
-        d++;
-        s++;
-    }
-}
-
-void mem_set(void* ptr, byte val, uint num)
-{
-    if (num == 0)
-    {
-        return;
-    }
-    byte* addr = (byte*)ptr;
-    for (uint i = 0; i < num; i++)
-    {
-        *addr = val;
-        addr++;
-    }
-}
-
-void mem_clean(void* ptr, uint num)
-{
-    if (num == 0)
-    {
-        return;
-    }
-    mem_set(ptr, 0, num);
 }
 
 #pragma optimize("", on)
