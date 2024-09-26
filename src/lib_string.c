@@ -9,7 +9,7 @@
 // shellcode to be incorrect.
 #pragma optimize("", off)
 
-uint strlen_a(ascii s)
+uint strlen_a(ANSI s)
 {
     uint l = 0;
     for (;;)
@@ -24,7 +24,7 @@ uint strlen_a(ascii s)
     return l;
 }
 
-uint strlen_w(utf16 s)
+uint strlen_w(UTF16 s)
 {
     uint l = 0;
     for (;;)
@@ -39,7 +39,7 @@ uint strlen_w(utf16 s)
     return l;
 }
 
-int strcmp_a(ascii a, ascii b)
+int strcmp_a(ANSI a, ANSI b)
 {
     for (;;)
     {
@@ -64,7 +64,7 @@ int strcmp_a(ascii a, ascii b)
     }
 }
 
-int strcmp_w(utf16 a, utf16 b)
+int strcmp_w(UTF16 a, UTF16 b)
 {
     for (;;)
     {
@@ -90,7 +90,7 @@ int strcmp_w(utf16 a, utf16 b)
     }
 }
 
-int strncmp_a(ascii a, ascii b, int64 n)
+int strncmp_a(ANSI a, ANSI b, int64 n)
 {
     for (int64 i = 0; i < n; i++)
     {
@@ -116,7 +116,7 @@ int strncmp_a(ascii a, ascii b, int64 n)
     return 0;
 }
 
-int strncmp_w(utf16 a, utf16 b, int64 n)
+int strncmp_w(UTF16 a, UTF16 b, int64 n)
 {
     for (int64 i = 0; i < n; i++)
     {
@@ -143,7 +143,7 @@ int strncmp_w(utf16 a, utf16 b, int64 n)
     return 0;
 }
 
-uint strcpy_a(ascii dst, ascii src)
+uint strcpy_a(ANSI dst, ANSI src)
 {
     uint l = 0;
     for (;;)
@@ -162,7 +162,7 @@ uint strcpy_a(ascii dst, ascii src)
     return l;
 }
 
-uint strcpy_w(utf16 dst, utf16 src)
+uint strcpy_w(UTF16 dst, UTF16 src)
 {
     uint l = 0;
     for (;;)
@@ -181,7 +181,7 @@ uint strcpy_w(utf16 dst, utf16 src)
     return l;
 }
 
-uint strncpy_a(ascii dst, ascii src, int64 n)
+uint strncpy_a(ANSI dst, ANSI src, int64 n)
 {
     uint l = 0;
     for (int64 i = 0; i < n; i++)
@@ -200,7 +200,7 @@ uint strncpy_a(ascii dst, ascii src, int64 n)
     return l;
 }
 
-uint strncpy_w(utf16 dst, utf16 src, int64 n)
+uint strncpy_w(UTF16 dst, UTF16 src, int64 n)
 {
     uint l = 0;
     for (int64 i = 0; i < n; i++)
