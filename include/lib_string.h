@@ -3,49 +3,49 @@
 
 #include "c_types.h"
 
-typedef byte*   ascii;
-typedef uint16* utf16;
+typedef byte*   ANSI;
+typedef uint16* UTF16;
 
-// strlen_a is used to calculate ACSII string length.
-uint strlen_a(ascii s);
+// strlen_a is used to calculate ANSI string length.
+uint strlen_a(ANSI s);
 
 // strlen_w is used to calculate Unicode string length.
-uint strlen_w(utf16 s);
+uint strlen_w(UTF16 s);
 
-// strcmp_a is used to compare two ACSII strings.
+// strcmp_a is used to compare two ANSI strings.
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
-int strcmp_a(ascii a, ascii b);
+int strcmp_a(ANSI a, ANSI b);
 
 // strcmp_w is used to compare two Unicode strings.
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
-int strcmp_w(utf16 a, utf16 b);
+int strcmp_w(UTF16 a, UTF16 b);
 
-// strncmp_a is used to compare two ACSII strings with length.
+// strncmp_a is used to compare two ANSI strings with length.
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
-int strncmp_a(ascii a, ascii b, int64 n);
+int strncmp_a(ANSI a, ANSI b, int64 n);
 
 // strncmp_w is used to compare two Unicode strings with length.
 // if a = b, return 0
 // if a > b, return 1
 // if a < b, return -1
-int strncmp_w(utf16 a, utf16 b, int64 n);
+int strncmp_w(UTF16 a, UTF16 b, int64 n);
 
-// strcpy_a is used to copy source ACSII string to destination.
-uint strcpy_a(ascii dst, ascii src);
+// strcpy_a is used to copy source ANSI string to destination.
+uint strcpy_a(ANSI dst, ANSI src);
 
 // strcpy_w is used to copy source Unicode string to destination.
-uint strcpy_w(utf16 dst, utf16 src);
+uint strcpy_w(UTF16 dst, UTF16 src);
 
-// strcpy_a is used to copy source ACSII string to destination with length.
-uint strncpy_a(ascii dst, ascii src, int64 n);
+// strcpy_a is used to copy source ANSI string to destination with length.
+uint strncpy_a(ANSI dst, ANSI src, int64 n);
 
 // strcpy_w is used to copy source Unicode string to destination with length.
-uint strncpy_w(utf16 dst, utf16 src, int64 n);
+uint strncpy_w(UTF16 dst, UTF16 src, int64 n);
 
 #endif // LIB_STRING_H
