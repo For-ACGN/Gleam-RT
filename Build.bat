@@ -26,6 +26,12 @@ echo --------extract shellcode for x86--------
 "..\Release\builder.exe"
 cd ..
 
+echo ================ clean builder output files ==============
+rd /S /Q "builder\Release"
+rd /S /Q "builder\x64"
+rd /S /Q "Release"
+rd /S /Q "x64"
+
 echo ================ generate assembly module ================
 cd script
 call asm_mod.bat
