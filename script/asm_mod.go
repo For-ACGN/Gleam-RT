@@ -17,6 +17,9 @@ func dumpASMx64() {
 	checkError(err)
 	mod := dumpBytesHex(bin)
 
+	err = os.WriteFile("../dist/GleamRT_x64.inst", mod, 0600)
+	checkError(err)
+
 	builder := bytes.Buffer{}
 	builder.WriteString(".code\r\n")
 	builder.WriteString("\r\n")
@@ -35,6 +38,9 @@ func dumpASMx86() {
 	bin, err := os.ReadFile("../dist/GleamRT_x86.bin")
 	checkError(err)
 	mod := dumpBytesHex(bin)
+
+	err = os.WriteFile("../dist/GleamRT_x86.inst", mod, 0600)
+	checkError(err)
 
 	builder := bytes.Buffer{}
 	builder.WriteString(".model tiny\r\n")
