@@ -81,6 +81,8 @@ typedef struct {
 
 // export methods and IAT hooks about Runtime
 void* RT_FindAPI(uint hash, uint key);
+void* RT_FindAPI_A(byte* module, byte* function);
+void* RT_FindAPI_W(uint16* module, byte* function);
 void  RT_Sleep(DWORD dwMilliseconds);
 
 void* RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
@@ -176,7 +178,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     uintptr moduleAddr  = address + 2500 + RandUintN(address, 128);
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
-    mem_clean(runtime, sizeof(Runtime));
+    mem_init(runtime, sizeof(Runtime));
     // store runtime options
     if (opts == NULL)
     {
@@ -263,8 +265,10 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // misc module
-    module->FindAPI = GetFuncAddr(&RT_FindAPI);
-    module->Sleep   = GetFuncAddr(&RT_Sleep);
+    module->FindAPI   = GetFuncAddr(&RT_FindAPI);
+    module->FindAPI_A = GetFuncAddr(&RT_FindAPI_A);
+    module->FindAPI_W = GetFuncAddr(&RT_FindAPI_W);
+    module->Sleep     = GetFuncAddr(&RT_Sleep);
     // random module
     module->RandBuf     = GetFuncAddr(&RandBuf);
     module->RandBool    = GetFuncAddr(&RandBool);
@@ -996,7 +1000,7 @@ bool RT_free(void* address)
     // clean the buffer data before call VirtualFree.
     void* addr = (void*)((uintptr)(address)-16);
     uint  size = *(uint*)addr;
-    mem_clean((byte*)addr, size);
+    mem_init((byte*)addr, size);
     return runtime->VirtualFree(addr, 0, MEM_RELEASE);
 }
 
@@ -1063,6 +1067,30 @@ void* RT_FindAPI(uint hash, uint key)
 }
 
 __declspec(noinline)
+void* RT_FindAPI_A(byte* module, byte* function)
+{                  
+#ifdef _WIN64
+    uint key = 0xA6C1B1E79D26D1E7;
+#elif _WIN32
+    uint key = 0x94645D8B;
+#endif
+    uint hash = HashAPI_A(module, function, key);
+    return RT_GetProcAddressByHash(hash, key, true);
+}
+
+__declspec(noinline)
+void* RT_FindAPI_W(uint16* module, byte* function)
+{
+#ifdef _WIN64
+    uint key = 0xA6C1B1E79D26D1E7;
+#elif _WIN32
+    uint key = 0x94645D8B;
+#endif
+    uint hash = HashAPI_W(module, function, key);
+    return RT_GetProcAddressByHash(hash, key, true);
+}
+
+__declspec(noinline)
 void RT_Sleep(DWORD dwMilliseconds)
 {
     Runtime* runtime = getRuntimePointer();
@@ -1100,10 +1128,10 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
     {
         return runtime->GetProcAddress(hModule, lpProcName);
     }
-    // use "mem_clean" for prevent incorrect compiler
+    // use "mem_init" for prevent incorrect compiler
     // optimize and generate incorrect shellcode
     byte module[MAX_PATH];
-    mem_clean(&module, sizeof(module));
+    mem_init(module, sizeof(module));
     // get module file name
     if (GetModuleFileName(hModule, module, sizeof(module)) == 0)
     {
@@ -1130,8 +1158,8 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
     }
     // if failed to found, use original GetProcAddress
     // must skip runtime internel methods like "RT_Method"
-    byte  preifx[4] = { 'R', 'T', '_', 0x00 };
-    ascii procName  = (ascii)lpProcName;
+    byte preifx[4] = { 'R', 'T', '_', 0x00 };
+    ANSI procName  = (ANSI)lpProcName;
     if (strncmp_a(procName, preifx, 3) == 0)
     {
         return NULL;
@@ -1668,7 +1696,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         .WaitForSingleObject = runtime->WaitForSingleObject,
     };
     // generate random key for shield
-    RandBuf(&ctx.CryptoKey[0], sizeof(ctx.CryptoKey));
+    RandBuf(ctx.CryptoKey, sizeof(ctx.CryptoKey));
     // build crypto context
     byte key[CRYPTO_KEY_SIZE];
     byte iv [CRYPTO_IV_SIZE];
@@ -1676,7 +1704,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     RandBuf(iv, CRYPTO_IV_SIZE);
     void* buf = runtime->MainMemPage;
     // encrypt main page
-    EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
+    EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, key, iv);
     // must adjust protect before call shield stub // TODO update protect
     void* addr = (void*)beginAddress;
     DWORD size = (DWORD)(endAddress - beginAddress);
@@ -1703,7 +1731,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         return ERR_RUNTIME_FLUSH_INST_CACHE;
     }
     // decrypt main page
-    DecryptBuf(buf, MAIN_MEM_PAGE_SIZE, &key[0], &iv[0]);
+    DecryptBuf(buf, MAIN_MEM_PAGE_SIZE, key, iv);
     return NO_ERROR;
 }
 
@@ -1813,7 +1841,7 @@ errno RT_Exit()
 
     // must copy structure before clean runtime
     Runtime clone;
-    mem_clean(&clone, sizeof(Runtime));
+    mem_init(&clone, sizeof(Runtime));
     mem_copy(&clone, runtime, sizeof(Runtime));
 
     // clean runtime resource
