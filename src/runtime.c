@@ -99,8 +99,9 @@ errno RT_Exit();
 
 // internal methods for Runtime submodules
 void* RT_malloc(uint size);
-void* RT_realloc(void* address, uint size);
-bool  RT_free(void* address);
+void* RT_calloc(uint num, uint size);
+void* RT_realloc(void* ptr, uint size);
+bool  RT_free(void* ptr);
 
 errno RT_lock_mods();
 errno RT_unlock_mods();
@@ -264,7 +265,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     }
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
-    // misc module
+    // generic module
     module->FindAPI   = GetFuncAddr(&RT_FindAPI);
     module->FindAPI_A = GetFuncAddr(&RT_FindAPI_A);
     module->FindAPI_W = GetFuncAddr(&RT_FindAPI_W);
@@ -544,6 +545,7 @@ static errno initSubmodules(Runtime* runtime)
         .CloseHandle           = runtime->CloseHandle,
 
         .malloc  = GetFuncAddr(&RT_malloc),
+        .calloc  = GetFuncAddr(&RT_calloc),
         .realloc = GetFuncAddr(&RT_realloc),
         .free    = GetFuncAddr(&RT_free),
         .lock    = GetFuncAddr(&RT_lock_mods),
@@ -943,6 +945,12 @@ void* RT_malloc(uint size)
 {
     Runtime* runtime = getRuntimePointer();
 
+    dbg_log("[runtime]", "malloc size: %zu", size);
+
+    if (size == 0)
+    {
+        return NULL;
+    }
     // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
     uint pageSize = ((size / runtime->PageSize) + 1) * runtime->PageSize;
@@ -951,7 +959,6 @@ void* RT_malloc(uint size)
     {
         return NULL;
     }
-
     // store the size at the head of the memory page
     // ensure the memory address is 16 bytes aligned
     byte* address = (byte*)addr;
@@ -961,44 +968,65 @@ void* RT_malloc(uint size)
 }
 
 __declspec(noinline)
-void* RT_realloc(void* address, uint size)
+void* RT_calloc(uint num, uint size)
 {
-    if (address == NULL)
+    dbg_log("[runtime]", "calloc num: %zu, size: %zu", num, size);
+
+    uint total = num * size;
+    if (total == 0)
+    {
+        return NULL;
+    }
+    void* addr = RT_malloc(total);
+    if (addr == NULL)
+    {
+        return NULL;
+    }
+    mem_init(addr, total);
+    return addr;
+}
+
+__declspec(noinline)
+void* RT_realloc(void* ptr, uint size)
+{
+    dbg_log("[runtime]", "realloc ptr: 0x%zX, size: %zu", ptr, size);
+
+    if (ptr == NULL)
     {
         return RT_malloc(size);
     }
     // allocate new memory
-    void* newAddr = RT_malloc(size);
-    if (newAddr == NULL)
+    void* newPtr = RT_malloc(size);
+    if (newPtr == NULL)
     {
-        // TODO free memory
+        RT_free(ptr);
         return NULL;
     }
     // copy data to new memory
-    uint oldSize = *(uint*)((uintptr)(address)-16);
-    mem_copy(newAddr, address, oldSize);
+    uint oldSize = *(uint*)((uintptr)(ptr)-16);
+    mem_copy(newPtr, ptr, oldSize);
     // free old memory
-    if (!RT_free(address))
+    if (!RT_free(ptr))
     {
+        RT_free(newPtr);
         return NULL;
     }
-    return newAddr;
+    return newPtr;
 }
 
-// TODO add calloc
-
 __declspec(noinline)
-bool RT_free(void* address)
+bool RT_free(void* ptr)
 {
     Runtime* runtime = getRuntimePointer();
 
-    if (address == NULL)
+    dbg_log("[runtime]", "free ptr: 0x%zX", ptr);
+
+    if (ptr == NULL)
     {
         return true;
     }
-
     // clean the buffer data before call VirtualFree.
-    void* addr = (void*)((uintptr)(address)-16);
+    void* addr = (void*)((uintptr)(ptr)-16);
     uint  size = *(uint*)addr;
     mem_init((byte*)addr, size);
     return runtime->VirtualFree(addr, 0, MEM_RELEASE);
