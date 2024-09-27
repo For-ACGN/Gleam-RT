@@ -69,18 +69,20 @@ typedef struct {
     // not erase runtime instructions after call Runtime_M.Exit
     bool NotEraseInstruction;
 
-    // not adjust current memory page protect for erase runtime
+    // not adjust current memory page protect for erase runtime.
     bool NotAdjustProtect;
 
-    // track current thread for some special executable file like Golang
+    // track current thread for test or debug mode.
     bool TrackCurrentThread;
 } Runtime_Opts;
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
-    // misc module
-    FindAPI_t FindAPI;
-    Sleep_t   Sleep;
+    // generic module
+    FindAPI_t   FindAPI;
+    FindAPI_A_t FindAPI_A;
+    FindAPI_W_t FindAPI_W;
+    Sleep_t     Sleep;
 
     // random module
     RandBuf_t     RandBuf;
