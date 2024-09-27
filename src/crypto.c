@@ -71,6 +71,7 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
     register uint32 seed6 = seeds[6];
     register uint32 seed7 = seeds[7];
 
+    byte last  = 170;
     uint limit = size - (size % PARALLEL_LEVEL);
     for (uint i = 0; i < limit; i += PARALLEL_LEVEL)
     {
@@ -178,6 +179,19 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         b6 = sBox[b6];
         b7 = sBox[b7];
 
+        // diffuse cipher data
+        b0 ^= last;
+        b1 ^= b0;
+        b2 ^= b1;
+        b3 ^= b2;
+        b4 ^= b3;
+        b5 ^= b4;
+        b6 ^= b5;
+        b7 ^= b6;
+
+        // update the last
+        last = b7;
+
         // store cipher data
         block = 0;
         block += (uint64)(b0) << 0;
@@ -238,6 +252,12 @@ static void encryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         // substitution
         b = sBox[b];
 
+        // diffuse cipher data
+        b ^= last;
+
+        // update the last
+        last = b;
+
         // store cipher data
         buf[i] = b;
     }
@@ -289,6 +309,7 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
     register uint32 seed6 = seeds[6];
     register uint32 seed7 = seeds[7];
 
+    byte last  = 170;
     uint limit = size - (size % PARALLEL_LEVEL);
     for (uint i = 0; i < limit; i += PARALLEL_LEVEL)
     {
@@ -312,6 +333,22 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
         register byte b5 = (byte)(block >> 40);
         register byte b6 = (byte)(block >> 48);
         register byte b7 = (byte)(block >> 56);
+
+        // record cipher data
+        byte lastc = b7;
+
+        // diffuse cipher data
+        b7 ^= b6;
+        b6 ^= b5;
+        b5 ^= b4;
+        b4 ^= b3;
+        b3 ^= b2;
+        b2 ^= b1;
+        b1 ^= b0;
+        b0 ^= last;
+
+        // update the last
+        last = lastc;
 
         // substitution
         b0 = sBox[b0];
@@ -440,6 +477,15 @@ static void decryptBuf(byte* buf, uint size, byte* key, byte* iv, byte* sBox)
 
         // load cipher data
         byte b = buf[i];
+
+        // record cipher data
+        byte lastc = b;
+
+        // diffuse cipher data
+        b ^= last;
+
+        // update the last
+        last = lastc;
 
         // substitution
         b = sBox[b];
