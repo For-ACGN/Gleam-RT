@@ -58,7 +58,7 @@ typedef struct {
     HANDLE hProcess;    // for simulate kernel32.Sleep
     HANDLE hMutex;      // global method mutex
 
-    // sleep event trigger
+    // about event handler
     HANDLE hMutexSleep;  // sleep method mutex
     HANDLE hEventArrive; // arrive event
     HANDLE hEventDone;   // finish event
@@ -66,7 +66,7 @@ typedef struct {
     uint32 SleepTime;    // store sleep argument
     errno  ReturnErrno;  // store error number
     HANDLE hMutexEvent;  // event data mutex
-    HANDLE hThread;      // trigger thread
+    HANDLE hThreadEvent; // event handler thread
 
     // IAT hooks about GetProcAddress
     Hook IATHooks[22];
@@ -139,7 +139,7 @@ static void* getRuntimeMethods(byte* module, LPCSTR lpProcName);
 static void* getLazyAPIHook(Runtime* runtime, void* proc);
 static void* replaceToIATHook(Runtime* runtime, void* proc);
 
-static void  trigger();
+static void  eventHandler();
 static errno processEvent(Runtime* runtime, bool* exit);
 static errno sleepHR(Runtime* runtime, uint32 milliseconds);
 static errno hide(Runtime* runtime);
@@ -148,7 +148,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds);
 
 static void  eraseRuntimeMethods(Runtime* runtime);
 static errno cleanRuntime(Runtime* runtime);
-static errno exitTrigger(Runtime* runtime);
+static errno exitEventHandler(Runtime* runtime);
 static errno closeHandles(Runtime* runtime);
 static void  eraseMemory(uintptr address, uintptr size);
 static void  rt_epilogue();
@@ -247,14 +247,14 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     {
         errno = ERR_RUNTIME_FLUSH_INST;
     }
-    // start sleep event trigger
+    // start event handler
     if (errno == NO_ERROR)
     {
-        void* addr = GetFuncAddr(&trigger);
-        runtime->hThread = runtime->ThreadTracker->New(addr, NULL, false);
-        if (runtime->hThread == NULL)
+        void* addr = GetFuncAddr(&eventHandler);
+        runtime->hThreadEvent = runtime->ThreadTracker->New(addr, NULL, false);
+        if (runtime->hThreadEvent == NULL)
         {
-            errno = ERR_RUNTIME_START_TRIGGER;
+            errno = ERR_RUNTIME_START_EVENT_HANDLER;
         }
     }
     if (errno != NO_ERROR)
@@ -265,24 +265,10 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     }
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
-    // generic module
+    // about hash api
     module->FindAPI   = GetFuncAddr(&RT_FindAPI);
     module->FindAPI_A = GetFuncAddr(&RT_FindAPI_A);
     module->FindAPI_W = GetFuncAddr(&RT_FindAPI_W);
-    module->Sleep     = GetFuncAddr(&RT_Sleep);
-    // random module
-    module->RandBuf     = GetFuncAddr(&RandBuf);
-    module->RandBool    = GetFuncAddr(&RandBool);
-    module->RandInt64   = GetFuncAddr(&RandInt64);
-    module->RandUint64  = GetFuncAddr(&RandUint64);
-    module->RandInt64N  = GetFuncAddr(&RandInt64N);
-    module->RandUint64N = GetFuncAddr(&RandUint64N);
-    // crypto module
-    module->Encrypt = GetFuncAddr(&EncryptBuf);
-    module->Decrypt = GetFuncAddr(&DecryptBuf);
-    // compress module
-    module->Compress   = GetFuncAddr(&Compress);
-    module->Decompress = GetFuncAddr(&Decompress);
     // library tracker
     module->LoadLibraryA   = runtime->LibraryTracker->LoadLibraryA;
     module->LoadLibraryW   = runtime->LibraryTracker->LoadLibraryW;
@@ -298,6 +284,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // thread tracker
     module->NewThread  = runtime->ThreadTracker->New;
     module->ExitThread = runtime->ThreadTracker->Exit;
+    module->Sleep      = GetFuncAddr(&RT_Sleep);
     // argument store
     module->GetArgValue   = runtime->ArgumentStore->GetValue;
     module->GetArgPointer = runtime->ArgumentStore->GetPointer;
@@ -307,7 +294,20 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->GetProcAddressByName   = GetFuncAddr(&RT_GetProcAddressByName);
     module->GetProcAddressByHash   = GetFuncAddr(&RT_GetProcAddressByHash);
     module->GetProcAddressOriginal = GetFuncAddr(&RT_GetProcAddressOriginal);
-    // runtime core
+    // random module
+    module->RandBuf     = GetFuncAddr(&RandBuf);
+    module->RandBool    = GetFuncAddr(&RandBool);
+    module->RandInt64   = GetFuncAddr(&RandInt64);
+    module->RandUint64  = GetFuncAddr(&RandUint64);
+    module->RandInt64N  = GetFuncAddr(&RandInt64N);
+    module->RandUint64N = GetFuncAddr(&RandUint64N);
+    // crypto module
+    module->Encrypt = GetFuncAddr(&EncryptBuf);
+    module->Decrypt = GetFuncAddr(&DecryptBuf);
+    // compress module
+    module->Compress   = GetFuncAddr(&Compress);
+    module->Decompress = GetFuncAddr(&Decompress);
+    // runtime core methods
     module->SleepHR = GetFuncAddr(&RT_SleepHR);
     module->Hide    = GetFuncAddr(&RT_Hide);
     module->Recover = GetFuncAddr(&RT_Recover);
@@ -344,7 +344,8 @@ static void* allocRuntimeMemPage()
     {
         return NULL;
     }
-    LPVOID addr = virtualAlloc(0, MAIN_MEM_PAGE_SIZE, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    SIZE_T size = MAIN_MEM_PAGE_SIZE + (1 + RandUintN(0, 16)) * 4096;
+    LPVOID addr = virtualAlloc(NULL, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
@@ -784,8 +785,8 @@ static bool flushInstructionCache(Runtime* runtime)
 static errno cleanRuntime(Runtime* runtime)
 {
     errno err = NO_ERROR;
-    // exit trigger thread
-    errno enetg = exitTrigger(runtime);
+    // exit event handler
+    errno enetg = exitEventHandler(runtime);
     if (enetg != NO_ERROR && err == NO_ERROR)
     {
         err = enetg;
@@ -811,9 +812,9 @@ static errno cleanRuntime(Runtime* runtime)
     return err;
 }
 
-static errno exitTrigger(Runtime* runtime)
+static errno exitEventHandler(Runtime* runtime)
 {
-    if (runtime->hThread == NULL)
+    if (runtime->hThreadEvent == NULL)
     {
         return NO_ERROR;
     }
@@ -832,19 +833,19 @@ static errno exitTrigger(Runtime* runtime)
             errno = ERR_RUNTIME_UNLOCK_EVENT;
             break;
         }
-        // notice trigger
+        // notice event handler
         if (!runtime->SetEvent(runtime->hEventArrive))
         {
-            errno = ERR_RUNTIME_NOTICE_TRIGGER;
+            errno = ERR_RUNTIME_NOTICE_EVENT_HANDLER;
             break;
         }
-        // wait trigger process event
+        // wait handler process event
         if (runtime->WaitForSingleObject(runtime->hEventDone, INFINITE) != WAIT_OBJECT_0)
         {
-            errno = ERR_RUNTIME_WAIT_TRIGGER;
+            errno = ERR_RUNTIME_WAIT_EVENT_HANDLER;
             break;
         }
-        // receive return errno
+        // receive errno
         if (runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE) != WAIT_OBJECT_0)
         {
             errno = ERR_RUNTIME_LOCK_EVENT;
@@ -868,12 +869,12 @@ static errno exitTrigger(Runtime* runtime)
     {
         return errno;
     }
-    // wait trigger thread exit
-    if (runtime->WaitForSingleObject(runtime->hThread, INFINITE) != WAIT_OBJECT_0)
+    // wait event handler thread exit
+    if (runtime->WaitForSingleObject(runtime->hThreadEvent, INFINITE) != WAIT_OBJECT_0)
     {
         if (errno == NO_ERROR)
         {
-            errno = ERR_RUNTIME_CLEAN_EXIT_TRIGGER;
+            errno = ERR_RUNTIME_EXIT_EVENT_HANDLER;
         }
     }
     return errno;
@@ -890,13 +891,13 @@ static errno closeHandles(Runtime* runtime)
     } handle;
     handle list[] = 
     {
-        { runtime->hProcess,     ERR_RUNTIME_CLEAN_H_PROCESS      },
-        { runtime->hMutex,       ERR_RUNTIME_CLEAN_H_MUTEX        },
-        { runtime->hMutexSleep,  ERR_RUNTIME_CLEAN_H_MUTEX_SLEEP  },
-        { runtime->hEventArrive, ERR_RUNTIME_CLEAN_H_EVENT_ARRIVE },
-        { runtime->hEventDone,   ERR_RUNTIME_CLEAN_H_EVENT_DONE   },
-        { runtime->hMutexEvent,  ERR_RUNTIME_CLEAN_H_MUTEX_EVENT  },
-        { runtime->hThread,      ERR_RUNTIME_CLEAN_H_THREAD       },
+        { runtime->hProcess,     ERR_RUNTIME_CLEAN_H_PROCESS       },
+        { runtime->hMutex,       ERR_RUNTIME_CLEAN_H_MUTEX         },
+        { runtime->hMutexSleep,  ERR_RUNTIME_CLEAN_H_MUTEX_SLEEP   },
+        { runtime->hEventArrive, ERR_RUNTIME_CLEAN_H_EVENT_ARRIVE  },
+        { runtime->hEventDone,   ERR_RUNTIME_CLEAN_H_EVENT_DONE    },
+        { runtime->hMutexEvent,  ERR_RUNTIME_CLEAN_H_MUTEX_EVENT   },
+        { runtime->hThreadEvent, ERR_RUNTIME_CLEAN_H_EVENT_HANDLER },
     };
     errno errno = NO_ERROR;
     for (int i = 0; i < arrlen(list); i++)
@@ -954,7 +955,7 @@ void* RT_malloc(uint size)
     // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
     uint pageSize = ((size / runtime->PageSize) + 1) * runtime->PageSize;
-    void* addr = runtime->VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    void* addr = runtime->VirtualAlloc(NULL, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
@@ -1450,16 +1451,16 @@ errno RT_SleepHR(DWORD dwMilliseconds)
             errno = ERR_RUNTIME_UNLOCK_EVENT;
             break;
         }
-        // notice trigger
+        // notice event handler
         if (!runtime->SetEvent(runtime->hEventArrive))
         {
-            errno = ERR_RUNTIME_NOTICE_TRIGGER;
+            errno = ERR_RUNTIME_NOTICE_EVENT_HANDLER;
             break;
         }
-        // wait trigger process event
+        // wait handler process event
         if (runtime->WaitForSingleObject(runtime->hEventDone, INFINITE) != WAIT_OBJECT_0)
         {
-            errno = ERR_RUNTIME_WAIT_TRIGGER;
+            errno = ERR_RUNTIME_WAIT_EVENT_HANDLER;
             break;
         }
         // receive return errno
@@ -1491,29 +1492,20 @@ errno RT_SleepHR(DWORD dwMilliseconds)
 }
 
 __declspec(noinline)
-static void trigger()
+static void eventHandler()
 {
     Runtime* runtime = getRuntimePointer();
-
-    uint64 maxSleep  = RandUint((uint64)runtime);
-    uint32 waitEvent = WAIT_OBJECT_0;
 
     bool  exit  = false;
     errno errno = NO_ERROR;
 
     for (;;)
     {
-        // select random maximum event trigger time.
-        maxSleep = RandUint(maxSleep);
-        uint32 sleepMS = (300 + maxSleep % 300) * 1000;
-        waitEvent = runtime->WaitForSingleObject(runtime->hEventArrive, sleepMS);
+        uint32 waitEvent = runtime->WaitForSingleObject(runtime->hEventArrive, INFINITE);
         switch (waitEvent)
         {
         case WAIT_OBJECT_0:
             errno = processEvent(runtime, &exit);
-            break;
-        case WAIT_TIMEOUT: // force trigger sleep
-            errno = sleepHR(runtime, 1000); 
             break;
         default:
             return;
@@ -1538,14 +1530,16 @@ static void trigger()
         {
             return;
         }
-        // check is exit event
+        // check is the exit event
         if (exit)
         {
+            dbg_log("[runtime]", "exit event handler");
             return;
         }
-        // check error for exit trigger
+        // check error for exit event handler
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
+            dbg_log("[runtime]", "exit event handler with errno: 0x%X", errno);
             return;
         }
     }
@@ -1554,20 +1548,18 @@ static void trigger()
 static errno processEvent(Runtime* runtime, bool* exit)
 {
     // get event type and arguments
-    uint32 waitEvent = WAIT_OBJECT_0;
-    waitEvent = runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE);
+    uint32 waitEvent = runtime->WaitForSingleObject(runtime->hMutexEvent, INFINITE);
     if (waitEvent != WAIT_OBJECT_0)
     {
-        *exit = true;
         return ERR_RUNTIME_LOCK_EVENT;
     }
     uint32 eventType = runtime->EventType;
     uint32 sleepTime = runtime->SleepTime;
     if (!runtime->ReleaseMutex(runtime->hMutexEvent))
     {
-        *exit = true;
         return ERR_RUNTIME_UNLOCK_EVENT;
     }
+    // process event
     switch (eventType)
     {
     case EVENT_TYPE_SLEEP:
@@ -1893,9 +1885,9 @@ errno RT_Exit()
         addr = init;
     }
 
-    // recover instructions for generate shellcode
-    // must call it after call cleanRuntime, otherwise
-    // trigger will get the incorrect runtime address
+    // recover instructions for generate shellcode must
+    // call it after call cleanRuntime, otherwise event
+    // handler will get the incorrect runtime address
     if (runtime->Options.NotEraseInstruction)
     {
         if (!recoverRuntimePointer(stub) && err == NO_ERROR)
