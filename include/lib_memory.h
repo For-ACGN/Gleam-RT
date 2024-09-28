@@ -17,8 +17,14 @@ void mem_init(void* ptr, uint num);
 // mem_set is used to fill the memory with value.
 void mem_set(void* ptr, byte val, uint num);
 
+// mem_cmp is used to compare memory data with size.
+// if a = b, return 0
+// if a > b, return 1
+// if a < b, return -1
+int mem_cmp(void* a, void* b, uint size);
+
 // mem_equal is used to compare the memory is equal.
-bool mem_equal(void* dst, void* src, uint size);
+bool mem_equal(void* a, void* b, uint size);
 
 // mem_zero is used to check the memory are all zero.
 bool mem_is_zero(void* ptr, uint size);
