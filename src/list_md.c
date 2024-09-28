@@ -62,12 +62,11 @@ bool List_Insert(List* list, void* data)
     {
         i = list->Len;
     }
-    // search empty for insert item.
-    byte* addr;
+    // search empty for insert item
     for (; i < list->Cap; i++)
     {
-        addr = ((byte*)(list->Data) + i * list->Unit);
-        bool empty = true;
+        byte* addr  = ((byte*)(list->Data) + i * list->Unit);
+        bool  empty = true;
         for (uint j = 0; j < list->Unit; j++)
         {
             if (*(addr + j) == 0)
@@ -100,7 +99,7 @@ bool List_Delete(List* list, uint index)
         return false;
     }
     byte* addr = (byte*)(list->Data) + index * list->Unit;
-    mem_clean(addr, list->Unit);
+    mem_init(addr, list->Unit);
     list->Len--;
     return true;
 }
@@ -117,7 +116,7 @@ bool List_Find(List* list, void* data, uint equal, uint* idx)
     for (uint num = 0; num < list->Len; index++)
     {
         void* item = List_Get(list, index);
-        if (mem_zero(item, equLen))
+        if (mem_is_zero(item, equLen))
         {
             continue;
         }
@@ -152,10 +151,10 @@ bool List_Resize(List* list, uint cap)
         data = list->ctx.realloc(list->Data, size);
         void* addr = (void*)((uintptr)data + oldSize);
         uint  num  = size - oldSize;
-        mem_clean(addr, num);
+        mem_init(addr, num);
     } else {
         data = list->ctx.malloc(size);
-        mem_clean(data, size);
+        mem_init(data, size);
     }
     if (data == NULL)
     {
