@@ -6,6 +6,7 @@
 static bool TestMem_copy();
 static bool TestMem_init();
 static bool TestMem_set();
+static bool TestMem_cmp();
 static bool TestMem_equal();
 static bool TestMem_is_zero();
 
@@ -16,6 +17,7 @@ bool TestLibMemory()
         { TestMem_copy    },
         { TestMem_init    },
         { TestMem_set     },
+        { TestMem_cmp     },
         { TestMem_equal   },
         { TestMem_is_zero },
     };
@@ -71,6 +73,35 @@ static bool TestMem_set()
         return false;
     }
     printf_s("test mem_set passed\n");
+    return true;
+}
+
+static bool TestMem_cmp()
+{
+    byte a0[4] = { 1, 2, 3, 4 };
+    byte b0[4] = { 1, 2, 3, 4 };
+    if (mem_cmp(a0, b0, sizeof(a0)) != 0)
+    {
+        printf_s("mem_cmp process invalid data\n");
+        return false;
+    }
+
+    byte a1[4] = { 1, 2, 3, 5 };
+    byte b1[4] = { 1, 2, 3, 4 };
+    if (mem_cmp(a1, b1, sizeof(a1)) != 1)
+    {
+        printf_s("mem_cmp process invalid data\n");
+        return false;
+    }
+
+    byte a2[4] = { 1, 2, 3, 4 };
+    byte b2[4] = { 1, 2, 3, 5 };
+    if (mem_cmp(a2, b2, sizeof(a2)) != -1)
+    {
+        printf_s("mem_cmp process invalid data\n");
+        return false;
+    }
+    printf_s("test mem_cmp passed\n");
     return true;
 }
 
