@@ -40,30 +40,56 @@ void mem_set(void* ptr, byte val, uint num)
     {
         return;
     }
-    byte* addr = (byte*)ptr;
+    byte* p = (byte*)ptr;
     for (uint i = 0; i < num; i++)
     {
-        *addr = val;
-        addr++;
+        *p = val;
+        p++;
     }
 }
 
-bool mem_equal(void* dst, void* src, uint size)
+int mem_cmp(void* a, void* b, uint size)
+{
+    if (size == 0)
+    {
+        return 0;
+    }
+    byte* p0 = (byte*)a;
+    byte* p1 = (byte*)b;
+    for (uint i = 0; i < size; i++)
+    {
+        if (*p0 == *p1)
+        {
+            p0++;
+            p1++;
+            continue;
+        }
+        if (*p0 > *p1)
+        {
+            return 1;
+        } else {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+bool mem_equal(void* a, void* b, uint size)
 {
     if (size == 0)
     {
         return true;
     }
-    byte* d = (byte*)dst;
-    byte* s = (byte*)src;
+    byte* p0 = (byte*)a;
+    byte* p1 = (byte*)b;
     for (uint i = 0; i < size; i++)
     {
-        if (*d != *s)
+        if (*p0 != *p1)
         {
             return false;
         }
-        d++;
-        s++;
+        p0++;
+        p1++;
     }
     return true;
 }
