@@ -145,10 +145,10 @@ void* FindAPI(uint hash, uint key)
                 }
                 src++;
             }
-            // use "mem_clean" for prevent incorrect compiler
+            // use "mem_init" for prevent incorrect compiler
             // optimize and generate incorrect shellcode
             byte dllName[512];
-            mem_clean(&dllName, sizeof(dllName));
+            mem_init(dllName, sizeof(dllName));
             // prevent array bound when call mem_copy
             if (dot > 500)
             {
