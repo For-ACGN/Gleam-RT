@@ -60,7 +60,7 @@ static bool TestArgument_GetValue()
         return false;
     }
     arg1[12] = 0x00; // set string end
-    if (strcmp_a(&arg1[0], "aaaabbbbccc") != 0)
+    if (strcmp_a(arg1, "aaaabbbbccc") != 0)
     {
         printf_s("argument 1 is invalid data\n");
         return false;
