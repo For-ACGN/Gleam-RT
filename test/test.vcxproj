@@ -37,6 +37,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test_main.c" />
+	<ClCompile Include="lib_memory_test.c" />
     <ClCompile Include="lib_string_test.c" />
     <ClCompile Include="crypto_test.c" />
     <ClCompile Include="random_test.c" />
@@ -65,7 +66,7 @@
   </ItemGroup>
   <ItemGroup>
     <MASM Include="..\asm\align_stub.asm" />
-	<MASM Include="..\asm\opts_stub.asm" />
+    <MASM Include="..\asm\opts_stub.asm" />
     <MASM Include="..\asm\args_stub.asm" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
