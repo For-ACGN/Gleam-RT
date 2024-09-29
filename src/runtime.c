@@ -46,6 +46,8 @@ typedef struct {
     CreateEventA_t          CreateEventA;
     SetEvent_t              SetEvent;
     ResetEvent_t            ResetEvent;
+    CreateWaitableTimerW_t  CreateWaitableTimerW;
+    SetWaitableTimer_t      SetWaitableTimer;
     WaitForSingleObject_t   WaitForSingleObject;
     DuplicateHandle_t       DuplicateHandle;
     CloseHandle_t           CloseHandle;
@@ -55,8 +57,8 @@ typedef struct {
     void*  MainMemPage; // store all structures
     void*  Epilogue;    // store shellcode epilogue
     uint32 PageSize;    // for memory management
-    HANDLE hProcess;    // for simulate kernel32.Sleep
     HANDLE hMutex;      // global method mutex
+    HANDLE hTimer;      // waitable timer for sleep
 
     // about event handler
     HANDLE hMutexSleep;  // sleep method mutex
@@ -69,7 +71,7 @@ typedef struct {
     HANDLE hThreadEvent; // event handler thread
 
     // IAT hooks about GetProcAddress
-    Hook IATHooks[22];
+    Hook IATHooks[24];
 
     // submodules
     LibraryTracker_M*  LibraryTracker;
@@ -381,6 +383,8 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0xDDB64F7D0952649B, 0x7F49C6179CD1D05C }, // CreateEventA
         { 0x4A7C9AD08B398C90, 0x4DA8D0C65ECE8AB5 }, // SetEvent
         { 0xDCC7DDE90F8EF5E5, 0x779EBCBF154A323E }, // ResetEvent
+        { 0xA793213B60B4651D, 0x4CB3588ECF3B0A12 }, // CreateWaitableTimerW
+        { 0x1C438D7C33D36592, 0xB8818ECC97728D1F }, // SetWaitableTimer
         { 0xA524CD56CF8DFF7F, 0x5519595458CD47C8 }, // WaitForSingleObject
         { 0xF7A5A49D19409FFC, 0x6F23FAA4C20FF4D3 }, // DuplicateHandle
         { 0xA25F7449D6939A01, 0x85D37F1D89B30D2E }, // CloseHandle
@@ -398,6 +402,8 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0x013C9D2B, 0x5A4D045A }, // CreateEventA
         { 0x1F65B288, 0x8502DDE2 }, // SetEvent
         { 0xCB15B6B4, 0x6D95B453 }, // ResetEvent
+        { 0x7AAC7586, 0xB30E1315 }, // CreateWaitableTimerW
+        { 0x3F987BDE, 0x01C8C945 }, // SetWaitableTimer
         { 0xC21AB03D, 0xED3AAF22 }, // WaitForSingleObject
         { 0x0E7ED8B9, 0x025067E9 }, // DuplicateHandle
         { 0x60E108B2, 0x3C2DFF52 }, // CloseHandle
@@ -424,10 +430,12 @@ static bool initRuntimeAPI(Runtime* runtime)
     runtime->CreateEventA          = list[0x07].proc;
     runtime->SetEvent              = list[0x08].proc;
     runtime->ResetEvent            = list[0x09].proc;
-    runtime->WaitForSingleObject   = list[0x0A].proc;
-    runtime->DuplicateHandle       = list[0x0B].proc;
-    runtime->CloseHandle           = list[0x0C].proc;
-    runtime->GetProcAddress        = list[0x0D].proc;
+    runtime->CreateWaitableTimerW  = list[0x0A].proc;
+    runtime->SetWaitableTimer      = list[0x0B].proc;
+    runtime->WaitForSingleObject   = list[0x0C].proc;
+    runtime->DuplicateHandle       = list[0x0D].proc;
+    runtime->CloseHandle           = list[0x0E].proc;
+    runtime->GetProcAddress        = list[0x0F].proc;
     return true;
 }
 
@@ -479,15 +487,6 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     SYSTEM_INFO sysInfo;
     runtime->GetSystemInfo(&sysInfo);
     runtime->PageSize = sysInfo.PageSize;
-    // duplicate current process handle
-    HANDLE dupHandle;
-    if (!runtime->DuplicateHandle(
-        CURRENT_PROCESS, CURRENT_PROCESS, CURRENT_PROCESS, &dupHandle,
-        0, false, DUPLICATE_SAME_ACCESS
-    )){
-        return ERR_RUNTIME_DUP_PROCESS_HANDLE;
-    }
-    runtime->hProcess = dupHandle;
     // create global mutex
     HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
     if (hMutex == NULL)
@@ -891,8 +890,8 @@ static errno closeHandles(Runtime* runtime)
     } handle;
     handle list[] = 
     {
-        { runtime->hProcess,     ERR_RUNTIME_CLEAN_H_PROCESS       },
         { runtime->hMutex,       ERR_RUNTIME_CLEAN_H_MUTEX         },
+        { runtime->hTimer,       ERR_RUNTIME_CLEAN_H_TIMER         },
         { runtime->hMutexSleep,  ERR_RUNTIME_CLEAN_H_MUTEX_SLEEP   },
         { runtime->hEventArrive, ERR_RUNTIME_CLEAN_H_EVENT_ARRIVE  },
         { runtime->hEventDone,   ERR_RUNTIME_CLEAN_H_EVENT_DONE    },
@@ -1130,15 +1129,39 @@ void RT_Sleep(DWORD dwMilliseconds)
     }
 
     // copy API address and handle
-    WaitForSingleObject_t wait = runtime->WaitForSingleObject;
-    HANDLE hProcess = runtime->hProcess;
+    CreateWaitableTimerW_t create = runtime->CreateWaitableTimerW;
+    SetWaitableTimer_t     set    = runtime->SetWaitableTimer;
+    WaitForSingleObject_t  wait   = runtime->WaitForSingleObject;
+    CloseHandle_t          close  = runtime->CloseHandle;
 
     if (!rt_unlock())
     {
         return;
     }
 
-    wait(hProcess, dwMilliseconds);
+    HANDLE hTimer = create(NULL, false, NULL);
+    if (hTimer == NULL)
+    {
+        return;
+    }
+    for (;;)
+    {
+        if (dwMilliseconds < 10)
+        {
+            dwMilliseconds = 10;
+        }
+        int64 dueTime = -((int64)dwMilliseconds * 1000 * 10);
+        if (!set(hTimer, &dueTime, 0, NULL, NULL, true))
+        {
+            break;
+        }
+        if (wait(hTimer, INFINITE) != WAIT_OBJECT_0)
+        {
+            break;
+        }
+        break;
+    }
+    close(hTimer);
 }
 
 __declspec(noinline)
@@ -1608,6 +1631,16 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
         break;
     }
 
+    // clean created waitable timer
+    if (runtime->hTimer != NULL)
+    {
+        if (!runtime->CloseHandle(runtime->hTimer) && errno == NO_ERROR)
+        {
+            errno = ERR_RUNTIME_CLOSE_WAITABLE_TIMER;
+        }
+        runtime->hTimer = NULL;
+    }
+
     err = RT_unlock_mods();
     if (err != NO_ERROR)
     {
@@ -1699,7 +1732,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     // store core Windows API before encrypt
     FlushInstructionCache_t flushInstCache = runtime->FlushInstructionCache;
     VirtualProtect_t        virtualProtect = runtime->VirtualProtect;
-    // build shield context before encrypt
+    // calculate begin and end address
     uintptr beginAddress = (uintptr)(runtime->Options.BootInstAddress);
     uintptr runtimeAddr  = (uintptr)(GetFuncAddr(&InitRuntime));
     if (beginAddress == 0 || beginAddress > runtimeAddr)
@@ -1707,11 +1740,23 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         beginAddress = runtimeAddr;
     }
     uintptr endAddress = (uintptr)(runtime->Epilogue);
+    // create waitable timer
+    HANDLE hTimer = runtime->CreateWaitableTimerW(NULL, false, NULL);
+    if (hTimer == NULL)
+    {
+        return ERR_RUNTIME_CREATE_WAITABLE_TIMER;
+    }
+    runtime->hTimer = hTimer;
+    int64 dueTime = -((int64)milliseconds * 1000 * 10);
+    if (!runtime->SetWaitableTimer(hTimer, &dueTime, 0, NULL, NULL, true))
+    {
+        return ERR_RUNTIME_SET_WAITABLE_TIMER;
+    }
+    // build shield context 
     Shield_Ctx ctx = {
         .BeginAddress = beginAddress,
         .EndAddress   = endAddress,
-        .SleepTime    = milliseconds,
-        .hProcess     = runtime->hProcess,
+        .hTimer       = hTimer,
 
         .WaitForSingleObject = runtime->WaitForSingleObject,
     };
@@ -1736,6 +1781,7 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
     // call shield!!!
     if (!DefenseRT(&ctx))
     {
+        // TODO if failed to defense, need to recover them
         return ERR_RUNTIME_DEFENSE_RT;
     }
     // TODO remove this call, stub will adjust it
