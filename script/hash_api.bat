@@ -15,6 +15,8 @@ hash_api -fmt 64 -conc -func ReleaseMutex
 hash_api -fmt 64 -conc -func CreateEventA
 hash_api -fmt 64 -conc -func SetEvent
 hash_api -fmt 64 -conc -func ResetEvent
+hash_api -fmt 64 -conc -func CreateWaitableTimerW
+hash_api -fmt 64 -conc -func SetWaitableTimer
 hash_api -fmt 64 -conc -func WaitForSingleObject
 hash_api -fmt 64 -conc -func DuplicateHandle
 hash_api -fmt 64 -conc -func CloseHandle
@@ -34,10 +36,6 @@ echo [Runtime IAT Hooks]
 hash_api -fmt 64 -conc -func GetProcAddress
 hash_api -fmt 64 -conc -func ExitProcess
 hash_api -fmt 64 -conc -func Sleep
-hash_api -fmt 64 -conc -mod msvcrt.dll -func malloc
-hash_api -fmt 64 -conc -mod msvcrt.dll -func calloc
-hash_api -fmt 64 -conc -mod msvcrt.dll -func realloc
-hash_api -fmt 64 -conc -mod msvcrt.dll -func free
 echo.
 
 echo [Library Tracker]
@@ -56,6 +54,10 @@ hash_api -fmt 64 -conc -func VirtualProtect
 hash_api -fmt 64 -conc -func VirtualQuery
 hash_api -fmt 64 -conc -func VirtualLock
 hash_api -fmt 64 -conc -func VirtualUnlock
+hash_api -fmt 64 -conc -mod msvcrt.dll -func malloc
+hash_api -fmt 64 -conc -mod msvcrt.dll -func calloc
+hash_api -fmt 64 -conc -mod msvcrt.dll -func realloc
+hash_api -fmt 64 -conc -mod msvcrt.dll -func free
 echo.
 
 echo [Thread Tracker]
@@ -92,6 +94,8 @@ hash_api -fmt 32 -conc -func ReleaseMutex
 hash_api -fmt 32 -conc -func CreateEventA
 hash_api -fmt 32 -conc -func SetEvent
 hash_api -fmt 32 -conc -func ResetEvent
+hash_api -fmt 32 -conc -func CreateWaitableTimerW
+hash_api -fmt 32 -conc -func SetWaitableTimer
 hash_api -fmt 32 -conc -func WaitForSingleObject
 hash_api -fmt 32 -conc -func DuplicateHandle
 hash_api -fmt 32 -conc -func CloseHandle
@@ -111,10 +115,6 @@ echo [Runtime IAT Hooks]
 hash_api -fmt 32 -conc -func GetProcAddress
 hash_api -fmt 32 -conc -func ExitProcess
 hash_api -fmt 32 -conc -func Sleep
-hash_api -fmt 32 -conc -mod msvcrt.dll -func malloc
-hash_api -fmt 32 -conc -mod msvcrt.dll -func calloc
-hash_api -fmt 32 -conc -mod msvcrt.dll -func realloc
-hash_api -fmt 32 -conc -mod msvcrt.dll -func free
 echo.
 
 echo [Library Tracker]
@@ -133,6 +133,10 @@ hash_api -fmt 32 -conc -func VirtualProtect
 hash_api -fmt 32 -conc -func VirtualQuery
 hash_api -fmt 32 -conc -func VirtualLock
 hash_api -fmt 32 -conc -func VirtualUnlock
+hash_api -fmt 32 -conc -mod msvcrt.dll -func malloc
+hash_api -fmt 32 -conc -mod msvcrt.dll -func calloc
+hash_api -fmt 32 -conc -mod msvcrt.dll -func realloc
+hash_api -fmt 32 -conc -mod msvcrt.dll -func free
 echo.
 
 echo [Thread Tracker]
