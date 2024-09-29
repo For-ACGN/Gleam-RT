@@ -10,6 +10,7 @@ Runtime_M* runtime;
 // define unit tests
 #pragma warning(push)
 #pragma warning(disable: 4276)
+bool TestLibMemory();
 bool TestLibString();
 bool TestRandom();
 bool TestCrypto();
@@ -25,6 +26,7 @@ typedef struct { byte* Name; test_t Test; } unit;
 
 static unit tests[] = 
 {
+    { "Lib_Memory", TestLibMemory },
     { "Lib_String", TestLibString },
     { "Random",     TestRandom    },
     { "Crypto",     TestCrypto    },
