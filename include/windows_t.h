@@ -375,6 +375,18 @@ typedef BOOL (*ResetEvent_t)
     HANDLE hEvent
 );
 
+typedef HANDLE (*CreateWaitableTimerW_t)
+(
+    POINTER lpTimerAttributes, BOOL bManualReset, LPCWSTR lpTimerName
+);
+
+typedef BOOL (*SetWaitableTimer_t)
+(
+    HANDLE hTimer, LONGLONG* lpDueTime, LONG lPeriod,
+    LPVOID pfnCompletionRoutine, LPVOID lpArgToCompletionRoutine,
+    BOOL fResume
+);
+
 typedef DWORD (*WaitForSingleObject_t)
 (
     HANDLE hHandle, DWORD dwMilliseconds
