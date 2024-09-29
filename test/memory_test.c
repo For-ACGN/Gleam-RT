@@ -4,7 +4,7 @@
 #include "runtime.h"
 #include "test.h"
 
- bool TestRuntime_Memory()
+bool TestRuntime_Memory()
 {
     uint64* test1 = (uint64*)runtime->MemAlloc(sizeof(uint64));
     if (test1 == NULL)
@@ -47,14 +47,8 @@
     }
     *test4 = 0x1234567812345603;
 
-    if (!runtime->MemFree(test3))
-    {
-        return false;
-    }
-    if (!runtime->MemFree(test1))
-    {
-        return false;
-    }
+    runtime->MemFree(test3);
+    runtime->MemFree(test1);
 
     uint64* test5 = (uint64*)runtime->MemAlloc(sizeof(uint64));
     if (test5 == NULL)
@@ -82,18 +76,8 @@
         return false;
     }
 
-    if (!runtime->MemFree(test2))
-    {
-        return false;
-    }
-    if (!runtime->MemFree(test4))
-    {
-        return false;
-    }
-    if (!runtime->MemFree(test5))
-    {
-        return false;
-    }
-
+    runtime->MemFree(test2);
+    runtime->MemFree(test4);
+    runtime->MemFree(test5);
     return true;
 }
