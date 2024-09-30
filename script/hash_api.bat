@@ -36,6 +36,7 @@ echo [Runtime IAT Hooks]
 hash_api -fmt 64 -conc -func GetProcAddress
 hash_api -fmt 64 -conc -func ExitProcess
 hash_api -fmt 64 -conc -func Sleep
+hash_api -fmt 64 -conc -func SleepEx
 echo.
 
 echo [Library Tracker]
@@ -115,6 +116,7 @@ echo [Runtime IAT Hooks]
 hash_api -fmt 32 -conc -func GetProcAddress
 hash_api -fmt 32 -conc -func ExitProcess
 hash_api -fmt 32 -conc -func Sleep
+hash_api -fmt 32 -conc -func SleepEx
 echo.
 
 echo [Library Tracker]
