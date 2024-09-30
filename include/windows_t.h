@@ -387,6 +387,11 @@ typedef BOOL (*SetWaitableTimer_t)
     BOOL fResume
 );
 
+typedef DWORD (*SleepEx_t)
+(
+    DWORD dwMilliseconds, BOOL bAlertable
+);
+
 typedef DWORD (*WaitForSingleObject_t)
 (
     HANDLE hHandle, DWORD dwMilliseconds
