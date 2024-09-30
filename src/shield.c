@@ -17,12 +17,12 @@ bool DefenseRT(Shield_Ctx* ctx)
     // TODO remove it
     ctx->EndAddress = (uintptr)(GetFuncAddr(&DefenseRT));
     // hide runtime(or with shellcode) instructions
-    xorInstructions(ctx, &ctx->CryptoKey[0]);
+    xorInstructions(ctx, ctx->CryptoKey);
     // simulate kernel32.Sleep()
-    bool success = ctx->WaitForSingleObject(ctx->hProcess, ctx->SleepTime);
+    bool ok = ctx->WaitForSingleObject(ctx->hTimer, INFINITE) == WAIT_OBJECT_0;
     // recover runtime(or with shellcode) instructions
-    xorInstructions(ctx, &ctx->CryptoKey[0]);
-    return success;
+    xorInstructions(ctx, ctx->CryptoKey);
+    return ok;
 }
 
 void xorInstructions(Shield_Ctx* ctx, byte* key)
