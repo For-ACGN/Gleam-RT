@@ -40,6 +40,7 @@ https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-seteven
 https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-resetevent
 https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createwaitabletimerw
 https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-setwaitabletimer
+https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-sleepex
 https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
 https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-duplicatehandle
 https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
