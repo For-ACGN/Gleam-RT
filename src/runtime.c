@@ -48,6 +48,7 @@ typedef struct {
     ResetEvent_t            ResetEvent;
     CreateWaitableTimerW_t  CreateWaitableTimerW;
     SetWaitableTimer_t      SetWaitableTimer;
+    SleepEx_t               SleepEx;
     WaitForSingleObject_t   WaitForSingleObject;
     DuplicateHandle_t       DuplicateHandle;
     CloseHandle_t           CloseHandle;
@@ -71,7 +72,7 @@ typedef struct {
     HANDLE hThreadEvent; // event handler thread
 
     // IAT hooks about GetProcAddress
-    Hook IATHooks[24];
+    Hook IATHooks[23];
 
     // submodules
     LibraryTracker_M*  LibraryTracker;
@@ -85,12 +86,14 @@ typedef struct {
 void* RT_FindAPI(uint hash, uint key);
 void* RT_FindAPI_A(byte* module, byte* function);
 void* RT_FindAPI_W(uint16* module, byte* function);
-void  RT_Sleep(DWORD dwMilliseconds);
 
 void* RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
 void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 void* RT_GetProcAddressByHash(uint hash, uint key, bool hook);
 void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
+
+void  RT_Sleep(DWORD dwMilliseconds);
+DWORD RT_SleepEx(DWORD dwMilliseconds, BOOL bAlertable);
 
 errno RT_ExitProcess(UINT uExitCode);
 errno RT_SleepHR(DWORD dwMilliseconds);
@@ -385,6 +388,7 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0xDCC7DDE90F8EF5E5, 0x779EBCBF154A323E }, // ResetEvent
         { 0xA793213B60B4651D, 0x4CB3588ECF3B0A12 }, // CreateWaitableTimerW
         { 0x1C438D7C33D36592, 0xB8818ECC97728D1F }, // SetWaitableTimer
+        { 0xC0B2A3A0E0136020, 0xFCD8552BA93BD07E }, // SleepEx
         { 0xA524CD56CF8DFF7F, 0x5519595458CD47C8 }, // WaitForSingleObject
         { 0xF7A5A49D19409FFC, 0x6F23FAA4C20FF4D3 }, // DuplicateHandle
         { 0xA25F7449D6939A01, 0x85D37F1D89B30D2E }, // CloseHandle
@@ -404,6 +408,7 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0xCB15B6B4, 0x6D95B453 }, // ResetEvent
         { 0x7AAC7586, 0xB30E1315 }, // CreateWaitableTimerW
         { 0x3F987BDE, 0x01C8C945 }, // SetWaitableTimer
+        { 0xF1994D1A, 0xDFA78EB5 }, // SleepEx
         { 0xC21AB03D, 0xED3AAF22 }, // WaitForSingleObject
         { 0x0E7ED8B9, 0x025067E9 }, // DuplicateHandle
         { 0x60E108B2, 0x3C2DFF52 }, // CloseHandle
@@ -432,10 +437,11 @@ static bool initRuntimeAPI(Runtime* runtime)
     runtime->ResetEvent            = list[0x09].proc;
     runtime->CreateWaitableTimerW  = list[0x0A].proc;
     runtime->SetWaitableTimer      = list[0x0B].proc;
-    runtime->WaitForSingleObject   = list[0x0C].proc;
-    runtime->DuplicateHandle       = list[0x0D].proc;
-    runtime->CloseHandle           = list[0x0E].proc;
-    runtime->GetProcAddress        = list[0x0F].proc;
+    runtime->SleepEx               = list[0x0C].proc;
+    runtime->WaitForSingleObject   = list[0x0D].proc;
+    runtime->DuplicateHandle       = list[0x0E].proc;
+    runtime->CloseHandle           = list[0x0F].proc;
+    runtime->GetProcAddress        = list[0x10].proc;
     return true;
 }
 
@@ -647,6 +653,7 @@ static bool initIATHooks(Runtime* runtime)
         { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, GetFuncAddr(&RT_GetProcAddress) },
         { 0xB8D0B91323A24997, 0xBC36CA6282477A43, GetFuncAddr(&RT_ExitProcess) },
         { 0xCED5CC955152CD43, 0xAA22C83C068CB037, GetFuncAddr(&RT_SleepHR) },
+        { 0xF8AFE6686E40E6E7, 0xE461B3ED286DAF92, GetFuncAddr(&RT_SleepEx) },
         { 0xD823D640CA9D87C3, 0x15821AE3463EFBE8, libraryTracker->LoadLibraryA },
         { 0xDE75B0371B7500C0, 0x2A1CF678FC737D0F, libraryTracker->LoadLibraryW },
         { 0x448751B1385751E8, 0x3AE522A4E9435111, libraryTracker->LoadLibraryExA },
@@ -672,6 +679,7 @@ static bool initIATHooks(Runtime* runtime)
         { 0x5E5065D4, 0x63CDAD01, GetFuncAddr(&RT_GetProcAddress) },
         { 0xB6CEC366, 0xA0CF5E10, GetFuncAddr(&RT_ExitProcess) },
         { 0x705D4FAD, 0x94CF33BF, GetFuncAddr(&RT_SleepHR) },
+        { 0x57601363, 0x0F03636B, GetFuncAddr(&RT_SleepEx) },
         { 0x0149E478, 0x86A603D3, libraryTracker->LoadLibraryA },
         { 0x90E21596, 0xEBEA7D19, libraryTracker->LoadLibraryW },
         { 0xD6C482CE, 0xC6063014, libraryTracker->LoadLibraryExA },
@@ -1119,52 +1127,6 @@ void* RT_FindAPI_W(uint16* module, byte* function)
 }
 
 __declspec(noinline)
-void RT_Sleep(DWORD dwMilliseconds)
-{
-    Runtime* runtime = getRuntimePointer();
-
-    if (!rt_lock())
-    {
-        return;
-    }
-
-    // copy API address and handle
-    CreateWaitableTimerW_t create = runtime->CreateWaitableTimerW;
-    SetWaitableTimer_t     set    = runtime->SetWaitableTimer;
-    WaitForSingleObject_t  wait   = runtime->WaitForSingleObject;
-    CloseHandle_t          close  = runtime->CloseHandle;
-
-    if (!rt_unlock())
-    {
-        return;
-    }
-
-    HANDLE hTimer = create(NULL, false, NULL);
-    if (hTimer == NULL)
-    {
-        return;
-    }
-    for (;;)
-    {
-        if (dwMilliseconds < 10)
-        {
-            dwMilliseconds = 10;
-        }
-        int64 dueTime = -((int64)dwMilliseconds * 1000 * 10);
-        if (!set(hTimer, &dueTime, 0, NULL, NULL, true))
-        {
-            break;
-        }
-        if (wait(hTimer, INFINITE) != WAIT_OBJECT_0)
-        {
-            break;
-        }
-        break;
-    }
-    close(hTimer);
-}
-
-__declspec(noinline)
 void* RT_GetProcAddress(HMODULE hModule, LPCSTR lpProcName)
 {
     return RT_GetProcAddressByName(hModule, lpProcName, true);
@@ -1369,6 +1331,77 @@ static void* replaceToIATHook(Runtime* runtime, void* proc)
         return runtime->IATHooks[i].Hook;
     }
     return proc;
+}
+
+__declspec(noinline)
+void RT_Sleep(DWORD dwMilliseconds)
+{
+    Runtime* runtime = getRuntimePointer();
+
+    if (!rt_lock())
+    {
+        return;
+    }
+
+    // copy API address
+    CreateWaitableTimerW_t create = runtime->CreateWaitableTimerW;
+    SetWaitableTimer_t     set    = runtime->SetWaitableTimer;
+    WaitForSingleObject_t  wait   = runtime->WaitForSingleObject;
+    CloseHandle_t          close  = runtime->CloseHandle;
+
+    if (!rt_unlock())
+    {
+        return;
+    }
+
+    HANDLE hTimer = create(NULL, false, NULL);
+    if (hTimer == NULL)
+    {
+        return;
+    }
+    for (;;)
+    {
+        if (dwMilliseconds < 10)
+        {
+            dwMilliseconds = 10;
+        }
+        int64 dueTime = -((int64)dwMilliseconds * 1000 * 10);
+        if (!set(hTimer, &dueTime, 0, NULL, NULL, true))
+        {
+            break;
+        }
+        if (wait(hTimer, INFINITE) != WAIT_OBJECT_0)
+        {
+            break;
+        }
+        break;
+    }
+    close(hTimer);
+}
+
+__declspec(noinline)
+DWORD RT_SleepEx(DWORD dwMilliseconds, BOOL bAlertable)
+{
+    if (!bAlertable)
+    {
+        RT_Sleep(dwMilliseconds);
+        return 0;
+    }
+
+    Runtime* runtime = getRuntimePointer();
+
+    if (!rt_lock())
+    {
+        return 0;
+    }
+
+    SleepEx_t sleepEx = runtime->SleepEx;
+
+    if (!rt_unlock())
+    {
+        return 0;
+    }
+    return sleepEx(dwMilliseconds, bAlertable);
 }
 
 __declspec(noinline)
