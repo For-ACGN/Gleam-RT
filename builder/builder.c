@@ -56,32 +56,22 @@ bool saveShellcode()
     uintptr begin = (uintptr)(&InitRuntime);
     uintptr end   = (uintptr)(&Argument_Stub);
     uintptr size  = end - begin;
-
     // check runtime option stub is valid
     end -= OPTION_STUB_SIZE;
-    if (*(byte*)end != OPTION_STUB_MAGIC)
+    if (*(byte*)(end) != OPTION_STUB_MAGIC)
     {
         printf_s("invalid runtime option stub\n");
         return false;
     }
-
-    // conut 0xFF for check the shellcode tail is valid
-    uint num0xFF = 0;
-    for (int i = 0; i < 16; i++)
+    for (uintptr i = 0; i < OPTION_STUB_SIZE - 1; i++)
     {
-        end--;
-        if (*(byte*)end != 0xFF)
+        end++;
+        if (*(byte*)(end) != 0x00)
         {
-            break;
+            printf_s("invalid runtime option stub\n");
+            return false;
         }
-        num0xFF++;
     }
-    if (num0xFF != 16)
-    {
-        printf_s("invalid shellcode tail\n");
-        return false;
-    }
-
     // extract shellcode to file
 #ifdef _WIN64
     FILE* file = fopen("../dist/GleamRT_x64.bin", "wb");
