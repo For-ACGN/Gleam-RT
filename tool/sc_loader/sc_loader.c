@@ -2,8 +2,9 @@
 #include "windows_t.h"
 #include "hash_api.h"
 
-// not use common main() for not use "msvcrt.dll"
-// not use CommandLineToArgvW for not load "Shell32.dll"
+// not use function main() for not use "msvcrt.dll"
+// not use CommandLineToArgvW for not load "shell32.dll"
+// so it only read the ".\test_x64.bin" or ".\test_x86.bin"
 
 typedef uint (*entryPoint_t)();
 
@@ -36,7 +37,8 @@ uint EntryPoint()
     {
         return 2;
     }
-    void* buf = VirtualAlloc(NULL, fileSize, MEM_COMMIT|MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    SIZE_T size = (SIZE_T)fileSize;
+    void* buf = VirtualAlloc(NULL, size, MEM_COMMIT|MEM_RESERVE, PAGE_EXECUTE_READWRITE);
     if (buf == NULL)
     {
         return 3;
@@ -45,22 +47,18 @@ uint EntryPoint()
     {
         return 4;
     }
-
-    // execute shellcode
-    uint exitCode = ((entryPoint_t)(buf))();
-    if (exitCode != 0)
-    {
-        return exitCode;
-    }
-
-    // clean resource
     if (!CloseHandle(hFile))
     {
         return 5;
     }
+
+    // execute shellcode
+    uint exitCode = ((entryPoint_t)(buf))();
+
+    // clean resource
     if (!VirtualFree(buf, 0, MEM_RELEASE))
     {
         return 6;
     }
-    return 0;
+    return exitCode;
 }
