@@ -181,6 +181,34 @@ typedef struct {
 
 #define DUPLICATE_SAME_ACCESS 0x00000002
 
+#define GENERIC_ALL     0x10000000
+#define GENERIC_EXECUTE 0x20000000
+#define GENERIC_WRITE   0x40000000
+#define GENERIC_READ    0x80000000
+
+#define FILE_SHARE_DELETE 0x00000004
+#define FILE_SHARE_READ   0x00000001
+#define FILE_SHARE_WRITE  0x00000002
+
+#define CREATE_ALWAYS     2
+#define CREATE_NEW        1
+#define OPEN_ALWAYS       4
+#define OPEN_EXISTING     3
+#define TRUNCATE_EXISTING 5 
+
+#define FILE_ATTRIBUTE_ARCHIVE   0x20
+#define FILE_ATTRIBUTE_ENCRYPTED 0x4000
+#define FILE_ATTRIBUTE_HIDDEN    0x2
+#define FILE_ATTRIBUTE_NORMAL    0x80
+#define FILE_ATTRIBUTE_OFFLINE   0x1000
+#define FILE_ATTRIBUTE_READONLY  0x1
+#define FILE_ATTRIBUTE_SYSTEM    0x4
+#define FILE_ATTRIBUTE_TEMPORARY 0x100
+
+#define FILE_FLAG_DELETE_ON_CLOSE 0x04000000
+#define FILE_FLAG_NO_BUFFERING    0x20000000
+#define FILE_FLAG_WRITE_THROUGH   0x80000000
+
 #define WSASYSNOTREADY 10091
 #define WSAEINPROGRESS 10036
 
@@ -314,6 +342,23 @@ typedef HANDLE (*CreateFileW_t)
     LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
     POINTER lpSecurityAttributes, DWORD dwCreationDisposition,
     DWORD dwFlagsAndAttributes, HANDLE hTemplateFile
+);
+
+typedef BOOL (*GetFileSizeEx_t)
+(
+    HANDLE hFile, LONGLONG* lpFileSize
+);
+
+typedef BOOL (*ReadFile_t)
+(
+    HANDLE hFile, LPVOID lpBuffer, DWORD nNumberOfBytesToRead,
+    DWORD* lpNumberOfBytesRead, POINTER lpOverlapped
+);
+
+typedef BOOL (*WriteFile_t)
+(
+    HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite,
+    DWORD* lpNumberOfBytesWritten, POINTER lpOverlapped
 );
 
 typedef HANDLE (*FindFirstFileA_t)
