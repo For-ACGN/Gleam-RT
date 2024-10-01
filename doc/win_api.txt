@@ -25,6 +25,9 @@ https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-process
 https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-flushinstructioncache
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfilesizeex
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfilea
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfilew
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-findfirstfileexa
