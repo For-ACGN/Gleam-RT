@@ -1802,9 +1802,6 @@ static errno recover(Runtime* runtime)
 __declspec(noinline)
 static errno sleep(Runtime* runtime, HANDLE hTimer)
 {
-    // store core Windows API before encrypt
-    FlushInstructionCache_t flushInstCache = runtime->FlushInstructionCache;
-    VirtualProtect_t        virtualProtect = runtime->VirtualProtect;
     // calculate begin and end address
     uintptr beginAddress = (uintptr)(runtime->Options.BootInstAddress);
     uintptr runtimeAddr  = (uintptr)(GetFuncAddr(&InitRuntime));
@@ -1813,7 +1810,15 @@ static errno sleep(Runtime* runtime, HANDLE hTimer)
         beginAddress = runtimeAddr;
     }
     uintptr endAddress = (uintptr)(runtime->Epilogue);
-    // build shield context 
+    // must adjust protect before call shield stub // TODO update protect
+    void* addr = (void*)beginAddress;
+    DWORD size = (DWORD)(endAddress - beginAddress);
+    DWORD oldProtect;
+    if (!runtime->VirtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &oldProtect))
+    {
+        return ERR_RUNTIME_ADJUST_PROTECT;
+    }
+    // build shield context before encrypt main memory page
     Shield_Ctx ctx = {
         .BeginAddress = beginAddress,
         .EndAddress   = endAddress,
@@ -1821,44 +1826,34 @@ static errno sleep(Runtime* runtime, HANDLE hTimer)
 
         .WaitForSingleObject = runtime->WaitForSingleObject,
     };
-    // generate random key for shield
     RandBuf(ctx.CryptoKey, sizeof(ctx.CryptoKey));
-    // build crypto context
+    // encrypt main page
+    void* buf = runtime->MainMemPage;
     byte key[CRYPTO_KEY_SIZE];
     byte iv [CRYPTO_IV_SIZE];
     RandBuf(key, CRYPTO_KEY_SIZE);
-    RandBuf(iv, CRYPTO_IV_SIZE);
-    void* buf = runtime->MainMemPage;
-    // encrypt main page
+    RandBuf(iv,  CRYPTO_IV_SIZE);
     EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, key, iv);
-    // must adjust protect before call shield stub // TODO update protect
-    void* addr = (void*)beginAddress;
-    DWORD size = (DWORD)(endAddress - beginAddress);
-    DWORD oldProtect;
-    if (!virtualProtect(addr, size, PAGE_EXECUTE_READWRITE, &oldProtect))
-    {
-        return ERR_RUNTIME_ADJUST_PROTECT;
-    }
     // call shield!!!
     if (!DefenseRT(&ctx))
     {
         // TODO if failed to defense, need to recover them
         return ERR_RUNTIME_DEFENSE_RT;
     }
+    // decrypt main page
+    DecryptBuf(buf, MAIN_MEM_PAGE_SIZE, key, iv);
     // TODO remove this call, stub will adjust it
-    if (!virtualProtect(addr, size, oldProtect, &oldProtect))
+    if (!runtime->VirtualProtect(addr, size, oldProtect, &oldProtect))
     {
         return ERR_RUNTIME_RECOVER_PROTECT;
     }
     // flush instruction cache after decrypt
     void* baseAddr = (void*)beginAddress;
-    uint  instSize = (uintptr)(GetFuncAddr(&DefenseRT)) - beginAddress;
-    if (!flushInstCache(CURRENT_PROCESS, baseAddr, instSize))
+    uint  instSize = (uint)size;
+    if (!runtime->FlushInstructionCache(CURRENT_PROCESS, baseAddr, instSize))
     {
         return ERR_RUNTIME_FLUSH_INST_CACHE;
     }
-    // decrypt main page
-    DecryptBuf(buf, MAIN_MEM_PAGE_SIZE, key, iv);
     return NO_ERROR;
 }
 
