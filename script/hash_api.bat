@@ -10,6 +10,8 @@ echo ------------------------x64------------------------
 echo [Runtime Core]
 hash_api -fmt 64 -conc -func GetSystemInfo
 hash_api -fmt 64 -conc -func FlushInstructionCache
+hash_api -fmt 64 -conc -func SetCurrentDirectoryA
+hash_api -fmt 64 -conc -func SetCurrentDirectoryW
 hash_api -fmt 64 -conc -func CreateMutexA
 hash_api -fmt 64 -conc -func ReleaseMutex
 hash_api -fmt 64 -conc -func CreateEventA
@@ -90,6 +92,8 @@ echo ------------------------x86------------------------
 echo [Runtime Core]
 hash_api -fmt 32 -conc -func GetSystemInfo
 hash_api -fmt 32 -conc -func FlushInstructionCache
+hash_api -fmt 32 -conc -func SetCurrentDirectoryA
+hash_api -fmt 32 -conc -func SetCurrentDirectoryW
 hash_api -fmt 32 -conc -func CreateMutexA
 hash_api -fmt 32 -conc -func ReleaseMutex
 hash_api -fmt 32 -conc -func CreateEventA
