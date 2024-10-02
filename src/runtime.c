@@ -41,6 +41,8 @@ typedef struct {
     VirtualFree_t           VirtualFree;
     VirtualProtect_t        VirtualProtect;
     FlushInstructionCache_t FlushInstructionCache;
+    SetCurrentDirectoryA_t  SetCurrentDirectoryA;
+    SetCurrentDirectoryW_t  SetCurrentDirectoryW;
     CreateMutexA_t          CreateMutexA;
     ReleaseMutex_t          ReleaseMutex;
     CreateEventA_t          CreateEventA;
@@ -71,7 +73,7 @@ typedef struct {
     HANDLE hThreadEvent; // event handler thread
 
     // IAT hooks about GetProcAddress
-    Hook IATHooks[23];
+    Hook IATHooks[25];
 
     // submodules
     LibraryTracker_M*  LibraryTracker;
@@ -91,12 +93,13 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 void* RT_GetProcAddressByHash(uint hash, uint key, bool hook);
 void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 
+BOOL  RT_SetCurrentDirectoryA(LPSTR lpPathName);
+BOOL  RT_SetCurrentDirectoryW(LPWSTR lpPathName);
 void  RT_Sleep(DWORD dwMilliseconds);
 DWORD RT_SleepEx(DWORD dwMilliseconds, BOOL bAlertable);
-
 errno RT_ExitProcess(UINT uExitCode);
-errno RT_SleepHR(DWORD dwMilliseconds);
 
+errno RT_SleepHR(DWORD dwMilliseconds);
 errno RT_Hide();
 errno RT_Recover();
 errno RT_Exit();
@@ -380,6 +383,8 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0xAC150252A6CA3960, 0x12EFAEA421D60C3E }, // VirtualFree
         { 0xEA5B0C76C7946815, 0x8846C203C35DE586 }, // VirtualProtect
         { 0x8172B49F66E495BA, 0x8F0D0796223B56C2 }, // FlushInstructionCache
+        { 0x94EC785163801E26, 0xCBF66516D38443F0 }, // SetCurrentDirectoryA
+        { 0x7A6FB9987CB1DB85, 0xF6A56D0FD43D9096 }, // SetCurrentDirectoryW
         { 0x31FE697F93D7510C, 0x77C8F05FE04ED22D }, // CreateMutexA
         { 0xEEFDEA7C0785B561, 0xA7B72CC8CD55C1D4 }, // ReleaseMutex
         { 0xDDB64F7D0952649B, 0x7F49C6179CD1D05C }, // CreateEventA
@@ -400,6 +405,8 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0xF76A2ADE, 0x4D8938BD }, // VirtualFree
         { 0xB2AC456D, 0x2A690F63 }, // VirtualProtect
         { 0x87A2CEE8, 0x42A3C1AF }, // FlushInstructionCache
+        { 0xBCCEAFB1, 0x99C565BD }, // SetCurrentDirectoryA
+        { 0x499657EA, 0x7D23F113 }, // SetCurrentDirectoryW
         { 0x8F5BAED2, 0x43487DC7 }, // CreateMutexA
         { 0xFA42E55C, 0xEA9F1081 }, // ReleaseMutex
         { 0x013C9D2B, 0x5A4D045A }, // CreateEventA
@@ -429,18 +436,20 @@ static bool initRuntimeAPI(Runtime* runtime)
     runtime->VirtualFree           = list[0x02].proc;
     runtime->VirtualProtect        = list[0x03].proc;
     runtime->FlushInstructionCache = list[0x04].proc;
-    runtime->CreateMutexA          = list[0x05].proc;
-    runtime->ReleaseMutex          = list[0x06].proc;
-    runtime->CreateEventA          = list[0x07].proc;
-    runtime->SetEvent              = list[0x08].proc;
-    runtime->ResetEvent            = list[0x09].proc;
-    runtime->CreateWaitableTimerW  = list[0x0A].proc;
-    runtime->SetWaitableTimer      = list[0x0B].proc;
-    runtime->SleepEx               = list[0x0C].proc;
-    runtime->WaitForSingleObject   = list[0x0D].proc;
-    runtime->DuplicateHandle       = list[0x0E].proc;
-    runtime->CloseHandle           = list[0x0F].proc;
-    runtime->GetProcAddress        = list[0x10].proc;
+    runtime->SetCurrentDirectoryA  = list[0x05].proc;
+    runtime->SetCurrentDirectoryW  = list[0x06].proc;
+    runtime->CreateMutexA          = list[0x07].proc;
+    runtime->ReleaseMutex          = list[0x08].proc;
+    runtime->CreateEventA          = list[0x09].proc;
+    runtime->SetEvent              = list[0x0A].proc;
+    runtime->ResetEvent            = list[0x0B].proc;
+    runtime->CreateWaitableTimerW  = list[0x0C].proc;
+    runtime->SetWaitableTimer      = list[0x0D].proc;
+    runtime->SleepEx               = list[0x0E].proc;
+    runtime->WaitForSingleObject   = list[0x0F].proc;
+    runtime->DuplicateHandle       = list[0x10].proc;
+    runtime->CloseHandle           = list[0x11].proc;
+    runtime->GetProcAddress        = list[0x12].proc;
     return true;
 }
 
@@ -670,9 +679,11 @@ static bool initIATHooks(Runtime* runtime)
 #ifdef _WIN64
     {
         { 0xCAA4843E1FC90287, 0x2F19F60181B5BFE3, GetFuncAddr(&RT_GetProcAddress) },
-        { 0xB8D0B91323A24997, 0xBC36CA6282477A43, GetFuncAddr(&RT_ExitProcess) },
+        { 0x2619069D6D00AC17, 0xA12815DB2311C3C0, GetFuncAddr(&RT_SetCurrentDirectoryA) },
+        { 0x6A8F6B893B3E7468, 0x1C4D6ABB7E274A8A, GetFuncAddr(&RT_SetCurrentDirectoryW) },
         { 0xCED5CC955152CD43, 0xAA22C83C068CB037, GetFuncAddr(&RT_SleepHR) },
         { 0xF8AFE6686E40E6E7, 0xE461B3ED286DAF92, GetFuncAddr(&RT_SleepEx) },
+        { 0xB8D0B91323A24997, 0xBC36CA6282477A43, GetFuncAddr(&RT_ExitProcess) },
         { 0xD823D640CA9D87C3, 0x15821AE3463EFBE8, libraryTracker->LoadLibraryA },
         { 0xDE75B0371B7500C0, 0x2A1CF678FC737D0F, libraryTracker->LoadLibraryW },
         { 0x448751B1385751E8, 0x3AE522A4E9435111, libraryTracker->LoadLibraryExA },
@@ -696,9 +707,11 @@ static bool initIATHooks(Runtime* runtime)
 #elif _WIN32
     {
         { 0x5E5065D4, 0x63CDAD01, GetFuncAddr(&RT_GetProcAddress) },
-        { 0xB6CEC366, 0xA0CF5E10, GetFuncAddr(&RT_ExitProcess) },
+        { 0x04A35C23, 0xF841E05C, GetFuncAddr(&RT_SetCurrentDirectoryA) },
+        { 0xCA170DA2, 0x73683646, GetFuncAddr(&RT_SetCurrentDirectoryA) },
         { 0x705D4FAD, 0x94CF33BF, GetFuncAddr(&RT_SleepHR) },
         { 0x57601363, 0x0F03636B, GetFuncAddr(&RT_SleepEx) },
+        { 0xB6CEC366, 0xA0CF5E10, GetFuncAddr(&RT_ExitProcess) },
         { 0x0149E478, 0x86A603D3, libraryTracker->LoadLibraryA },
         { 0x90E21596, 0xEBEA7D19, libraryTracker->LoadLibraryW },
         { 0xD6C482CE, 0xC6063014, libraryTracker->LoadLibraryExA },
@@ -1352,6 +1365,38 @@ static void* replaceToIATHook(Runtime* runtime, void* proc)
 }
 
 __declspec(noinline)
+BOOL RT_SetCurrentDirectoryA(LPSTR lpPathName)
+{
+    Runtime* runtime = getRuntimePointer();
+
+    if (lpPathName == NULL)
+    {
+        return false;
+    }
+    if (*lpPathName != '*')
+    {
+        return true;
+    }
+    return runtime->SetCurrentDirectoryA(++lpPathName);
+}
+
+__declspec(noinline)
+BOOL RT_SetCurrentDirectoryW(LPWSTR lpPathName)
+{
+    Runtime* runtime = getRuntimePointer();
+
+    if (lpPathName == NULL)
+    {
+        return false;
+    }
+    if (*lpPathName != L'*')
+    {
+        return true;
+    }
+    return runtime->SetCurrentDirectoryW(++lpPathName);
+}
+
+__declspec(noinline)
 void RT_Sleep(DWORD dwMilliseconds)
 {
     Runtime* runtime = getRuntimePointer();
@@ -1375,7 +1420,7 @@ void RT_Sleep(DWORD dwMilliseconds)
 #ifdef RELEASE_MODE
     HANDLE hTimer = create(NULL, false, NULL);
 #else
-    HANDLE hTimer = create(NULL, false, L"RT_Core_Sleep");
+    HANDLE hTimer = create(NULL, false, L"RT_Core_Method_Sleep");
 #endif
     if (hTimer == NULL)
     {
@@ -1440,7 +1485,7 @@ errno RT_ExitProcess(UINT uExitCode)
     {
         return errlm;
     }
-
+    
     if (uExitCode == 0)
     {
         // TODO disable watchdog ?
