@@ -330,6 +330,16 @@ typedef BOOL (*FlushInstructionCache_t)
     HANDLE hProcess, LPCVOID lpBaseAddress, SIZE_T dwSize
 );
 
+typedef BOOL (*SetCurrentDirectoryA_t)
+(
+    LPSTR lpPathName
+);
+
+typedef BOOL (*SetCurrentDirectoryW_t)
+(
+    LPWSTR lpPathName
+);
+
 typedef HANDLE (*CreateFileA_t)
 (
     LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
