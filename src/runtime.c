@@ -59,7 +59,6 @@ typedef struct {
     void*  Epilogue;    // store shellcode epilogue
     uint32 PageSize;    // for memory management
     HANDLE hMutex;      // global method mutex
-    HANDLE hTimer;      // waitable timer for sleep
 
     // about event handler
     HANDLE hMutexSleep;  // sleep method mutex
@@ -147,9 +146,9 @@ static void* replaceToIATHook(Runtime* runtime, void* proc);
 static void  eventHandler();
 static errno processEvent(Runtime* runtime, bool* exit);
 static errno sleepHR(Runtime* runtime, uint32 milliseconds);
+static errno sleep(Runtime* runtime, HANDLE hTimer);
 static errno hide(Runtime* runtime);
 static errno recover(Runtime* runtime);
-static errno sleep(Runtime* runtime, uint32 milliseconds);
 
 static void  eraseRuntimeMethods(Runtime* runtime);
 static errno cleanRuntime(Runtime* runtime);
@@ -919,7 +918,6 @@ static errno closeHandles(Runtime* runtime)
     handle list[] = 
     {
         { runtime->hMutex,       ERR_RUNTIME_CLEAN_H_MUTEX         },
-        { runtime->hTimer,       ERR_RUNTIME_CLEAN_H_TIMER         },
         { runtime->hMutexSleep,  ERR_RUNTIME_CLEAN_H_MUTEX_SLEEP   },
         { runtime->hEventArrive, ERR_RUNTIME_CLEAN_H_EVENT_ARRIVE  },
         { runtime->hEventDone,   ERR_RUNTIME_CLEAN_H_EVENT_DONE    },
@@ -1667,15 +1665,34 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
         return err;
     }
 
-    errno errno = NO_ERROR;
+    HANDLE hTimer = NULL;
+    errno  errno  = NO_ERROR;
     for (;;)
     {
+        // create and set waitable timer
+    #ifdef RELEASE_MODE
+        hTimer = runtime->CreateWaitableTimerW(NULL, false, NULL);
+    #else
+        hTimer = runtime->CreateWaitableTimerW(NULL, false, L"RT_Core_SleepHR");
+    #endif
+        if (hTimer == NULL)
+        {
+            errno = ERR_RUNTIME_CREATE_WAITABLE_TIMER;
+            break;
+        }
+        int64 dueTime = -((int64)milliseconds * 1000 * 10);
+        if (!runtime->SetWaitableTimer(hTimer, &dueTime, 0, NULL, NULL, true))
+        {
+            errno = ERR_RUNTIME_SET_WAITABLE_TIMER;
+            break;
+        }
+
         errno = hide(runtime);
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
         }
-        errno = sleep(runtime, milliseconds);
+        errno = sleep(runtime, hTimer);
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
@@ -1689,13 +1706,12 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
     }
 
     // clean created waitable timer
-    if (runtime->hTimer != NULL)
+    if (hTimer != NULL)
     {
-        if (!runtime->CloseHandle(runtime->hTimer) && errno == NO_ERROR)
+        if (!runtime->CloseHandle(hTimer) && errno == NO_ERROR)
         {
             errno = ERR_RUNTIME_CLOSE_WAITABLE_TIMER;
         }
-        runtime->hTimer = NULL;
     }
 
     err = RT_unlock_mods();
@@ -1784,7 +1800,7 @@ static errno recover(Runtime* runtime)
 }
 
 __declspec(noinline)
-static errno sleep(Runtime* runtime, uint32 milliseconds)
+static errno sleep(Runtime* runtime, HANDLE hTimer)
 {
     // store core Windows API before encrypt
     FlushInstructionCache_t flushInstCache = runtime->FlushInstructionCache;
@@ -1797,22 +1813,6 @@ static errno sleep(Runtime* runtime, uint32 milliseconds)
         beginAddress = runtimeAddr;
     }
     uintptr endAddress = (uintptr)(runtime->Epilogue);
-    // create waitable timer
-#ifdef RELEASE_MODE
-    HANDLE hTimer = runtime->CreateWaitableTimerW(NULL, false, NULL);
-#else
-    HANDLE hTimer = runtime->CreateWaitableTimerW(NULL, false, L"RT_Core_SleepHR");
-#endif
-    if (hTimer == NULL)
-    {
-        return ERR_RUNTIME_CREATE_WAITABLE_TIMER;
-    }
-    runtime->hTimer = hTimer;
-    int64 dueTime = -((int64)milliseconds * 1000 * 10);
-    if (!runtime->SetWaitableTimer(hTimer, &dueTime, 0, NULL, NULL, true))
-    {
-        return ERR_RUNTIME_SET_WAITABLE_TIMER;
-    }
     // build shield context 
     Shield_Ctx ctx = {
         .BeginAddress = beginAddress,
