@@ -71,6 +71,12 @@
     <ClCompile Include="..\src\compress.c">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\win_file.c">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win_http.c">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\crypto.h">
@@ -137,6 +143,12 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="..\include\compress.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\win_file.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\win_http.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>
