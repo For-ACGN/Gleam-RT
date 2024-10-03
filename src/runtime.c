@@ -20,6 +20,34 @@
 #include "runtime.h"
 #include "debug.h"
 
+#ifdef RELEASE_MODE
+    #define NAME_RT_MUTEX_GLOBAL  NULL
+    #define NAME_RT_MUTEX_SLEEP   NULL
+    #define NAME_RT_EVENT_ARRIVE  NULL
+    #define NAME_RT_EVENT_DONE    NULL
+    #define NAME_RT_MUTEX_EVENT   NULL
+    #define NAME_RT_TIMER_SLEEP   NULL
+    #define NAME_RT_TIMER_SLEEPHR NULL
+#else
+#ifdef _WIN64
+    #define NAME_RT_MUTEX_GLOBAL  "RT_Core_Global_x64"
+    #define NAME_RT_MUTEX_SLEEP   "RT_Core_Sleep_x64"
+    #define NAME_RT_EVENT_ARRIVE  "RT_Core_Arrive_x64"
+    #define NAME_RT_EVENT_DONE    "RT_Core_Done_x64"
+    #define NAME_RT_MUTEX_EVENT   "RT_Core_Event_x64"
+    #define NAME_RT_TIMER_SLEEP   L"RT_Method_Sleep_x64"
+    #define NAME_RT_TIMER_SLEEPHR L"RT_Method_SleepHR_x64"
+#elif _WIN32
+    #define NAME_RT_MUTEX_GLOBAL  "RT_Core_Global_x86"
+    #define NAME_RT_MUTEX_SLEEP   "RT_Core_Sleep_x86"
+    #define NAME_RT_EVENT_ARRIVE  "RT_Core_Arrive_x86"
+    #define NAME_RT_EVENT_DONE    "RT_Core_Done_x86"
+    #define NAME_RT_MUTEX_EVENT   "RT_Core_Event_x86"
+    #define NAME_RT_TIMER_SLEEP   L"RT_Method_Sleep_x86"
+    #define NAME_RT_TIMER_SLEEPHR L"RT_Method_SleepHR_x86"
+#endif
+#endif
+
 #define MAIN_MEM_PAGE_SIZE 8192
 
 #define EVENT_TYPE_SLEEP 0x01
@@ -502,54 +530,34 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     runtime->GetSystemInfo(&sysInfo);
     runtime->PageSize = sysInfo.PageSize;
     // create global mutex
-#ifdef RELEASE_MODE
-    HANDLE hMutex = runtime->CreateMutexA(NULL, false, NULL);
-#else
-    HANDLE hMutex = runtime->CreateMutexA(NULL, false, "RT_Core_Global");
-#endif 
+    HANDLE hMutex = runtime->CreateMutexA(NULL, false, NAME_RT_MUTEX_GLOBAL);
     if (hMutex == NULL)
     {
         return ERR_RUNTIME_CREATE_GLOBAL_MUTEX;
     }
     runtime->hMutex = hMutex;
     // create sleep method mutex
-#ifdef RELEASE_MODE
-    HANDLE hMutexSleep = runtime->CreateMutexA(NULL, false, NULL);
-#else
-    HANDLE hMutexSleep = runtime->CreateMutexA(NULL, false, "RT_Core_Sleep");
-#endif 
+    HANDLE hMutexSleep = runtime->CreateMutexA(NULL, false, NAME_RT_MUTEX_SLEEP);
     if (hMutexSleep == NULL)
     {
         return ERR_RUNTIME_CREATE_SLEEP_MUTEX;
     }
     runtime->hMutexSleep = hMutexSleep;
     // create arrive and done events
-#ifdef RELEASE_MODE
-    HANDLE hEventArrive = runtime->CreateEventA(NULL, true, false, NULL);
-#else
-    HANDLE hEventArrive = runtime->CreateEventA(NULL, true, false, "RT_Core_Arrive");
-#endif
+    HANDLE hEventArrive = runtime->CreateEventA(NULL, true, false, NAME_RT_EVENT_ARRIVE);
     if (hEventArrive == NULL)
     {
         return ERR_RUNTIME_CREATE_EVENT_ARRIVE;
     }
     runtime->hEventArrive = hEventArrive;
-#ifdef RELEASE_MODE
-    HANDLE hEventDone = runtime->CreateEventA(NULL, true, false, NULL);
-#else
-    HANDLE hEventDone = runtime->CreateEventA(NULL, true, false, "RT_Core_Done");
-#endif
+    HANDLE hEventDone = runtime->CreateEventA(NULL, true, false, NAME_RT_EVENT_DONE);
     if (hEventDone == NULL)
     {
         return ERR_RUNTIME_CREATE_EVENT_DONE;
     }
     runtime->hEventDone = hEventDone;
     // create event type mutex
-#ifdef RELEASE_MODE
-    HANDLE hMutexEvent = runtime->CreateMutexA(NULL, false, NULL);
-#else
-    HANDLE hMutexEvent = runtime->CreateMutexA(NULL, false, "RT_Core_Event");
-#endif
+    HANDLE hMutexEvent = runtime->CreateMutexA(NULL, false, NAME_RT_MUTEX_EVENT);
     if (hMutexEvent == NULL)
     {
         return ERR_RUNTIME_CREATE_EVENT_MUTEX;
@@ -1417,11 +1425,7 @@ void RT_Sleep(DWORD dwMilliseconds)
         return;
     }
 
-#ifdef RELEASE_MODE
-    HANDLE hTimer = create(NULL, false, NULL);
-#else
-    HANDLE hTimer = create(NULL, false, L"RT_Core_Method_Sleep");
-#endif
+    HANDLE hTimer = create(NULL, false, NAME_RT_TIMER_SLEEP);
     if (hTimer == NULL)
     {
         return;
@@ -1715,11 +1719,7 @@ static errno sleepHR(Runtime* runtime, uint32 milliseconds)
     for (;;)
     {
         // create and set waitable timer
-    #ifdef RELEASE_MODE
-        hTimer = runtime->CreateWaitableTimerW(NULL, false, NULL);
-    #else
-        hTimer = runtime->CreateWaitableTimerW(NULL, false, L"RT_Core_SleepHR");
-    #endif
+        hTimer = runtime->CreateWaitableTimerW(NULL, false, NAME_RT_TIMER_SLEEPHR);
         if (hTimer == NULL)
         {
             errno = ERR_RUNTIME_CREATE_WAITABLE_TIMER;
