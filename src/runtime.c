@@ -48,7 +48,10 @@
 #endif
 #endif
 
-#define MAIN_MEM_PAGE_SIZE 8192
+// 0000-4096  runtime core
+// 4096-8192  basic modules
+// 8192-32768 tracker and store
+#define MAIN_MEM_PAGE_SIZE (8*4096)
 
 #define EVENT_TYPE_SLEEP 0x01
 #define EVENT_TYPE_STOP  0x02
@@ -211,7 +214,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // set structure address
     uintptr address = (uintptr)memPage;
     uintptr runtimeAddr = address + 1000 + RandUintN(address, 128);
-    uintptr moduleAddr  = address + 2500 + RandUintN(address, 128);
+    uintptr moduleAddr  = address + 3000 + RandUintN(address, 128);
     // initialize structure
     Runtime* runtime = (Runtime*)runtimeAddr;
     mem_init(runtime, sizeof(Runtime));
@@ -379,14 +382,14 @@ static void* allocRuntimeMemPage()
     {
         return NULL;
     }
-    SIZE_T size = MAIN_MEM_PAGE_SIZE + (1 + RandUintN(0, 16)) * 4096;
+    SIZE_T size = MAIN_MEM_PAGE_SIZE + (1 + RandUintN(0, 32)) * 4096;
     LPVOID addr = virtualAlloc(NULL, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
     }
-    RandBuf(addr, MAIN_MEM_PAGE_SIZE);
-    dbg_log("[runtime]", "Main Page: 0x%zX", addr);
+    RandBuf(addr, (int64)size);
+    dbg_log("[runtime]", "Main Memory Page: 0x%zX", addr);
     return addr;
 }
 
@@ -965,7 +968,7 @@ static errno closeHandles(Runtime* runtime)
 #pragma optimize("", off)
 static Runtime* getRuntimePointer()
 {
-    uint pointer = RUNTIME_POINTER;
+    uintptr pointer = RUNTIME_POINTER;
     return (Runtime*)(pointer);
 }
 #pragma optimize("", on)
