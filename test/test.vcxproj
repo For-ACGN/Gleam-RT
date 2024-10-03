@@ -26,6 +26,8 @@
     <ClInclude Include="..\include\win_api.h" />
     <ClInclude Include="..\include\context.h" />
     <ClInclude Include="..\include\errno.h" />
+    <ClInclude Include="..\include\win_file.h" />
+    <ClInclude Include="..\include\win_http.h" />
     <ClInclude Include="..\include\library.h" />
     <ClInclude Include="..\include\memory.h" />
     <ClInclude Include="..\include\thread.h" />
@@ -37,7 +39,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="test_main.c" />
-	<ClCompile Include="lib_memory_test.c" />
+    <ClCompile Include="lib_memory_test.c" />
     <ClCompile Include="lib_string_test.c" />
     <ClCompile Include="crypto_test.c" />
     <ClCompile Include="random_test.c" />
@@ -56,6 +58,8 @@
     <ClCompile Include="..\src\compress.c" />
     <ClCompile Include="..\src\win_api.c" />
     <ClCompile Include="..\src\errno.c" />
+    <ClCompile Include="..\src\win_file.c" />
+    <ClCompile Include="..\src\win_http.c" />
     <ClCompile Include="..\src\library.c" />
     <ClCompile Include="..\src\memory.c" />
     <ClCompile Include="..\src\thread.c" />
