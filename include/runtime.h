@@ -31,14 +31,11 @@ typedef bool (*GetArgPointer_t)(uint index, void** pointer, uint32* size);
 typedef bool (*EraseArgument_t)(uint index);
 typedef void (*EraseAllArgs_t)();
 
-// GetProcAddress, GetProcAddressByName and GetProcAddressByHash
-// are use Hash API module for implement original GetProcAddress.
-// GetProcAddressOriginal is not recommend, usually use
-// GetProcAddressByName with hook FALSE instead it.
-// These methods are used for IAT hooks or common shellcode.
-typedef void* (*GetProcAddressByName_t)(HMODULE hModule, LPCSTR lpProcName, bool hook);
-typedef void* (*GetProcAddressByHash_t)(uint hash, uint key, bool hook);
-typedef void* (*GetProcAddressOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
+// about Win File
+typedef bool (*ReadFileA_t)(LPSTR path, byte** buf, uint* size);
+typedef bool (*ReadFileW_t)(LPWSTR path, byte** buf, uint* size);
+typedef bool (*WriteFileA_t)(LPSTR path, byte* buf, uint size);
+typedef bool (*WriteFileW_t)(LPWSTR path, byte* buf, uint size);
 
 // about random module
 typedef void   (*RandBuf_t)(byte* buf, int64 size);
@@ -55,6 +52,15 @@ typedef void (*Decrypt_t)(byte* buf, uint size, byte* key, byte* iv);
 // about compress module
 typedef uint (*Compress_t)(void* dst, void* src);
 typedef uint (*Decompress_t)(void* dst, void* src);
+
+// GetProcAddress, GetProcAddressByName and GetProcAddressByHash
+// are use Hash API module for implement original GetProcAddress.
+// GetProcAddressOriginal is not recommend, usually use
+// GetProcAddressByName with hook FALSE instead it.
+// These methods are used for IAT hooks or common shellcode.
+typedef void* (*GetProcAddressByName_t)(HMODULE hModule, LPCSTR lpProcName, bool hook);
+typedef void* (*GetProcAddressByHash_t)(uint hash, uint key, bool hook);
+typedef void* (*GetProcAddressOriginal_t)(HMODULE hModule, LPCSTR lpProcName);
 
 // runtime core methods
 // it is NOT recommended use "Hide" and "Recover", these functions
@@ -112,10 +118,13 @@ typedef struct {
     EraseArgument_t EraseArgument;
     EraseAllArgs_t  EraseAllArgs;
 
-    // about IAT hooks
-    GetProcAddressByName_t   GetProcAddressByName;
-    GetProcAddressByHash_t   GetProcAddressByHash;
-    GetProcAddressOriginal_t GetProcAddressOriginal;
+    // WinFile
+    ReadFileA_t  ReadFileA;
+    ReadFileW_t  ReadFileW;
+    WriteFileA_t WriteFileA;
+    WriteFileW_t WriteFileW;
+
+    // WinHTTP
     
     // random module
     RandBuf_t     RandBuf;
@@ -132,6 +141,11 @@ typedef struct {
     // compress module
     Compress_t   Compress;
     Decompress_t Decompress;
+
+    // runtime common methods
+    GetProcAddressByName_t   GetProcAddressByName;
+    GetProcAddressByHash_t   GetProcAddressByHash;
+    GetProcAddressOriginal_t GetProcAddressOriginal;
 
     // runtime core methods
     SleepHR_t SleepHR;
