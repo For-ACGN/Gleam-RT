@@ -16,6 +16,8 @@
 #include "thread.h"
 #include "resource.h"
 #include "argument.h"
+#include "win_file.h"
+#include "win_http.h"
 #include "shield.h"
 #include "runtime.h"
 #include "debug.h"
@@ -46,11 +48,13 @@
     #define NAME_RT_TIMER_SLEEP   L"RT_Method_Sleep_x86"
     #define NAME_RT_TIMER_SLEEPHR L"RT_Method_SleepHR_x86"
 #endif
-#endif
+#endif // RELEASE_MODE
 
-// 0000-4096  runtime core
-// 4096-8192  basic modules
-// 8192-32768 tracker and store
+// +--------------+--------------------+-------------------+
+// |    0-4096    |     4096-16384     |    16384-32768    |
+// +--------------+--------------------+-------------------+
+// | runtime core | runtime submodules | high level module |
+// +--------------+--------------------+-------------------+
 #define MAIN_MEM_PAGE_SIZE (8*4096)
 
 #define EVENT_TYPE_SLEEP 0x01
@@ -106,12 +110,15 @@ typedef struct {
     // IAT hooks about GetProcAddress
     Hook IATHooks[25];
 
-    // submodules
+    // runtime submodules
     LibraryTracker_M*  LibraryTracker;
     MemoryTracker_M*   MemoryTracker;
     ThreadTracker_M*   ThreadTracker;
     ResourceTracker_M* ResourceTracker;
     ArgumentStore_M*   ArgumentStore;
+
+    // high level modules
+    WinFile_M* WinFile;
 } Runtime;
 
 // export methods and IAT hooks about Runtime
@@ -170,6 +177,7 @@ static errno initMemoryTracker(Runtime* runtime, Context* context);
 static errno initThreadTracker(Runtime* runtime, Context* context);
 static errno initResourceTracker(Runtime* runtime, Context* context);
 static errno initArgumentStore(Runtime* runtime, Context* context);
+static errno initWinFile(Runtime* runtime, Context* context);
 static bool  initIATHooks(Runtime* runtime);
 static bool  flushInstructionCache(Runtime* runtime);
 
@@ -328,10 +336,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->GetArgPointer = runtime->ArgumentStore->GetPointer;
     module->EraseArgument = runtime->ArgumentStore->Erase;
     module->EraseAllArgs  = runtime->ArgumentStore->EraseAll;
-    // about IAT hooks
-    module->GetProcAddressByName   = GetFuncAddr(&RT_GetProcAddressByName);
-    module->GetProcAddressByHash   = GetFuncAddr(&RT_GetProcAddressByHash);
-    module->GetProcAddressOriginal = GetFuncAddr(&RT_GetProcAddressOriginal);
+    // in-memory storage
+
     // random module
     module->RandBuf     = GetFuncAddr(&RandBuf);
     module->RandBool    = GetFuncAddr(&RandBool);
@@ -345,6 +351,10 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // compress module
     module->Compress   = GetFuncAddr(&Compress);
     module->Decompress = GetFuncAddr(&Decompress);
+    // runtime common methods
+    module->GetProcAddressByName   = GetFuncAddr(&RT_GetProcAddressByName);
+    module->GetProcAddressByHash   = GetFuncAddr(&RT_GetProcAddressByHash);
+    module->GetProcAddressOriginal = GetFuncAddr(&RT_GetProcAddressOriginal);
     // runtime core methods
     module->SleepHR = GetFuncAddr(&RT_SleepHR);
     module->Hide    = GetFuncAddr(&RT_Hide);
@@ -571,6 +581,8 @@ static errno initRuntimeEnvironment(Runtime* runtime)
 
 static errno initSubmodules(Runtime* runtime)
 {
+    typedef errno (*module_t)(Runtime* runtime, Context* context);
+
     // create context data for initialize other modules
     Context context = {
         .NotEraseInstruction = runtime->Options.NotEraseInstruction,
@@ -578,6 +590,14 @@ static errno initSubmodules(Runtime* runtime)
 
         .MainMemPage = (uintptr)(runtime->MainMemPage),
         .PageSize    = runtime->PageSize,
+
+        .malloc  = GetFuncAddr(&RT_malloc),
+        .calloc  = GetFuncAddr(&RT_calloc),
+        .realloc = GetFuncAddr(&RT_realloc),
+        .free    = GetFuncAddr(&RT_free),
+
+        .lock   = GetFuncAddr(&RT_lock_mods),
+        .unlock = GetFuncAddr(&RT_unlock_mods),
 
         .VirtualAlloc          = runtime->VirtualAlloc,
         .VirtualFree           = runtime->VirtualFree,
@@ -588,17 +608,10 @@ static errno initSubmodules(Runtime* runtime)
         .FlushInstructionCache = runtime->FlushInstructionCache,
         .DuplicateHandle       = runtime->DuplicateHandle,
         .CloseHandle           = runtime->CloseHandle,
-
-        .malloc  = GetFuncAddr(&RT_malloc),
-        .calloc  = GetFuncAddr(&RT_calloc),
-        .realloc = GetFuncAddr(&RT_realloc),
-        .free    = GetFuncAddr(&RT_free),
-        .lock    = GetFuncAddr(&RT_lock_mods),
-        .unlock  = GetFuncAddr(&RT_unlock_mods),
     };
 
-    typedef errno (*submodule_t)(Runtime* runtime, Context* context);
-    submodule_t submodules[] = 
+    // initialize runtime submodules
+    module_t submodules[] = 
     {
         GetFuncAddr(&initLibraryTracker),
         GetFuncAddr(&initMemoryTracker),
@@ -606,15 +619,35 @@ static errno initSubmodules(Runtime* runtime)
         GetFuncAddr(&initResourceTracker),
         GetFuncAddr(&initArgumentStore),
     };
-    errno errno;
     for (int i = 0; i < arrlen(submodules); i++)
     {
-        errno = submodules[i](runtime, &context);
+        errno errno = submodules[i](runtime, &context);
         if (errno != NO_ERROR)
         {
             return errno;
         }
     }
+
+    // update context about runtime submodules
+    context.mt_malloc  = runtime->MemoryTracker->Alloc;
+    context.mt_calloc  = runtime->MemoryTracker->Calloc;
+    context.mt_realloc = runtime->MemoryTracker->Realloc;
+    context.mt_free    = runtime->MemoryTracker->Free;
+
+    // initialize high level modules
+    module_t hl_modules[] = 
+    {
+        GetFuncAddr(&initWinFile),
+    };
+    for (int i = 0; i < arrlen(hl_modules); i++)
+    {
+        errno errno = hl_modules[i](runtime, &context);
+        if (errno != NO_ERROR)
+        {
+            return errno;
+        }
+    }
+
     // clean useless API functions in runtime structure
     RandBuf((byte*)(&runtime->GetSystemInfo), sizeof(uintptr));
     RandBuf((byte*)(&runtime->CreateMutexA),  sizeof(uintptr));
@@ -674,6 +707,17 @@ static errno initArgumentStore(Runtime* runtime, Context* context)
         return GetLastErrno();
     }
     runtime->ArgumentStore = store;
+    return NO_ERROR;
+}
+
+static errno initWinFile(Runtime* runtime, Context* context)
+{
+    WinFile_M* winFile = InitWinFile(context);
+    if (winFile == NULL)
+    {
+        return GetLastErrno();
+    }
+    runtime->WinFile = winFile;
     return NO_ERROR;
 }
 
