@@ -20,7 +20,7 @@ typedef struct {
     WriteFile_t     WriteFile;
     CloseHandle_t   CloseHandle;
 
-    // runtime methods
+    // submodules method
     malloc_t malloc;
 } WinFile;
 
@@ -30,11 +30,14 @@ bool WF_ReadFileW(LPWSTR path, byte** buf, uint* size);
 bool WF_WriteFileA(LPSTR path, byte* buf, uint size);
 bool WF_WriteFileW(LPWSTR path, byte* buf, uint size);
 
+// methods for runtime
+errno WF_Uninstall();
+
 // hard encoded address in getModulePointer for replacement
 #ifdef _WIN64
-    #define MODULE_POINTER 0x7FABCDEF111111A1
+    #define MODULE_POINTER 0x7FABCDEF111111E1
 #elif _WIN32
-    #define MODULE_POINTER 0x7FABCDA1
+    #define MODULE_POINTER 0x7FABCDE1
 #endif
 static WinFile* getModulePointer();
 
@@ -49,8 +52,8 @@ WinFile_M* InitWinFile(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr moduleAddr = address + 4096 + RandUintN(address, 128);
-    uintptr methodAddr = address + 4600 + RandUintN(address, 128);
+    uintptr moduleAddr = address + 16384 + RandUintN(address, 128);
+    uintptr methodAddr = address + 17000 + RandUintN(address, 128);
     // initialize module
     WinFile* module = (WinFile*)moduleAddr;
     mem_init(module, sizeof(WinFile));
@@ -93,28 +96,104 @@ WinFile_M* InitWinFile(Context* context)
 
 static bool initModuleAPI(WinFile* module, Context* context)
 {
+    typedef struct { 
+        uint hash; uint key; void* proc;
+    } winapi;
+    winapi list[] =
+#ifdef _WIN64
+    {
+        { 0x25A5D7F5BB962DC8, 0x9CD44B683CE17BB6 }, // CreateFileA
+        { 0x1E0DC0D6B2FBC9BE, 0xD0D465B1C6EE90D2 }, // CreateFileW
+        { 0x5E4CF1B0CACB9DD4, 0xF2F660A9FA989AA5 }, // GetFileSizeEx
+        { 0xA35B1843BD034620, 0x5A61E67086B515E9 }, // ReadFile
+        { 0x2DC91E971C8A6CAB, 0x53D106A37CB5022C }, // WriteFile
+    };
+#elif _WIN32
+    {
+        { 0xF1EB542C, 0xBE63A34F }, // CreateFileA
+        { 0x72331B65, 0x2347FDB8 }, // CreateFileW
+        { 0x75FAD4ED, 0xF7D881E8 }, // GetFileSizeEx
+        { 0x02C8D131, 0xA90353CD }, // ReadFile
+        { 0x0A0B19BF, 0x91D1EBF2 }, // WriteFile
+    };
+#endif
+    for (int i = 0; i < arrlen(list); i++)
+    {
+        void* proc = FindAPI(list[i].hash, list[i].key);
+        if (proc == NULL)
+        {
+            return false;
+        }
+        list[i].proc = proc;
+    }
+    module->CreateFileA   = list[0].proc;
+    module->CreateFileW   = list[1].proc;
+    module->GetFileSizeEx = list[2].proc;
+    module->ReadFile      = list[3].proc;
+    module->WriteFile     = list[4].proc;
+
+    module->CloseHandle = context->CloseHandle;
     return true;
 }
 
+// CANNOT merge updateModulePointer and recoverModulePointer
+// to one function with two arguments, otherwise the compiler
+// will generate the incorrect instructions.
+
 static bool updateModulePointer(WinFile* module)
 {
-    return true;
+   bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getModulePointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != MODULE_POINTER)
+        {
+            target++;
+            continue;
+        }
+        *pointer = (uintptr)module;
+        success = true;
+        break;
+    }
+    return success;
 }
 
 static bool recoverModulePointer(WinFile* module)
 {
-    return true;
+   bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getModulePointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != (uintptr)module)
+        {
+            target++;
+            continue;
+        }
+        *pointer = MODULE_POINTER;
+        success = true;
+        break;
+    }
+    return success;
 }
 
 static bool initModuleEnvironment(WinFile* module, Context* context)
 {
+    module->malloc = context->mt_malloc;
     return true;
 }
 
-
 static void eraseModuleMethods(Context* context)
 {
-
+    if (context->NotEraseInstruction)
+    {
+        return;
+    }
+    uintptr begin = (uintptr)(GetFuncAddr(&initModuleAPI));
+    uintptr end   = (uintptr)(GetFuncAddr(&eraseModuleMethods));
+    uintptr size  = end - begin;
+    RandBuf((byte*)begin, (int64)size);
 }
 
 // updateModulePointer will replace hard encode address to the actual address.
@@ -149,4 +228,10 @@ __declspec(noinline)
 bool WF_WriteFileW(LPWSTR path, byte* buf, uint size)
 {
     return true;
+}
+
+__declspec(noinline)
+errno WF_Uninstall()
+{
+    return NO_ERROR;
 }
