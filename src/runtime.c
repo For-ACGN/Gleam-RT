@@ -22,34 +22,6 @@
 #include "runtime.h"
 #include "debug.h"
 
-#ifdef RELEASE_MODE
-    #define NAME_RT_MUTEX_GLOBAL  NULL
-    #define NAME_RT_MUTEX_SLEEP   NULL
-    #define NAME_RT_EVENT_ARRIVE  NULL
-    #define NAME_RT_EVENT_DONE    NULL
-    #define NAME_RT_MUTEX_EVENT   NULL
-    #define NAME_RT_TIMER_SLEEP   NULL
-    #define NAME_RT_TIMER_SLEEPHR NULL
-#else
-#ifdef _WIN64
-    #define NAME_RT_MUTEX_GLOBAL  "RT_Core_Global_x64"
-    #define NAME_RT_MUTEX_SLEEP   "RT_Core_Sleep_x64"
-    #define NAME_RT_EVENT_ARRIVE  "RT_Core_Arrive_x64"
-    #define NAME_RT_EVENT_DONE    "RT_Core_Done_x64"
-    #define NAME_RT_MUTEX_EVENT   "RT_Core_Event_x64"
-    #define NAME_RT_TIMER_SLEEP   L"RT_Method_Sleep_x64"
-    #define NAME_RT_TIMER_SLEEPHR L"RT_Method_SleepHR_x64"
-#elif _WIN32
-    #define NAME_RT_MUTEX_GLOBAL  "RT_Core_Global_x86"
-    #define NAME_RT_MUTEX_SLEEP   "RT_Core_Sleep_x86"
-    #define NAME_RT_EVENT_ARRIVE  "RT_Core_Arrive_x86"
-    #define NAME_RT_EVENT_DONE    "RT_Core_Done_x86"
-    #define NAME_RT_MUTEX_EVENT   "RT_Core_Event_x86"
-    #define NAME_RT_TIMER_SLEEP   L"RT_Method_Sleep_x86"
-    #define NAME_RT_TIMER_SLEEPHR L"RT_Method_SleepHR_x86"
-#endif
-#endif // RELEASE_MODE
-
 // +--------------+--------------------+-------------------+
 // |    0-4096    |     4096-16384     |    16384-32768    |
 // +--------------+--------------------+-------------------+
@@ -171,7 +143,7 @@ static bool  recoverPageProtect(Runtime* runtime, DWORD protect);
 static bool  updateRuntimePointer(Runtime* runtime);
 static bool  recoverRuntimePointer(Runtime* runtime);
 static errno initRuntimeEnvironment(Runtime* runtime);
-static errno initSubmodules(Runtime* runtime);
+static errno initModules(Runtime* runtime);
 static errno initLibraryTracker(Runtime* runtime, Context* context);
 static errno initMemoryTracker(Runtime* runtime, Context* context);
 static errno initThreadTracker(Runtime* runtime, Context* context);
@@ -266,7 +238,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
         {
             break;
         }
-        errno = initSubmodules(runtime);
+        errno = initModules(runtime);
         if (errno != NO_ERROR)
         {
             break;
@@ -579,7 +551,7 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     return NO_ERROR;
 }
 
-static errno initSubmodules(Runtime* runtime)
+static errno initModules(Runtime* runtime)
 {
     typedef errno (*module_t)(Runtime* runtime, Context* context);
 
