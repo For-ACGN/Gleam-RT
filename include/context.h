@@ -9,6 +9,11 @@
 typedef errno (*rt_lock_t)();
 typedef errno (*rt_unlock_t)();
 
+typedef void* (*mt_malloc_t)(uint size);
+typedef void* (*mt_calloc_t)(uint num, uint size);
+typedef void* (*mt_realloc_t)(void* ptr, uint size);
+typedef void  (*mt_free_t)(void* ptr);
+
 typedef struct {
     // runtime options
     bool NotEraseInstruction;
@@ -39,10 +44,10 @@ typedef struct {
     CloseHandle_t           CloseHandle;
 
     // for initialize high level modules
-    malloc_t  mt_malloc;
-    calloc_t  mt_calloc;
-    realloc_t mt_realloc;
-    free_t    mt_free;
+    mt_malloc_t  mt_malloc;
+    mt_calloc_t  mt_calloc;
+    mt_realloc_t mt_realloc;
+    mt_free_t    mt_free;
 } Context;
 
 #endif // CONTEXT_H
