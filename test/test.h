@@ -18,6 +18,7 @@ bool TestCrypto();
 bool TestInitRuntime();
 bool TestRuntime_Memory();
 bool TestRuntime_Argument();
+bool TestRuntime_WinFile();
 bool TestRuntime_Exit();
 #pragma warning(pop)
 
@@ -34,6 +35,7 @@ static unit tests[] =
     { "InitRuntime",      TestInitRuntime      },
     { "Runtime_Memory",   TestRuntime_Memory   },
     { "Runtime_Argument", TestRuntime_Argument },
+    { "Runtime_WinFile",  TestRuntime_WinFile  },
     { "Runtime_Exit",     TestRuntime_Exit     },
 };
 
