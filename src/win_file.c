@@ -9,6 +9,12 @@
 #include "win_file.h"
 #include "debug.h"
 
+#ifdef RELEASE_MODE
+    #define CHUNK_SIZE 4096
+#else
+    #define CHUNK_SIZE 4
+#endif
+
 typedef struct {
     // store options
     bool NotEraseInstruction;
@@ -273,7 +279,7 @@ errno readFile(HANDLE hFile, byte** buf, int64* size)
         for (;;)
         {
             // prevent buffer overflow
-            int64 chunkSize = 4096;
+            int64 chunkSize = CHUNK_SIZE;
             int64 remaining = fSize - read;
             if (remaining < chunkSize)
             {
@@ -292,11 +298,12 @@ errno readFile(HANDLE hFile, byte** buf, int64* size)
                 break;
             }
             read += n;
-            fBuf += n;
             if (read == fSize)
             {
                 break;
             }
+            // read next chunk
+            fBuf += n;
         }
         break;
     }
@@ -311,6 +318,7 @@ errno readFile(HANDLE hFile, byte** buf, int64* size)
         return errno;
     }
 
+    // write result
     *buf  = buffer;
     *size = fSize;
     return NO_ERROR;
@@ -321,7 +329,15 @@ errno WF_WriteFileA(LPSTR path, byte* buf, int64 size)
 {
     WinFile* module = getModulePointer();
 
-    return NO_ERROR;
+    HANDLE hFile = module->CreateFileA(
+        path, GENERIC_WRITE, 0, NULL, 
+        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
+    );
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return GetLastErrno();
+    }
+    return writeFile(hFile, buf, size);
 }
 
 __declspec(noinline)
@@ -329,7 +345,15 @@ errno WF_WriteFileW(LPWSTR path, byte* buf, int64 size)
 {
     WinFile* module = getModulePointer();
 
-    return NO_ERROR;
+    HANDLE hFile = module->CreateFileW(
+        path, GENERIC_WRITE, 0, NULL, 
+        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
+    );
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return GetLastErrno();
+    }
+    return writeFile(hFile, buf, size);
 }
 
 __declspec(noinline)
@@ -337,7 +361,39 @@ errno writeFile(HANDLE hFile, byte* buf, int64 size)
 {
     WinFile* module = getModulePointer();
 
-    return NO_ERROR;
+    int64 written = 0;
+    errno errno   = NO_ERROR;
+    for (;;)
+    {
+        // prevent buffer overflow
+        int64 chunkSize = CHUNK_SIZE;
+        int64 remaining = size - written;
+        if (remaining < chunkSize)
+        {
+            chunkSize = remaining;
+        }
+        // write file chunk
+        DWORD n;
+        if (!module->WriteFile(hFile, buf, (DWORD)chunkSize, &n, NULL))
+        {
+            errno = GetLastErrno();
+            break;
+        }
+        // check is finished
+        written += n;
+        if (written == size)
+        {
+            break;
+        }
+        // write next chunk
+        buf += n;
+    }
+
+    if (!module->CloseHandle(hFile) && errno == NO_ERROR)
+    {
+        errno = GetLastErrno();
+    }
+    return errno;
 }
 
 __declspec(noinline)
