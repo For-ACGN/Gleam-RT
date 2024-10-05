@@ -101,6 +101,9 @@
     <ClCompile Include="..\src\win_http.c">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="win_file_test.c">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\crypto.h">
