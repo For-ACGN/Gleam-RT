@@ -32,10 +32,10 @@ typedef bool (*EraseArgument_t)(uint index);
 typedef void (*EraseAllArgs_t)();
 
 // about Win File
-typedef bool (*ReadFileA_t)(LPSTR path, byte** buf, uint* size);
-typedef bool (*ReadFileW_t)(LPWSTR path, byte** buf, uint* size);
-typedef bool (*WriteFileA_t)(LPSTR path, byte* buf, uint size);
-typedef bool (*WriteFileW_t)(LPWSTR path, byte* buf, uint size);
+typedef bool (*ReadFileA_t)(LPSTR path, byte** buf, int64* size);
+typedef bool (*ReadFileW_t)(LPWSTR path, byte** buf, int64* size);
+typedef bool (*WriteFileA_t)(LPSTR path, byte* buf, int64 size);
+typedef bool (*WriteFileW_t)(LPWSTR path, byte* buf, int64 size);
 
 // about random module
 typedef void   (*RandBuf_t)(byte* buf, int64 size);

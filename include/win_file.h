@@ -6,12 +6,12 @@
 #include "context.h"
 #include "errno.h"
 
-// The memory buffer that from ReadFile must call Runtime_M.MemFree.
+// The buffer allocated from ReadFile must call Runtime_M.MemFree.
 
-typedef bool (*WFReadFileA_t)(LPSTR path, byte** buf, uint* size);
-typedef bool (*WFReadFileW_t)(LPWSTR path, byte** buf, uint* size);
-typedef bool (*WFWriteFileA_t)(LPSTR path, byte* buf, uint size);
-typedef bool (*WFWriteFileW_t)(LPWSTR path, byte* buf, uint size);
+typedef errno (*WFReadFileA_t)(LPSTR path, byte** buf, int64* size);
+typedef errno (*WFReadFileW_t)(LPWSTR path, byte** buf, int64* size);
+typedef errno (*WFWriteFileA_t)(LPSTR path, byte* buf, int64 size);
+typedef errno (*WFWriteFileW_t)(LPWSTR path, byte* buf, int64 size);
 
 typedef errno (*WFUninstall_t)();
 
