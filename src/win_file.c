@@ -47,8 +47,10 @@ static bool initModuleAPI(WinFile* module, Context* context);
 static bool updateModulePointer(WinFile* module);
 static bool recoverModulePointer(WinFile* module);
 static bool initModuleEnvironment(WinFile* module, Context* context);
-
 static void eraseModuleMethods(Context* context);
+
+errno readFile(HANDLE hFile, byte** buf, int64* size);
+errno writeFile(HANDLE hFile, byte* buf, int64 size);
 
 WinFile_M* InitWinFile(Context* context)
 {
@@ -93,6 +95,7 @@ WinFile_M* InitWinFile(Context* context)
     method->ReadFileW  = GetFuncAddr(&WF_ReadFileW);
     method->WriteFileA = GetFuncAddr(&WF_WriteFileA);
     method->WriteFileW = GetFuncAddr(&WF_WriteFileW);
+    method->Uninstall  = GetFuncAddr(&WF_Uninstall);
     return method;
 }
 
@@ -222,6 +225,29 @@ errno WF_ReadFileA(LPSTR path, byte** buf, int64* size)
     {
         return GetLastErrno();
     }
+    return readFile(hFile, buf, size);
+}
+
+__declspec(noinline)
+errno WF_ReadFileW(LPWSTR path, byte** buf, int64* size)
+{
+    WinFile* module = getModulePointer();
+
+    HANDLE hFile = module->CreateFileW(
+        path, GENERIC_READ, 0, NULL, 
+        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
+    );
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return GetLastErrno();
+    }
+    return readFile(hFile, buf, size);
+}
+
+__declspec(noinline)
+errno readFile(HANDLE hFile, byte** buf, int64* size)
+{
+    WinFile* module = getModulePointer();
 
     int64 fSize  = 0;
     byte* buffer = NULL;
@@ -291,14 +317,6 @@ errno WF_ReadFileA(LPSTR path, byte** buf, int64* size)
 }
 
 __declspec(noinline)
-errno WF_ReadFileW(LPWSTR path, byte** buf, int64* size)
-{
-    WinFile* module = getModulePointer();
-
-    return NO_ERROR;
-}
-
-__declspec(noinline)
 errno WF_WriteFileA(LPSTR path, byte* buf, int64 size)
 {
     WinFile* module = getModulePointer();
@@ -315,7 +333,27 @@ errno WF_WriteFileW(LPWSTR path, byte* buf, int64 size)
 }
 
 __declspec(noinline)
+errno writeFile(HANDLE hFile, byte* buf, int64 size)
+{
+    WinFile* module = getModulePointer();
+
+    return NO_ERROR;
+}
+
+__declspec(noinline)
 errno WF_Uninstall()
 {
-    return NO_ERROR;
+    WinFile* module = getModulePointer();
+
+    errno errno = NO_ERROR;
+
+    // recover instructions
+    if (module->NotEraseInstruction)
+    {
+        if (!recoverModulePointer(module) && errno == NO_ERROR)
+        {
+            errno = ERR_WIN_FILE_RECOVER_INST;
+        }
+    }
+    return errno;
 }
