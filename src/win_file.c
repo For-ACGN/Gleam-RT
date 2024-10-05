@@ -5,6 +5,7 @@
 #include "hash_api.h"
 #include "context.h"
 #include "random.h"
+#include "errno.h"
 #include "win_file.h"
 #include "debug.h"
 
@@ -21,14 +22,15 @@ typedef struct {
     CloseHandle_t   CloseHandle;
 
     // submodules method
-    malloc_t malloc;
+    malloc_t  malloc;
+    mt_free_t free;
 } WinFile;
 
 // methods for user
-bool WF_ReadFileA(LPSTR path, byte** buf, uint* size);
-bool WF_ReadFileW(LPWSTR path, byte** buf, uint* size);
-bool WF_WriteFileA(LPSTR path, byte* buf, uint size);
-bool WF_WriteFileW(LPWSTR path, byte* buf, uint size);
+errno WF_ReadFileA(LPSTR path, byte** buf, int64* size);
+errno WF_ReadFileW(LPWSTR path, byte** buf, int64* size);
+errno WF_WriteFileA(LPSTR path, byte* buf, int64 size);
+errno WF_WriteFileW(LPWSTR path, byte* buf, int64 size);
 
 // methods for runtime
 errno WF_Uninstall();
@@ -181,6 +183,7 @@ static bool recoverModulePointer(WinFile* module)
 static bool initModuleEnvironment(WinFile* module, Context* context)
 {
     module->malloc = context->mt_malloc;
+    module->free   = context->mt_free;
     return true;
 }
 
@@ -207,27 +210,108 @@ static WinFile* getModulePointer()
 #pragma optimize("", on)
 
 __declspec(noinline)
-bool WF_ReadFileA(LPSTR path, byte** buf, uint* size)
+errno WF_ReadFileA(LPSTR path, byte** buf, int64* size)
 {
-    return true;
+    WinFile* module = getModulePointer();
+
+    HANDLE hFile = module->CreateFileA(
+        path, GENERIC_READ, 0, NULL, 
+        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
+    );
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        return GetLastErrno();
+    }
+
+    int64 fSize  = 0;
+    byte* buffer = NULL;
+    errno errno  = NO_ERROR;
+    for (;;)
+    {
+        // get the file size
+        if (!module->GetFileSizeEx(hFile, &fSize))
+        {
+            errno = GetLastErrno();
+            break;
+        }
+        // allocate memory for store file
+        byte* fBuf = module->malloc((uint)fSize);
+        if (fBuf == NULL)
+        {
+            errno = GetLastErrno();
+            break;
+        }
+        buffer = fBuf;
+        // read file until EOF
+        int64 read = 0;
+        for (;;)
+        {
+            // prevent buffer overflow
+            int64 chunkSize = 4096;
+            int64 remaining = fSize - read;
+            if (remaining < chunkSize)
+            {
+                chunkSize = remaining;
+            }
+            // read file chunk
+            DWORD n;
+            if (!module->ReadFile(hFile, fBuf, (DWORD)chunkSize, &n, NULL))
+            {
+                errno = GetLastErrno();
+                break;
+            }
+            // check is EOF
+            if (n < chunkSize)
+            {
+                break;
+            }
+            read += n;
+            fBuf += n;
+            if (read == fSize)
+            {
+                break;
+            }
+        }
+        break;
+    }
+
+    if (!module->CloseHandle(hFile) && errno == NO_ERROR)
+    {
+        errno = GetLastErrno();
+    }
+    if (errno != NO_ERROR)
+    {
+        module->free(buffer);
+        return errno;
+    }
+
+    *buf  = buffer;
+    *size = fSize;
+    return NO_ERROR;
 }
 
 __declspec(noinline)
-bool WF_ReadFileW(LPWSTR path, byte** buf, uint* size)
+errno WF_ReadFileW(LPWSTR path, byte** buf, int64* size)
 {
-    return true;
+    WinFile* module = getModulePointer();
+
+    return NO_ERROR;
 }
 
 __declspec(noinline)
-bool WF_WriteFileA(LPSTR path, byte* buf, uint size)
+errno WF_WriteFileA(LPSTR path, byte* buf, int64 size)
 {
-    return true;
+    WinFile* module = getModulePointer();
+
+    return NO_ERROR;
 }
 
 __declspec(noinline)
-bool WF_WriteFileW(LPWSTR path, byte* buf, uint size)
+errno WF_WriteFileW(LPWSTR path, byte* buf, int64 size)
 {
-    return true;
+    WinFile* module = getModulePointer();
+
+    return NO_ERROR;
 }
 
 __declspec(noinline)
