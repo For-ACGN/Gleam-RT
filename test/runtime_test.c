@@ -23,7 +23,7 @@ bool TestInitRuntime()
 
 bool TestRuntime_Exit()
 {
-    errno errno = runtime->Exit();
+    errno errno = runtime->Core.Exit();
     if (errno != NO_ERROR)
     {
         printf_s("failed to exit runtime: 0x%X\n", errno);
