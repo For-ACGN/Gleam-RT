@@ -47,7 +47,8 @@ bool TestRuntime_WinFile()
 
 static bool TestWinFile_ReadFileA()
 {
-    ANSI  path = "test.h";
+    LPSTR path = "test.vcxproj";
+
     byte* data;
     int64 size;
     errno errno = runtime->WinFile.ReadFileA(path, &data, &size);
@@ -93,13 +94,17 @@ static bool TestWinFile_ReadFileA()
         printf_s("failed to close file: 0x%X\n", GetLastErrno());
         return false;
     }
+
+    runtime->Memory.Free(data);
+    runtime->Memory.Free(buf);
     printf_s("test ReadFileA passed\n");
     return true;
 }
 
 static bool TestWinFile_ReadFileW()
 {
-    UTF16 path = L"test.h";
+    LPWSTR path = L"test.vcxproj.filters";
+
     byte* data;
     int64 size;
     errno errno = runtime->WinFile.ReadFileW(path, &data, &size);
@@ -145,16 +150,91 @@ static bool TestWinFile_ReadFileW()
         printf_s("failed to close file: 0x%X\n", GetLastErrno());
         return false;
     }
+
+    runtime->Memory.Free(data);
+    runtime->Memory.Free(buf);
     printf_s("test ReadFileW passed\n");
     return true;
 }
 
 static bool TestWinFile_WriteFileA()
 {
+    byte testdata[256];
+    mem_init(testdata, sizeof(testdata));
+    for (int i = 0; i < 256; i++)
+    {
+        testdata[i] = (byte)i;
+    }
+
+    LPSTR path = "testdata/WriteFileA.bin";
+    errno errno = runtime->WinFile.WriteFileA(path, testdata, sizeof(testdata));
+    if (errno != NO_ERROR)
+    {
+        printf_s("failed to write testdata to file\n");
+        return false;
+    }
+
+    byte* buf;
+    int64 size;
+    errno = runtime->WinFile.ReadFileA(path, &buf, &size);
+    if (errno != NO_ERROR)
+    {
+        printf_s("failed to read testdata file\n");
+        return false;
+    }
+    if (mem_cmp(testdata, buf, sizeof(testdata)) != 0)
+    {
+        printf_s("write file with incorrect data\n");
+        return false;
+    }
+    if (size != sizeof(testdata))
+    {
+        printf_s("write file with incorrect size\n");
+        return false;
+    }
+
+    runtime->Memory.Free(buf);
+    printf_s("test WriteFileA passed\n");
     return true;
 }
 
 static bool TestWinFile_WriteFileW()
 {
+    byte testdata[513];
+    mem_init(testdata, sizeof(testdata));
+    for (int i = 0; i < 513; i++)
+    {
+        testdata[i] = (byte)i;
+    }
+
+    LPWSTR path = L"testdata/WriteFileW.bin";
+    errno errno = runtime->WinFile.WriteFileW(path, testdata, sizeof(testdata));
+    if (errno != NO_ERROR)
+    {
+        printf_s("failed to write testdata to file\n");
+        return false;
+    }
+
+    byte* buf;
+    int64 size;
+    errno = runtime->WinFile.ReadFileW(path, &buf, &size);
+    if (errno != NO_ERROR)
+    {
+        printf_s("failed to read testdata file\n");
+        return false;
+    }
+    if (mem_cmp(testdata, buf, sizeof(testdata)) != 0)
+    {
+        printf_s("write file with incorrect data\n");
+        return false;
+    }
+    if (size != sizeof(testdata))
+    {
+        printf_s("write file with incorrect size\n");
+        return false;
+    }
+
+    runtime->Memory.Free(buf);
+    printf_s("test WriteFileW passed\n");
     return true;
 }
