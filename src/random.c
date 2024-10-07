@@ -8,7 +8,7 @@ static uintptr getStackAddr();
 
 #pragma optimize("t", on)
 
-void RandBuf(byte* buf, int64 size)
+void RandBuffer(byte* buf, int64 size)
 {
     if (size < 1)
     {
