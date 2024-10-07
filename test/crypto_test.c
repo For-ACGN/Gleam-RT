@@ -35,9 +35,9 @@ static bool TestEncryptBuf()
     byte key[CRYPTO_KEY_SIZE];
     byte iv1[CRYPTO_IV_SIZE];
     byte iv2[CRYPTO_IV_SIZE];
-    RandBuf(key, sizeof(key));
-    RandBuf(iv1, sizeof(iv1));
-    RandBuf(iv2, sizeof(iv2));
+    RandBuffer(key, sizeof(key));
+    RandBuffer(iv1, sizeof(iv1));
+    RandBuffer(iv2, sizeof(iv2));
 
     // write repetitive and orderly data
     byte testdata[128];
@@ -88,15 +88,15 @@ static bool TestDecryptBuf()
     printf_s("=======TestDecryptBuf begin========\n");
 
     byte key[CRYPTO_KEY_SIZE];
-    RandBuf(key, sizeof(key));
+    RandBuffer(key, sizeof(key));
 
     byte data1[64+4];
     byte data2[64+4];
-    RandBuf(data1, sizeof(data1));
+    RandBuffer(data1, sizeof(data1));
     mem_copy(data2, data1, sizeof(data1));
 
     byte iv[CRYPTO_IV_SIZE];
-    RandBuf(iv, sizeof(iv));
+    RandBuffer(iv, sizeof(iv));
 
     printf_s("plain data:\n");
     printHexBytes(data2, sizeof(data2));
