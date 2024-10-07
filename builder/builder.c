@@ -1,16 +1,48 @@
-﻿#include <stdio.h>
-#include "c_types.h"
+﻿#include "c_types.h"
 #include "windows_t.h"
 #include "hash_api.h"
 #include "errno.h"
 #include "argument.h"
 #include "runtime.h"
 
+// NOT using stdio is to ensure that no runtime instructions 
+// are introduced to avoid compiler optimization link errors 
+// that cause the extracted shellcode to contain incorrect 
+// relative/absolute memory addresses.
+
+static LoadLibraryA_t LoadLibraryA;
+static FreeLibrary_t  FreeLibrary;
+static CreateFileA_t  CreateFileA;
+static WriteFile_t    WriteFile;
+static CloseHandle_t  CloseHandle;
+
+typedef int (*printf_s_t)(const char* format, ...);
+static printf_s_t printf_s;
+
 bool testShellcode(bool erase);
 bool saveShellcode();
 
-int __cdecl main()
+static void init()
 {
+    LoadLibraryA = FindAPI_A("kernel32.dll", "LoadLibraryA");
+    FreeLibrary  = FindAPI_A("kernel32.dll", "FreeLibrary");
+    CreateFileA  = FindAPI_A("kernel32.dll", "CreateFileA");
+    WriteFile    = FindAPI_A("kernel32.dll", "WriteFile");
+    CloseHandle  = FindAPI_A("kernel32.dll", "CloseHandle");
+}
+
+#pragma comment(linker, "/ENTRY:EntryPoint")
+int EntryPoint()
+{
+    init();
+
+    HMODULE hModule = LoadLibraryA("msvcrt.dll");
+    if (hModule == NULL)
+    {
+        return -1;
+    }
+    printf_s = FindAPI_A("msvcrt.dll", "printf_s");
+
     if (!testShellcode(false))
     {
         return 1;
@@ -24,6 +56,11 @@ int __cdecl main()
         return 3;
     }
     printf_s("save shellcode successfully\n");
+    
+    if (!FreeLibrary(hModule))
+    {
+        return -2;
+    }
     return 0;
 }
 
@@ -42,7 +79,7 @@ bool testShellcode(bool erase)
         return false;
     }
     printf_s("RuntimeM: 0x%llX\n", (uint64)RuntimeM);
-    errno errno = RuntimeM->Exit();
+    errno errno = RuntimeM->Core.Exit();
     if (errno != NO_ERROR)
     {
         printf_s("failed to exit runtime: 0x%X\n", errno);
@@ -72,23 +109,30 @@ bool saveShellcode()
             return false;
         }
     }
-    // extract shellcode to file
+    // extract shellcode and save to file
 #ifdef _WIN64
-    FILE* file = fopen("../dist/GleamRT_x64.bin", "wb");
+    LPSTR path = "../dist/GleamRT_x64.bin";
 #elif _WIN32
-    FILE* file = fopen("../dist/GleamRT_x86.bin", "wb");
+    LPSTR path = "../dist/GleamRT_x86.bin";
 #endif
-    if (file == NULL)
+    HANDLE hFile = CreateFileA(
+        path, GENERIC_WRITE, 0, NULL, 
+        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
+    );
+    if (hFile == INVALID_HANDLE_VALUE)
     {
-        printf_s("failed to create shellcode output file\n");
+        printf_s("failed to create shellcode output file: 0x%X\n", GetLastErrno());
         return false;
     }
-    size_t n = fwrite((byte*)begin, (size_t)size, 1, file);
-    if (n != 1)
+    if (!WriteFile(hFile, (byte*)begin, (DWORD)size, NULL, NULL))
     {
-        printf_s("failed to save shellcode\n");
+        printf_s("failed to save shellcode: 0x%X\n", GetLastErrno());
         return false;
     }
-    fclose(file);
+    if (!CloseHandle(hFile))
+    {
+        printf_s("failed to close file: 0x%X\n", GetLastErrno());
+        return false;
+    }
     return true;
 }
