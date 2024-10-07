@@ -38,7 +38,7 @@ typedef errno (*WriteFileA_t)(LPSTR path, byte* buf, int64 size);
 typedef errno (*WriteFileW_t)(LPWSTR path, byte* buf, int64 size);
 
 // about random module
-typedef void   (*RandBuf_t)(byte* buf, int64 size);
+typedef void   (*RandBuffer_t)(byte* buf, int64 size);
 typedef bool   (*RandBool_t)(uint64 seed);
 typedef int64  (*RandInt64_t)(uint64 seed);
 typedef uint64 (*RandUint64_t)(uint64 seed);
@@ -131,7 +131,7 @@ typedef struct {
     } WinFile;
     
     struct Random {
-        RandBuf_t     Buf;
+        RandBuffer_t  Buffer;
         RandBool_t    Bool;
         RandInt64_t   Int64;
         RandUint64_t  Uint64;
