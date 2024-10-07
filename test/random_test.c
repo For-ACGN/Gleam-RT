@@ -3,7 +3,7 @@
 #include "random.h"
 #include "test.h"
 
-static void TestRandBuf();
+static void TestRandBuffer();
 static void TestRandByte();
 static void TestRandBool();
 static void TestRandInt();
@@ -16,7 +16,7 @@ bool TestRandom()
     typedef void (*test_t)();
     test_t tests[] = 
     {
-        { TestRandBuf    },
+        { TestRandBuffer },
         { TestRandByte   },
         { TestRandBool   },
         { TestRandInt    },
@@ -31,12 +31,12 @@ bool TestRandom()
     return true;
 }
 
-static void TestRandBuf()
+static void TestRandBuffer()
 {
     printf_s("========TestRandBuf begin==========\n");
 
     byte buf[16];
-    RandBuf(buf, 16);
+    RandBuffer(buf, 16);
 
     printf_s("buf: ");
     for (int i = 0; i < sizeof(buf); i++)
@@ -60,7 +60,7 @@ static void TestRandByte()
     printf_s("\n");
 
     // will different
-    uint64 last = (uint64)(&TestRandBuf);
+    uint64 last = (uint64)(&TestRandBuffer);
     for (uint i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandByte(last);
@@ -83,7 +83,7 @@ static void TestRandBool()
     printf_s("\n");
 
     // will different
-    uint64 last = (uint64)(&TestRandBuf);
+    uint64 last = (uint64)(&TestRandBuffer);
     for (int i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandBool(last);
@@ -106,7 +106,7 @@ static void TestRandInt()
     printf_s("\n");
 
     // will different
-    uint64 last = (uint64)(&TestRandBuf);
+    uint64 last = (uint64)(&TestRandBuffer);
     for (int i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandInt(last);
@@ -129,7 +129,7 @@ static void TestRandUint()
     printf_s("\n");
 
     // will different
-    uint64 last = (uint64)(&TestRandBuf);
+    uint64 last = (uint64)(&TestRandBuffer);
     for (int i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandUint(last);
@@ -152,7 +152,7 @@ static void TestRandInt64()
     printf_s("\n");
 
     // will different
-    uint64 last = (uint64)(&TestRandBuf);
+    uint64 last = (uint64)(&TestRandBuffer);
     for (int i = 0; i < 5; i++)
     {
         uint64 val = (uint64)RandInt64(last);
@@ -175,7 +175,7 @@ static void TestRandUint64()
     printf_s("\n");
 
     // will different
-    uint64 last = (uint64)(&TestRandBuf);
+    uint64 last = (uint64)(&TestRandBuffer);
     for (int i = 0; i < 5; i++)
     {
         uint64 val = RandUint64(last);
