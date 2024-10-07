@@ -205,7 +205,7 @@ static void eraseModuleMethods(Context* context)
     uintptr begin = (uintptr)(GetFuncAddr(&initModuleAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseModuleMethods));
     uintptr size  = end - begin;
-    RandBuf((byte*)begin, (int64)size);
+    RandBuffer((byte*)begin, (int64)size);
 }
 
 // updateModulePointer will replace hard encode address to the actual address.

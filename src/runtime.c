@@ -318,7 +318,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // WinHTTP
     
     // random module
-    module->Random.Buf     = GetFuncAddr(&RandBuf);
+    module->Random.Buffer  = GetFuncAddr(&RandBuffer);
     module->Random.Bool    = GetFuncAddr(&RandBool);
     module->Random.Int64   = GetFuncAddr(&RandInt64);
     module->Random.Uint64  = GetFuncAddr(&RandUint64);
@@ -377,7 +377,7 @@ static void* allocRuntimeMemPage()
     {
         return NULL;
     }
-    RandBuf(addr, (int64)size);
+    RandBuffer(addr, (int64)size);
     dbg_log("[runtime]", "Main Memory Page: 0x%zX", addr);
     return addr;
 }
@@ -628,9 +628,9 @@ static errno initModules(Runtime* runtime)
     }
 
     // clean useless API functions in runtime structure
-    RandBuf((byte*)(&runtime->GetSystemInfo), sizeof(uintptr));
-    RandBuf((byte*)(&runtime->CreateMutexA),  sizeof(uintptr));
-    RandBuf((byte*)(&runtime->CreateEventA),  sizeof(uintptr));
+    RandBuffer((byte*)(&runtime->GetSystemInfo), sizeof(uintptr));
+    RandBuffer((byte*)(&runtime->CreateMutexA),  sizeof(uintptr));
+    RandBuffer((byte*)(&runtime->CreateEventA),  sizeof(uintptr));
     return NO_ERROR;
 }
 
@@ -790,7 +790,7 @@ static void eraseRuntimeMethods(Runtime* runtime)
     uintptr begin = (uintptr)(GetFuncAddr(&allocRuntimeMemPage));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseRuntimeMethods));
     uintptr size  = end - begin;
-    RandBuf((byte*)begin, (int64)size);
+    RandBuffer((byte*)begin, (int64)size);
 }
 
 // ======================== these instructions will not be erased ========================
@@ -874,7 +874,7 @@ static errno cleanRuntime(Runtime* runtime)
     VirtualFree_t virtualFree = runtime->VirtualFree;
     void* memPage = runtime->MainMemPage;
     // release main memory page
-    RandBuf(memPage, MAIN_MEM_PAGE_SIZE);
+    RandBuffer(memPage, MAIN_MEM_PAGE_SIZE);
     if (virtualFree != NULL)
     {
         if (!virtualFree(memPage, 0, MEM_RELEASE) && err == NO_ERROR)
@@ -1035,7 +1035,7 @@ void* RT_malloc(uint size)
     // store the size at the head of the memory page
     // ensure the memory address is 16 bytes aligned
     byte* address = (byte*)addr;
-    RandBuf(address, 16);
+    RandBuffer(address, 16);
     mem_copy(address, &size, sizeof(uint));
     return (void*)(address + 16);
 }
@@ -1899,13 +1899,13 @@ static errno sleep(Runtime* runtime, HANDLE hTimer)
 
         .WaitForSingleObject = runtime->WaitForSingleObject,
     };
-    RandBuf(ctx.CryptoKey, sizeof(ctx.CryptoKey));
+    RandBuffer(ctx.CryptoKey, sizeof(ctx.CryptoKey));
     // encrypt main page
     void* buf = runtime->MainMemPage;
     byte key[CRYPTO_KEY_SIZE];
     byte iv [CRYPTO_IV_SIZE];
-    RandBuf(key, CRYPTO_KEY_SIZE);
-    RandBuf(iv,  CRYPTO_IV_SIZE);
+    RandBuffer(key, CRYPTO_KEY_SIZE);
+    RandBuffer(iv,  CRYPTO_IV_SIZE);
     EncryptBuf(buf, MAIN_MEM_PAGE_SIZE, key, iv);
     // call shield!!!
     if (!DefenseRT(&ctx))
