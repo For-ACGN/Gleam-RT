@@ -74,7 +74,11 @@ int RandInt(uint64 seed)
     {
         seed += GenerateSeed();
     }
+#ifdef _WIN64
+    return (int)rand(seed, UINT64_MAX);
+#elif _WIN32
     return (int)rand(seed, UINT32_MAX);
+#endif
 }
 
 uint RandUint(uint64 seed)
@@ -83,7 +87,11 @@ uint RandUint(uint64 seed)
     {
         seed += GenerateSeed();
     }
+#ifdef _WIN64
+    return (uint)rand(seed, UINT64_MAX);
+#elif _WIN32
     return (uint)rand(seed, UINT32_MAX);
+#endif
 }
 
 int64 RandInt64(uint64 seed)
@@ -153,9 +161,11 @@ uint64 RandUint64N(uint64 seed, uint64 n)
 __declspec(noinline)
 static uint64 rand(uint64 seed, uint64 mod)
 {
+    seed += GenerateSeed();
     uint64 a = (uint64)(GetFuncAddr(&ror));
     uint64 c = (uint64)(GetFuncAddr(&getStackAddr));
-    for (int i = 0; i < 32; i++)
+    int times = 8 + seed%32;
+    for (int i = 0; i < times; i++)
     {
         // just play game
         a += ror(a, 3);
