@@ -3,6 +3,7 @@
 #include "random.h"
 #include "test.h"
 
+static void TestGenerateSeed();
 static void TestRandBuffer();
 static void TestRandByte();
 static void TestRandBool();
@@ -16,13 +17,14 @@ bool TestRandom()
     typedef void (*test_t)();
     test_t tests[] = 
     {
-        { TestRandBuffer },
-        { TestRandByte   },
-        { TestRandBool   },
-        { TestRandInt    },
-        { TestRandUint   },
-        { TestRandInt64  },
-        { TestRandUint64 },
+        { TestGenerateSeed },
+        { TestRandBuffer   },
+        { TestRandByte     },
+        { TestRandBool     },
+        { TestRandInt      },
+        { TestRandUint     },
+        { TestRandInt64    },
+        { TestRandUint64   },
     };
     for (int i = 0; i < arrlen(tests); i++)
     {
@@ -31,9 +33,21 @@ bool TestRandom()
     return true;
 }
 
+static void TestGenerateSeed()
+{
+    printf_s("======TestGenerateSeed begin=======\n");
+
+    for (uint i = 0; i < 10; i++)
+    {
+        printf_s("seed: %llu\n", GenerateSeed());
+    }
+
+    printf_s("======TestGenerateSeed passed======\n\n");
+}
+
 static void TestRandBuffer()
 {
-    printf_s("========TestRandBuf begin==========\n");
+    printf_s("=======TestRandBuffer begin========\n");
 
     byte buf[16];
     RandBuffer(buf, 16);
@@ -45,21 +59,21 @@ static void TestRandBuffer()
     }
     printf_s("\n");
 
-    printf_s("========TestRandBuf passed=========\n\n");
+    printf_s("=======TestRandBuffer passed=======\n\n");
 }
 
 static void TestRandByte()
 {
     printf_s("========TestRandByte begin=========\n");
 
-    // will same
+    // zero seed
     for (uint i = 0; i < 3; i++)
     {
         printf_s("byte: %d\n", RandByte(0));
     }
     printf_s("\n");
 
-    // will different
+    // iteration
     uint64 last = (uint64)(&TestRandBuffer);
     for (uint i = 0; i < 5; i++)
     {
@@ -75,14 +89,14 @@ static void TestRandBool()
 {
     printf_s("=========TestRandBool begin========\n");
 
-    // will same
+    // zero seed
     for (int i = 0; i < 3; i++)
     {
         printf_s("bool: %d\n", RandBool(0));
     }
     printf_s("\n");
 
-    // will different
+    // iteration
     uint64 last = (uint64)(&TestRandBuffer);
     for (int i = 0; i < 5; i++)
     {
@@ -98,14 +112,14 @@ static void TestRandInt()
 {
     printf_s("=========TestRandInt begin=========\n");
 
-    // will same
+    // zero seed
     for (int i = 0; i < 3; i++)
     {
         printf_s("int: %lld\n", (uint64)RandInt(0));
     }
     printf_s("\n");
 
-    // will different
+    // iteration
     uint64 last = (uint64)(&TestRandBuffer);
     for (int i = 0; i < 5; i++)
     {
@@ -121,14 +135,14 @@ static void TestRandUint()
 {
     printf_s("=========TestRandUint begin========\n");
 
-    // will same
+    // zero seed
     for (int i = 0; i < 3; i++)
     {
         printf_s("uint: %llu\n", (uint64)RandUint(0));
     }
     printf_s("\n");
 
-    // will different
+    // iteration
     uint64 last = (uint64)(&TestRandBuffer);
     for (int i = 0; i < 5; i++)
     {
@@ -144,14 +158,14 @@ static void TestRandInt64()
 {
     printf_s("========TestRandInt64 begin========\n");
 
-    // will same
+    // zero seed
     for (int i = 0; i < 3; i++)
     {
         printf_s("int64: %lld\n", (uint64)RandInt64(0));
     }
     printf_s("\n");
 
-    // will different
+    // iteration
     uint64 last = (uint64)(&TestRandBuffer);
     for (int i = 0; i < 5; i++)
     {
@@ -167,14 +181,14 @@ static void TestRandUint64()
 {
     printf_s("=======TestRandUint64 begin========\n");
 
-    // will same
+    // zero seed
     for (int i = 0; i < 3; i++)
     {
         printf_s("uint64: %llu\n", RandUint64(0));
     }
     printf_s("\n");
 
-    // will different
+    // iteration
     uint64 last = (uint64)(&TestRandBuffer);
     for (int i = 0; i < 5; i++)
     {
