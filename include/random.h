@@ -44,4 +44,10 @@ uint   XORShift(uint seed);
 uint32 XORShift32(uint32 seed);
 uint64 XORShift64(uint64 seed);
 
+// GenerateSeed is used to generate a seed from CPU context.
+#pragma warning(push)
+#pragma warning(disable: 4276)
+extern uint64 GenerateSeed();
+#pragma warning(pop)
+
 #endif // RANDOM_H
