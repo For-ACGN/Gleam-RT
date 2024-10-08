@@ -1,46 +1,92 @@
 IFDEF _WIN32
-.model tiny
+.model flat
 ENDIF
 
 .code
 
-; _GenerateSeed@0 proc
-;   ; pop ebx               ; get return address
-;   ; push ebx              ; restore stack
-;   add eax, ebx          ; add return address
-;   add eax, [esp+8]      ; add data from stack
-;   imul eax, esp         ; eax * esp
-; 
-;   add eax, ebx
-;   ror eax, 4
-;   add eax, ecx
-;   ror eax, 6
-;   add eax, edx
-;   ror eax, 7
-;   add eax, edi
-;   ror eax, 9
-;   add eax, esi
-;   ror eax, 3
-;   add eax, ebp
-;   ror eax, 3
-;   add eax, esp
-;   ror eax, 12
-;   ret
-; _GenerateSeed@0 endp
+IFDEF _WIN32
+
+_GenerateSeed@0 proc
+  add eax, ecx        ; store ecx
+  pop ecx             ; read return address
+  push ecx            ; restore return address
+  add eax, ecx        ; add return address
+  shl eax, 13
+  xor eax, ecx
+  add eax, esp
+  shr eax, 17
+  xor eax, esp
+
+  ; add, xor and ror
+  add eax, ebx
+  ror eax, 3
+  add eax, ecx
+  ror eax, 3
+  add eax, edx
+  ror eax, 3
+  add eax, edi
+  ror eax, 3
+  add eax, esi
+  ror eax, 3
+  add eax, ebp
+  ror eax, 3
+  add eax, esp
+
+  xor ecx, eax
+  xor ecx, edx
+  ror ecx, 17
+
+  xor edx, eax
+  xor edx, ecx
+
+  push esi
+  mov esi, eax
+  shl eax, 13
+  xor eax, esi
+  mov esi, eax
+  shr eax, 17
+  xor eax, esi
+  mov esi, eax
+  shl eax, 5
+  xor eax, esi
+  pop esi
+
+  push esi
+  mov esi, ecx
+  shl ecx, 13
+  xor ecx, esi
+  mov esi, ecx
+  shr ecx, 17
+  xor ecx, esi
+  mov esi, ecx
+  shl ecx, 5
+  xor ecx, esi
+  pop esi
+
+  push esi
+  mov esi, edx
+  shl edx, 13
+  xor edx, esi
+  mov esi, edx
+  shr edx, 17
+  xor edx, esi
+  mov esi, edx
+  shl edx, 5
+  xor edx, esi
+  pop esi
+
+  ret
+_GenerateSeed@0 endp
+
+ELSE
 
 GenerateSeed proc
-  sub rsp, 8            ; alloc stack for store rax     
-  mov [rsp], rax        ; save rax to stack
-  pop rax               ; get return address
-  push rax              ; restore return address
-  add rax, [rsp]        ; add old rax and return address
-  add rsp, 8            ; restore stack
-
-  ror rax, 32           ; shift rax
-  add rax, rbx          ; add rbx address
-  add rax, [rsp+8]      ; add data from stack
-  imul rax, rsp         ; rax * rsp
-  add rax, rsp          ; add rsp
+  add rax, rcx                 ; store rcx
+  pop rcx                      ; read return address
+  push rcx                     ; restore return address
+  add rax, rcx                 ; add return address
+  imul rax, rsp                ; rax * rsp
+  add rax, rsp                 ; add rsp
 
   ; add and ror rax
   add rax, rbx
@@ -56,6 +102,7 @@ GenerateSeed proc
   add rax, rbp
   ror rax, 11
   add rax, rsp
+  ror rax, 10
 
   add rax, r8
   ror rax, 8
@@ -74,28 +121,28 @@ GenerateSeed proc
   add rax, r15
   ror rax, 16
 
-  ; change registers for loop
+  ; change registers
   add rax, 1024
-  mov rcx, rax
+  xor rcx, rax
   add rax, 2048
-  mov rdx, rax
+  xor rdx, rax
   add rax, 4096
-  mov r8, rax 
+  xor r8, rax
   add rax, 8192
-  mov r9, rax 
+  xor r9, rax
 
-  ; XOR shift
   mov rcx, rax
   rol rax, 13
   xor rax, rcx
   mov rcx, rax
-  ror rax, 17
+  ror rax, 7
   xor rax, rcx
   mov rcx, rax
-  rol rax, 5
+  rol rax, 17
   xor rax, rcx
-
   ret
 GenerateSeed endp
+
+ENDIF
 
 end
