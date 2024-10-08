@@ -11,6 +11,10 @@ static void TestRandInt();
 static void TestRandUint();
 static void TestRandInt64();
 static void TestRandUint64();
+static void TestRandIntN();
+static void TestRandUintN();
+static void TestRandInt64N();
+static void TestRandUint64N();
 
 bool TestRandom()
 {
@@ -25,6 +29,10 @@ bool TestRandom()
         { TestRandUint     },
         { TestRandInt64    },
         { TestRandUint64   },
+        { TestRandIntN     },
+        { TestRandUintN    },
+        { TestRandInt64N   },
+        { TestRandUint64N  },
     };
     for (int i = 0; i < arrlen(tests); i++)
     {
@@ -66,10 +74,10 @@ static void TestRandByte()
 {
     printf_s("========TestRandByte begin=========\n");
 
-    // zero seed
     for (uint i = 0; i < 3; i++)
     {
-        printf_s("byte: %d\n", RandByte(0));
+        uint64 seed = GenerateSeed();
+        printf_s("byte: %d\n", RandByte(seed));
     }
     printf_s("\n");
 
@@ -89,10 +97,10 @@ static void TestRandBool()
 {
     printf_s("=========TestRandBool begin========\n");
 
-    // zero seed
     for (int i = 0; i < 3; i++)
     {
-        printf_s("bool: %d\n", RandBool(0));
+        uint64 seed = GenerateSeed();
+        printf_s("bool: %d\n", RandBool(seed));
     }
     printf_s("\n");
 
@@ -112,10 +120,10 @@ static void TestRandInt()
 {
     printf_s("=========TestRandInt begin=========\n");
 
-    // zero seed
     for (int i = 0; i < 3; i++)
     {
-        printf_s("int: %lld\n", (uint64)RandInt(0));
+        uint64 seed = GenerateSeed();
+        printf_s("int: %lld\n", (uint64)RandInt(seed));
     }
     printf_s("\n");
 
@@ -135,10 +143,10 @@ static void TestRandUint()
 {
     printf_s("=========TestRandUint begin========\n");
 
-    // zero seed
     for (int i = 0; i < 3; i++)
     {
-        printf_s("uint: %llu\n", (uint64)RandUint(0));
+        uint64 seed = GenerateSeed();
+        printf_s("uint: %llu\n", (uint64)RandUint(seed));
     }
     printf_s("\n");
 
@@ -158,10 +166,10 @@ static void TestRandInt64()
 {
     printf_s("========TestRandInt64 begin========\n");
 
-    // zero seed
     for (int i = 0; i < 3; i++)
     {
-        printf_s("int64: %lld\n", (uint64)RandInt64(0));
+        uint64 seed = GenerateSeed();
+        printf_s("int64: %lld\n", (uint64)RandInt64(seed));
     }
     printf_s("\n");
 
@@ -181,10 +189,10 @@ static void TestRandUint64()
 {
     printf_s("=======TestRandUint64 begin========\n");
 
-    // zero seed
     for (int i = 0; i < 3; i++)
     {
-        printf_s("uint64: %llu\n", RandUint64(0));
+        uint64 seed = GenerateSeed();
+        printf_s("uint64: %llu\n", RandUint64(seed));
     }
     printf_s("\n");
 
@@ -198,4 +206,24 @@ static void TestRandUint64()
     }
 
     printf_s("=======TestRandUint64 passed=======\n\n");
+}
+
+static void TestRandIntN()
+{
+
+}
+
+static void TestRandUintN()
+{
+
+}
+
+static void TestRandInt64N()
+{
+
+}
+
+static void TestRandUint64N()
+{
+
 }
