@@ -174,5 +174,8 @@
     <MASM Include="..\asm\opts_stub.asm">
       <Filter>Assembly</Filter>
     </MASM>
+    <MASM Include="..\asm\_random.asm">
+      <Filter>Assembly</Filter>
+    </MASM>
   </ItemGroup>
 </Project>
