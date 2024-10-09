@@ -7,15 +7,22 @@ ENDIF
 IFDEF _WIN32
 
 _GenerateSeed@0 proc
-  add eax, ecx        ; store ecx
-  pop ecx             ; read return address
-  push ecx            ; restore return address
-  add eax, ecx        ; add return address
-  shl eax, 13
+  add eax, ecx                  ; store ecx
+  pop ecx                       ; read return address
+  push ecx                      ; restore return address
+  add eax, ecx                  ; add return address
+
+  rol eax, 13
   xor eax, ecx
   add eax, esp
-  shr eax, 17
+  ror eax, 17
   xor eax, esp
+
+  rol edx, 17
+  xor edx, ecx
+  add edx, esp
+  ror edx, 5
+  xor edx, esp
 
   ; add, xor and ror
   add eax, ebx
@@ -32,48 +39,26 @@ _GenerateSeed@0 proc
   ror eax, 3
   add eax, esp
 
-  xor ecx, eax
-  xor ecx, edx
-  ror ecx, 17
+  ; build eax
+  push esi
+  mov esi, eax
+  rol eax, 13
+  xor eax, esi
+  mov esi, eax
+  ror eax, 17
+  xor eax, esi
+  mov esi, eax
+  rol eax, 5
+  xor eax, esi
+  pop esi
 
+  ; build edx
+  mov edx, eax
+  rol edx, 13
   xor edx, eax
-  xor edx, ecx
-
-  push esi
-  mov esi, eax
-  shl eax, 13
-  xor eax, esi
-  mov esi, eax
-  shr eax, 17
-  xor eax, esi
-  mov esi, eax
-  shl eax, 5
-  xor eax, esi
-  pop esi
-
-  push esi
-  mov esi, ecx
-  shl ecx, 13
-  xor ecx, esi
-  mov esi, ecx
-  shr ecx, 17
-  xor ecx, esi
-  mov esi, ecx
-  shl ecx, 5
-  xor ecx, esi
-  pop esi
-
-  push esi
-  mov esi, edx
-  shl edx, 13
-  xor edx, esi
-  mov esi, edx
-  shr edx, 17
-  xor edx, esi
-  mov esi, edx
-  shl edx, 5
-  xor edx, esi
-  pop esi
+  ror edx, 17
+  xor edx, eax
+  rol edx, 5
 
   ret
 _GenerateSeed@0 endp
@@ -131,6 +116,7 @@ GenerateSeed proc
   add rax, 8192
   xor r9, rax
 
+  ; build rax
   mov rcx, rax
   rol rax, 13
   xor rax, rcx
