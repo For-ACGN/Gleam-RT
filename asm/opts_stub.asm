@@ -1,5 +1,5 @@
 IFDEF _WIN32
-.model tiny
+.model flat
 ENDIF
 
 ; ===================================== Runtime Options =====================================
