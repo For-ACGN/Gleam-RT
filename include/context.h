@@ -43,7 +43,7 @@ typedef struct {
     DuplicateHandle_t       DuplicateHandle;
     CloseHandle_t           CloseHandle;
 
-    // for initialize high level modules
+    // for initialize high-level modules
     mt_malloc_t  mt_malloc;
     mt_calloc_t  mt_calloc;
     mt_realloc_t mt_realloc;
