@@ -43,7 +43,7 @@ func dumpASMx86() {
 	checkError(err)
 
 	builder := bytes.Buffer{}
-	builder.WriteString(".model tiny\r\n")
+	builder.WriteString(".model flat\r\n")
 	builder.WriteString("\r\n")
 	builder.WriteString(".code\r\n")
 	builder.WriteString("\r\n")
