@@ -25,7 +25,7 @@
 // +--------------+--------------------+-------------------+
 // |    0-4096    |     4096-16384     |    16384-32768    |
 // +--------------+--------------------+-------------------+
-// | runtime core | runtime submodules | high level module |
+// | runtime core | runtime submodules | high-level module |
 // +--------------+--------------------+-------------------+
 #define MAIN_MEM_PAGE_SIZE (8*4096)
 
@@ -89,7 +89,7 @@ typedef struct {
     ResourceTracker_M* ResourceTracker;
     ArgumentStore_M*   ArgumentStore;
 
-    // high level modules
+    // high-level modules
     WinFile_M* WinFile;
 } Runtime;
 
@@ -613,7 +613,7 @@ static errno initModules(Runtime* runtime)
     context.mt_realloc = runtime->MemoryTracker->Realloc;
     context.mt_free    = runtime->MemoryTracker->Free;
 
-    // initialize high level modules
+    // initialize high-level modules
     module_t hl_modules[] = 
     {
         GetFuncAddr(&initWinFile),
