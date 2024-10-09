@@ -1,14 +1,9 @@
 #include "c_types.h"
 #include "lib_memory.h"
 
-// Optimization of this library must be disabled,
-// otherwise when using builder to build shellcode,
-// the compiler will mistakenly skip the following
-// functions and instead use <stdio.h> or built-in
-// functions, causing the function address in the
-// shellcode to be incorrect.
-#pragma optimize("", off)
+#pragma optimize("t", on)
 
+__declspec(noinline)
 void mem_copy(void* dst, void* src, uint size)
 {
     if (size == 0)
@@ -25,6 +20,7 @@ void mem_copy(void* dst, void* src, uint size)
     }
 }
 
+__declspec(noinline)
 void mem_init(void* ptr, uint num)
 {
     if (num == 0)
@@ -34,6 +30,8 @@ void mem_init(void* ptr, uint num)
     mem_set(ptr, 0, num);
 }
 
+// prevent link to the internal function "memset"
+#pragma optimize("", off)
 void mem_set(void* ptr, byte val, uint num)
 {
     if (num == 0)
@@ -47,7 +45,9 @@ void mem_set(void* ptr, byte val, uint num)
         p++;
     }
 }
+#pragma optimize("", on)
 
+__declspec(noinline)
 int mem_cmp(void* a, void* b, uint size)
 {
     if (size == 0)
@@ -74,6 +74,7 @@ int mem_cmp(void* a, void* b, uint size)
     return 0;
 }
 
+__declspec(noinline)
 bool mem_equal(void* a, void* b, uint size)
 {
     if (size == 0)
@@ -94,6 +95,7 @@ bool mem_equal(void* a, void* b, uint size)
     return true;
 }
 
+__declspec(noinline)
 bool mem_is_zero(void* ptr, uint size)
 {
     if (size == 0)
@@ -112,4 +114,4 @@ bool mem_is_zero(void* ptr, uint size)
     return true;
 }
 
-#pragma optimize("", on)
+#pragma optimize("t", off)
