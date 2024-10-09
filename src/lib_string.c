@@ -1,14 +1,9 @@
 #include "c_types.h"
 #include "lib_string.h"
 
-// Optimization of this library must be disabled,
-// otherwise when using builder to build shellcode,
-// the compiler will mistakenly skip the following
-// functions and instead use <stdio.h> or built-in
-// functions, causing the function address in the
-// shellcode to be incorrect.
-#pragma optimize("", off)
+#pragma optimize("t", on)
 
+__declspec(noinline)
 uint strlen_a(ANSI s)
 {
     uint l = 0;
@@ -24,6 +19,7 @@ uint strlen_a(ANSI s)
     return l;
 }
 
+__declspec(noinline)
 uint strlen_w(UTF16 s)
 {
     uint l = 0;
@@ -39,6 +35,7 @@ uint strlen_w(UTF16 s)
     return l;
 }
 
+__declspec(noinline)
 int strcmp_a(ANSI a, ANSI b)
 {
     for (;;)
@@ -64,6 +61,7 @@ int strcmp_a(ANSI a, ANSI b)
     }
 }
 
+__declspec(noinline)
 int strcmp_w(UTF16 a, UTF16 b)
 {
     for (;;)
@@ -90,6 +88,7 @@ int strcmp_w(UTF16 a, UTF16 b)
     }
 }
 
+__declspec(noinline)
 int strncmp_a(ANSI a, ANSI b, int64 n)
 {
     for (int64 i = 0; i < n; i++)
@@ -116,6 +115,7 @@ int strncmp_a(ANSI a, ANSI b, int64 n)
     return 0;
 }
 
+__declspec(noinline)
 int strncmp_w(UTF16 a, UTF16 b, int64 n)
 {
     for (int64 i = 0; i < n; i++)
@@ -143,6 +143,7 @@ int strncmp_w(UTF16 a, UTF16 b, int64 n)
     return 0;
 }
 
+__declspec(noinline)
 uint strcpy_a(ANSI dst, ANSI src)
 {
     uint l = 0;
@@ -162,6 +163,7 @@ uint strcpy_a(ANSI dst, ANSI src)
     return l;
 }
 
+__declspec(noinline)
 uint strcpy_w(UTF16 dst, UTF16 src)
 {
     uint l = 0;
@@ -181,6 +183,7 @@ uint strcpy_w(UTF16 dst, UTF16 src)
     return l;
 }
 
+__declspec(noinline)
 uint strncpy_a(ANSI dst, ANSI src, int64 n)
 {
     uint l = 0;
@@ -200,6 +203,7 @@ uint strncpy_a(ANSI dst, ANSI src, int64 n)
     return l;
 }
 
+__declspec(noinline)
 uint strncpy_w(UTF16 dst, UTF16 src, int64 n)
 {
     uint l = 0;
@@ -219,4 +223,4 @@ uint strncpy_w(UTF16 dst, UTF16 src, int64 n)
     return l;
 }
 
-#pragma optimize("", on)
+#pragma optimize("t", off)
