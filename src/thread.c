@@ -14,7 +14,7 @@
 
 typedef struct {
     uint32 threadID;
-    HANDLE hThread;
+    HANDLE hThread;  // add numSuspend
 } thread;
 
 typedef struct {
@@ -67,12 +67,15 @@ BOOL  TT_TerminateThread(HANDLE hThread, DWORD dwExitCode);
 // methods for runtime
 HANDLE TT_ThdNew(void* address, void* parameter, bool track);
 void   TT_ThdExit();
-bool   TT_Lock();
-bool   TT_Unlock();
-errno  TT_Suspend();
-errno  TT_Resume();
-errno  TT_KillAll();
-errno  TT_Clean();
+bool   TT_ThdLock(uint32 threadID);
+bool   TT_ThdUnlock(uint32 threadID);
+
+bool  TT_Lock();
+bool  TT_Unlock();
+errno TT_Suspend();
+errno TT_Resume();
+errno TT_KillAll();
+errno TT_Clean();
 
 HANDLE tt_createThread(
     POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
@@ -81,9 +84,9 @@ HANDLE tt_createThread(
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
-    #define TRACKER_POINTER 0x7FABCDEF11111103
+    #define TRACKER_POINTER 0x7FABCDEF111111C3
 #elif _WIN32
-    #define TRACKER_POINTER 0x7FABCD03
+    #define TRACKER_POINTER 0x7FABCDC3
 #endif
 static ThreadTracker* getTrackerPointer();
 
@@ -91,7 +94,7 @@ static bool  initTrackerAPI(ThreadTracker* tracker, Context* context);
 static bool  updateTrackerPointer(ThreadTracker* tracker);
 static bool  recoverTrackerPointer(ThreadTracker* tracker);
 static bool  initTrackerEnvironment(ThreadTracker* tracker, Context* context);
-static void* camouflageStartAddress(uint64 seed);
+static void* camouflageStartAddress(uint seed);
 static bool  addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
 static void  delThread(ThreadTracker* tracker, uint32 threadID);
 
@@ -102,11 +105,11 @@ ThreadTracker_M* InitThreadTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 5000 + RandUintN(address, 128);
-    uintptr moduleAddr  = address + 5700 + RandUintN(address, 128);
+    uintptr trackerAddr = address + 7000 + RandUintN(address, 128);
+    uintptr moduleAddr  = address + 8000 + RandUintN(address, 128);
     // initialize tracker
     ThreadTracker* tracker = (ThreadTracker*)trackerAddr;
-    mem_clean(tracker, sizeof(ThreadTracker));
+    mem_init(tracker, sizeof(ThreadTracker));
     // store options
     tracker->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
@@ -278,8 +281,8 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
     };
     List_Init(&tracker->Threads, &ctx, sizeof(thread));
     // set crypto context data
-    RandBuf(&tracker->ThreadsKey[0], CRYPTO_KEY_SIZE);
-    RandBuf(&tracker->ThreadsIV[0], CRYPTO_IV_SIZE);
+    RandBuffer(tracker->ThreadsKey, CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->ThreadsIV, CRYPTO_IV_SIZE);
     // add current thread for special executable file like Golang
     if (context->TrackCurrentThread)
     {
@@ -309,7 +312,7 @@ static void eraseTrackerMethods(Context* context)
     uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
-    RandBuf((byte*)begin, (int64)size);
+    RandBuffer((byte*)begin, (int64)size);
 }
 
 __declspec(noinline)
@@ -345,7 +348,7 @@ static void cleanTracker(ThreadTracker* tracker)
 #pragma optimize("", off)
 static ThreadTracker* getTrackerPointer()
 {
-    uint pointer = TRACKER_POINTER;
+    uintptr pointer = TRACKER_POINTER;
     return (ThreadTracker*)(pointer);
 }
 #pragma optimize("", on)
@@ -383,7 +386,7 @@ HANDLE tt_createThread(
     {
         // create thread from camouflaged start address and pause it
         bool  resume   = (dwCreationFlags & 0xF) != CREATE_SUSPENDED;
-        void* fakeAddr = camouflageStartAddress((uint64)lpStartAddress);
+        void* fakeAddr = camouflageStartAddress((uint)lpStartAddress);
         dwCreationFlags |= CREATE_SUSPENDED;
 
         hThread = tracker->CreateThread(
@@ -396,10 +399,10 @@ HANDLE tt_createThread(
             break;
         }
 
-        // use "mem_clean" for prevent incorrect compiler
+        // use "mem_init" for prevent incorrect compiler
         // optimize and generate incorrect shellcode
         CONTEXT ctx;
-        mem_clean(&ctx, sizeof(CONTEXT));
+        mem_init(&ctx, sizeof(CONTEXT));
 
         // hijack RCX/EAX for set the actual thread start address
         // When use CREATE_SUSPENDED, the RIP/EIP will be set to
@@ -491,8 +494,12 @@ HANDLE tt_createThread(
     return hThread;
 }
 
-static void* camouflageStartAddress(uint64 seed)
+static void* camouflageStartAddress(uint seed)
 {
+#ifdef NOT_CAMOUFLAGE
+    return (void*)seed;
+#endif // NOT_CAMOUFLAGE
+
     // get current process module from PEB
 #ifdef _WIN64
     uintptr peb = __readgsqword(96);
@@ -746,6 +753,18 @@ void TT_ThdExit()
 }
 
 __declspec(noinline)
+bool TT_ThdLock(uint32 threadID)
+{
+    return true;
+}
+
+__declspec(noinline)
+bool TT_ThdUnlock(uint32 threadID)
+{
+    return true;
+}
+
+__declspec(noinline)
 bool TT_Lock()
 {
     ThreadTracker* tracker = getTrackerPointer();
@@ -803,10 +822,10 @@ errno TT_Suspend()
 
     // encrypt thread list
     List* list = &tracker->Threads;
-    byte* key  = &tracker->ThreadsKey[0];
-    byte* iv   = &tracker->ThreadsIV[0];
-    RandBuf(key, CRYPTO_KEY_SIZE);
-    RandBuf(iv, CRYPTO_IV_SIZE);
+    byte* key  = tracker->ThreadsKey;
+    byte* iv   = tracker->ThreadsIV;
+    RandBuffer(key, CRYPTO_KEY_SIZE);
+    RandBuffer(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
     return errno;
 }
@@ -824,8 +843,8 @@ errno TT_Resume()
 
     // decrypt thread list
     List* list = &tracker->Threads;
-    byte* key  = &tracker->ThreadsKey[0];
-    byte* iv   = &tracker->ThreadsIV[0];
+    byte* key  = tracker->ThreadsKey;
+    byte* iv   = tracker->ThreadsIV;
     DecryptBuf(list->Data, List_Size(list), key, iv);
 
     List* threads = &tracker->Threads;
@@ -1004,7 +1023,7 @@ errno TT_Clean()
     }
 
     // clean thread list
-    RandBuf(threads->Data, List_Size(threads));
+    RandBuffer(threads->Data, List_Size(threads));
     if (!List_Free(threads) && errno == NO_ERROR)
     {
         errno = ERR_THREAD_FREE_LIST;
