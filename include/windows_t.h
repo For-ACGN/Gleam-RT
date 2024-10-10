@@ -21,6 +21,7 @@ typedef void* POINTER;
 typedef void* HMODULE;
 typedef void* HANDLE;
 typedef void* FARPROC;
+typedef void* HINTERNET;
 
 typedef void*   LPVOID;
 typedef uint8*  LPSTR;
@@ -139,6 +140,24 @@ typedef struct {
     BYTE    ExtRegs[512];
 } CONTEXT;
 #endif
+
+typedef struct {
+    DWORD  dwStructSize;
+    LPWSTR lpszScheme;
+    DWORD  dwSchemeLength;
+    DWORD  nScheme;
+    LPWSTR lpszHostName;
+    DWORD  dwHostNameLength;
+    WORD   nPort;
+    LPWSTR lpszUserName;
+    DWORD  dwUserNameLength;
+    LPWSTR lpszPassword;
+    DWORD  dwPasswordLength;
+    LPWSTR lpszUrlPath;
+    DWORD  dwUrlPathLength;
+    LPWSTR lpszExtraInfo;
+    DWORD  dwExtraInfoLength;
+} URL_COMPONENTS;
 
 #define MAX_PATH 260
 
@@ -462,6 +481,59 @@ typedef BOOL (*DuplicateHandle_t)
 typedef BOOL (*CloseHandle_t)
 (
     HANDLE hObject
+);
+
+typedef BOOL (*WinHttpCrackUrl_t)
+(
+    LPCWSTR pwszUrl, DWORD dwUrlLength, DWORD dwFlags,
+    URL_COMPONENTS* lpUrlComponents
+);
+
+typedef HINTERNET (*WinHttpOpen_t)
+(
+    LPCWSTR pszAgentW, DWORD dwAccessType, LPCWSTR pszProxyW,
+    LPCWSTR pszProxyBypassW, DWORD dwFlags
+);
+
+typedef HINTERNET (*WinHttpConnect_t)
+(
+    HINTERNET hSession, LPCWSTR pswzServerName, WORD nServerPort,
+    DWORD dwReserved
+);
+
+typedef HINTERNET (*WinHttpOpenRequest_t)
+(
+    HINTERNET hConnect, LPCWSTR pwszVerb, LPCWSTR pwszObjectName,
+    LPCWSTR pwszVersion, LPCWSTR pwszReferrer, LPCWSTR* ppwszAcceptTypes, 
+    DWORD dwFlags
+);
+
+typedef BOOL (*WinHttpSendRequest_t)
+(
+    HINTERNET hRequest, LPCWSTR lpszHeaders, DWORD dwHeadersLength,
+    LPVOID lpOptional, DWORD dwOptionalLength, DWORD dwTotalLength,
+    DWORD* dwContext
+);
+
+typedef BOOL (*WinHttpReceiveResponse_t)
+(
+    HINTERNET hRequest, LPVOID lpReserved
+);
+
+typedef BOOL (*WinHttpQueryDataAvailable_t)
+(
+    HINTERNET hRequest, DWORD* lpdwNumberOfBytesAvailable
+);
+
+typedef BOOL (*WinHttpReadData_t)
+(
+    HINTERNET hRequest, LPVOID lpBuffer, DWORD dwNumberOfBytesToRead, 
+    DWORD* lpdwNumberOfBytesRead
+);
+
+typedef BOOL (*WinHttpCloseHandle_t)
+(
+    HINTERNET hInternet
 );
 
 #endif // WINDOWS_T_H
