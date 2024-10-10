@@ -80,9 +80,9 @@ errno MT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
-    #define TRACKER_POINTER 0x7FABCDEF11111102
+    #define TRACKER_POINTER 0x7FABCDEF111111C2
 #elif _WIN32
-    #define TRACKER_POINTER 0x7FABCD02
+    #define TRACKER_POINTER 0x7FABCDC2
 #endif
 static MemoryTracker* getTrackerPointer();
 
@@ -121,11 +121,11 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 4000 + RandUintN(address, 128);
-    uintptr moduleAddr  = address + 4700 + RandUintN(address, 128);
+    uintptr trackerAddr = address + 5500 + RandUintN(address, 128);
+    uintptr moduleAddr  = address + 6500 + RandUintN(address, 128);
     // initialize tracker
     MemoryTracker* tracker = (MemoryTracker*)trackerAddr;
-    mem_clean(tracker, sizeof(MemoryTracker));
+    mem_init(tracker, sizeof(MemoryTracker));
     // store options
     tracker->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
@@ -284,10 +284,10 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     List_Init(&tracker->Regions, &ctx, sizeof(memRegion));
     List_Init(&tracker->Pages,   &ctx, sizeof(memPage));
     // set crypto context data
-    RandBuf(&tracker->RegionsKey[0], CRYPTO_KEY_SIZE);
-    RandBuf(&tracker->RegionsIV[0], CRYPTO_IV_SIZE);
-    RandBuf(&tracker->PagesKey[0], CRYPTO_KEY_SIZE);
-    RandBuf(&tracker->PagesIV[0], CRYPTO_IV_SIZE);
+    RandBuffer(tracker->RegionsKey, CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->RegionsIV,  CRYPTO_IV_SIZE);
+    RandBuffer(tracker->PagesKey,   CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->PagesIV,    CRYPTO_IV_SIZE);
     // copy runtime context data
     tracker->PageSize = context->PageSize;
     return true;
@@ -303,7 +303,7 @@ static void eraseTrackerMethods(Context* context)
     uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
-    RandBuf((byte*)begin, (int64)size);
+    RandBuffer((byte*)begin, (int64)size);
 }
 
 __declspec(noinline)
@@ -322,7 +322,7 @@ static void cleanTracker(MemoryTracker* tracker)
 #pragma optimize("", off)
 static MemoryTracker* getTrackerPointer()
 {
-    uint pointer = TRACKER_POINTER;
+    uintptr pointer = TRACKER_POINTER;
     return (MemoryTracker*)(pointer);
 }
 #pragma optimize("", on)
@@ -888,7 +888,7 @@ void* MT_MemAlloc(uint size)
     // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
     uint pageSize = ((size / tracker->PageSize) + 1) * tracker->PageSize;
-    void* addr = MT_VirtualAlloc(0, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    void* addr = MT_VirtualAlloc(NULL, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
@@ -896,7 +896,7 @@ void* MT_MemAlloc(uint size)
     // store the size at the head of the memory page
     // ensure the memory address is 16 bytes aligned
     byte* address = (byte*)addr;
-    RandBuf(address, 16);
+    RandBuffer(address, 16);
     mem_copy(address, &size, sizeof(uint));
     return (void*)(address + 16);
 }
@@ -916,7 +916,7 @@ void* MT_MemCalloc(uint num, uint size)
     {
         return NULL;
     }
-    mem_clean(addr, total);
+    mem_init(addr, total);
     return addr;
 }
 
@@ -961,7 +961,7 @@ void MT_MemFree(void* ptr)
     // clean the buffer data before call VirtualFree.
     void* addr = (LPVOID)((uintptr)(ptr)-16);
     uint  size = *(uint*)addr;
-    mem_clean((byte*)addr, size);
+    mem_init((byte*)addr, size);
     if (MT_VirtualFree(addr, 0, MEM_RELEASE))
     {
         return;
@@ -1009,17 +1009,17 @@ errno MT_Encrypt()
 
     // encrypt region and page list
     List* list = &tracker->Regions;
-    byte* key  = &tracker->RegionsKey[0];
-    byte* iv   = &tracker->RegionsIV[0];
-    RandBuf(key, CRYPTO_KEY_SIZE);
-    RandBuf(iv, CRYPTO_IV_SIZE);
+    byte* key  = tracker->RegionsKey;
+    byte* iv   = tracker->RegionsIV;
+    RandBuffer(key, CRYPTO_KEY_SIZE);
+    RandBuffer(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
 
     list = &tracker->Pages;
-    key  = &tracker->PagesKey[0];
-    iv   = &tracker->PagesIV[0];
-    RandBuf(key, CRYPTO_KEY_SIZE);
-    RandBuf(iv, CRYPTO_IV_SIZE);
+    key  = tracker->PagesKey;
+    iv   = tracker->PagesIV;
+    RandBuffer(key, CRYPTO_KEY_SIZE);
+    RandBuffer(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
     return NO_ERROR;
 }
@@ -1035,8 +1035,8 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page)
         return false;
     }
     // generate new key and IV
-    RandBuf(page->key, CRYPTO_KEY_SIZE);
-    RandBuf(page->iv, CRYPTO_IV_SIZE);
+    RandBuffer(page->key, CRYPTO_KEY_SIZE);
+    RandBuffer(page->iv, CRYPTO_IV_SIZE);
     byte key[CRYPTO_KEY_SIZE];
     deriveKey(tracker, page, key);
     EncryptBuf((byte*)(page->address), tracker->PageSize, key, page->iv);
@@ -1050,13 +1050,13 @@ errno MT_Decrypt()
 
     // decrypt region and page list
     List* list = &tracker->Regions;
-    byte* key  = &tracker->RegionsKey[0];
-    byte* iv   = &tracker->RegionsIV[0];
+    byte* key  = tracker->RegionsKey;
+    byte* iv   = tracker->RegionsIV;
     DecryptBuf(list->Data, List_Size(list), key, iv);
 
     list = &tracker->Pages;
-    key  = &tracker->PagesKey[0];
-    iv   = &tracker->PagesIV[0];
+    key  = tracker->PagesKey;
+    iv   = tracker->PagesIV;
     DecryptBuf(list->Data, List_Size(list), key, iv);
 
     // reverse order traversal is used to deal with the problem
@@ -1153,7 +1153,7 @@ errno MT_FreeAll()
         // cover memory page
         if (isPageProtectWriteable(page->protect))
         {
-            RandBuf((byte*)(page->address), tracker->PageSize);
+            RandBuffer((byte*)(page->address), tracker->PageSize);
         }
         num++;
     }
@@ -1236,7 +1236,7 @@ errno MT_Clean()
         // cover memory page
         if (isPageProtectWriteable(page->protect))
         {
-            RandBuf((byte*)(page->address), tracker->PageSize);
+            RandBuffer((byte*)(page->address), tracker->PageSize);
         }
         num++;
     }
@@ -1277,8 +1277,8 @@ errno MT_Clean()
     }
 
     // clean memory region and page list
-    RandBuf(regions->Data, List_Size(regions));
-    RandBuf(pages->Data, List_Size(pages));
+    RandBuffer(regions->Data, List_Size(regions));
+    RandBuffer(pages->Data, List_Size(pages));
     if (!List_Free(regions) && errno == NO_ERROR)
     {
         errno = ERR_MEMORY_FREE_PAGE_LIST;
