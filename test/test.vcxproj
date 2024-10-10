@@ -48,6 +48,7 @@
     <ClCompile Include="thread_test.c" />
     <ClCompile Include="argument_test.c" />
     <ClCompile Include="win_file_test.c" />
+	<ClCompile Include="win_http_test.c" />
     <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\lib_memory.c" />
     <ClCompile Include="..\src\lib_string.c" />
@@ -70,7 +71,7 @@
     <ClCompile Include="..\src\debug.c" />
   </ItemGroup>
   <ItemGroup>
-	<MASM Include="..\asm\_random.asm" />
+    <MASM Include="..\asm\_random.asm" />
     <MASM Include="..\asm\align_stub.asm" />
     <MASM Include="..\asm\opts_stub.asm" />
     <MASM Include="..\asm\args_stub.asm" />
