@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"compress/flate"
+	"compress/gzip"
 	"flag"
 	"fmt"
 	"log"
@@ -27,6 +29,8 @@ func main() {
 
 	switch handler {
 	case "/":
+	case "":
+		handler = "/"
 	default: // "a" -> "/a/"
 		hRune := []rune(handler)
 		if len(hRune) == 1 {
@@ -58,8 +62,22 @@ func main() {
 		if path == "/" {
 			return
 		}
-		r.URL.Path = path
+		// process compress
+		encoding := r.Header.Get("Accept-Encoding")
+		switch {
+		case strings.Contains(encoding, "gzip"):
+			w.Header().Set("Content-Encoding", "gzip")
+			gzw := gzip.NewWriter(w)
+			defer func() { _ = gzw.Close() }()
+			w = &gzipResponseWriter{ResponseWriter: w, w: gzw}
+		case strings.Contains(encoding, "deflate"):
+			w.Header().Set("Content-Encoding", "deflate")
+			dw, _ := flate.NewWriter(w, flate.BestCompression)
+			defer func() { _ = dw.Close() }()
+			w = &flateResponseWriter{ResponseWriter: w, w: dw}
+		}
 		// process file
+		r.URL.Path = path
 		fileServer.ServeHTTP(w, r)
 	}
 	serveMux := http.NewServeMux()
@@ -85,5 +103,23 @@ func dumpRequest(r *http.Request) {
 	for k, v := range r.Header {
 		_, _ = fmt.Fprintf(buf, "\n%s: %s", k, v[0])
 	}
-	log.Printf("handle request\n%s\n\n", buf)
+	log.Printf("[handle request]\n%s\n\n", buf)
+}
+
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	w *gzip.Writer
+}
+
+func (rw *gzipResponseWriter) Write(b []byte) (int, error) {
+	return rw.w.Write(b)
+}
+
+type flateResponseWriter struct {
+	http.ResponseWriter
+	w *flate.Writer
+}
+
+func (rw *flateResponseWriter) Write(b []byte) (int, error) {
+	return rw.w.Write(b)
 }
