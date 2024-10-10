@@ -87,12 +87,24 @@ hash_api -fmt 64 -conc -mod ws2_32.dll -func WSAStartup
 hash_api -fmt 64 -conc -mod ws2_32.dll -func WSACleanup
 echo.
 
-echo [Win File Module]
+echo [WinFile Module]
 hash_api -fmt 64 -conc -func CreateFileA
 hash_api -fmt 64 -conc -func CreateFileW
 hash_api -fmt 64 -conc -func GetFileSizeEx
 hash_api -fmt 64 -conc -func ReadFile
 hash_api -fmt 64 -conc -func WriteFile
+echo.
+
+echo [WinHTTP Module]
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpCrackUrl
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpOpen
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpConnect
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpOpenRequest
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpSendRequest
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpReceiveResponse
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpQueryDataAvailable
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpReadData
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpCloseHandle
 echo.
 
 echo ------------------------x86------------------------
@@ -177,12 +189,24 @@ hash_api -fmt 32 -conc -mod ws2_32.dll -func WSAStartup
 hash_api -fmt 32 -conc -mod ws2_32.dll -func WSACleanup
 echo.
 
-echo [Win File Module]
+echo [WinFile Module]
 hash_api -fmt 32 -conc -func CreateFileA
 hash_api -fmt 32 -conc -func CreateFileW
 hash_api -fmt 32 -conc -func GetFileSizeEx
 hash_api -fmt 32 -conc -func ReadFile
 hash_api -fmt 32 -conc -func WriteFile
+echo.
+
+echo [WinHTTP Module]
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpCrackUrl
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpOpen
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpConnect
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpOpenRequest
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpSendRequest
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpReceiveResponse
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpQueryDataAvailable
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpReadData
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpCloseHandle
 echo.
 
 pause
