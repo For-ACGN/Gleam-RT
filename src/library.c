@@ -58,9 +58,9 @@ errno LT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
-    #define TRACKER_POINTER 0x7FABCDEF11111101
+    #define TRACKER_POINTER 0x7FABCDEF111111C1
 #elif _WIN32
-    #define TRACKER_POINTER 0x7FABCD01
+    #define TRACKER_POINTER 0x7FABCDC1
 #endif
 static LibraryTracker* getTrackerPointer();
 
@@ -79,11 +79,11 @@ LibraryTracker_M* InitLibraryTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 3000 + RandUintN(address, 128);
-    uintptr moduleAddr  = address + 3700 + RandUintN(address, 128);
+    uintptr trackerAddr = address + 4096 + RandUintN(address, 128);
+    uintptr moduleAddr  = address + 5000 + RandUintN(address, 128);
     // initialize tracker
     LibraryTracker* tracker = (LibraryTracker*)trackerAddr;
-    mem_clean(tracker, sizeof(LibraryTracker));
+    mem_init(tracker, sizeof(LibraryTracker));
     // store options
     tracker->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
@@ -242,8 +242,8 @@ static bool initTrackerEnvironment(LibraryTracker* tracker, Context* context)
     };
     List_Init(&tracker->Modules, &ctx, sizeof(module));
     // set crypto context data
-    RandBuf(&tracker->ModulesKey[0], CRYPTO_KEY_SIZE);
-    RandBuf(&tracker->ModulesIV[0], CRYPTO_IV_SIZE);
+    RandBuffer(tracker->ModulesKey, CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->ModulesIV, CRYPTO_IV_SIZE);
     return true;
 }
 
@@ -257,7 +257,7 @@ static void eraseTrackerMethods(Context* context)
     uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
-    RandBuf((byte*)begin, (int64)size);
+    RandBuffer((byte*)begin, (int64)size);
 }
 
 __declspec(noinline)
@@ -275,7 +275,7 @@ static void cleanTracker(LibraryTracker* tracker)
 #pragma optimize("", off)
 static LibraryTracker* getTrackerPointer()
 {
-    uint pointer = TRACKER_POINTER;
+    uintptr pointer = TRACKER_POINTER;
     return (LibraryTracker*)(pointer);
 }
 #pragma optimize("", on)
@@ -477,10 +477,11 @@ BOOL LT_FreeLibrary(HMODULE hLibModule)
     bool success = true;
     for (;;)
     {
+        // TODO move it to a standalone method, think to remove it
+        // if hLibModule is NULL, free all library
         if (hLibModule == NULL)
         {
-            errno errno = LT_FreeAll();
-            if (errno != NO_ERROR)
+            if (LT_FreeAll() != NO_ERROR)
             {
                 success = false;
             }
@@ -609,10 +610,10 @@ errno LT_Encrypt()
     LibraryTracker* tracker = getTrackerPointer();
 
     List* list = &tracker->Modules;
-    byte* key  = &tracker->ModulesKey[0];
-    byte* iv   = &tracker->ModulesIV[0];
-    RandBuf(key, CRYPTO_KEY_SIZE);
-    RandBuf(iv, CRYPTO_IV_SIZE);
+    byte* key  = tracker->ModulesKey;
+    byte* iv   = tracker->ModulesIV;
+    RandBuffer(key, CRYPTO_KEY_SIZE);
+    RandBuffer(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
     return NO_ERROR;
 }
@@ -623,8 +624,8 @@ errno LT_Decrypt()
     LibraryTracker* tracker = getTrackerPointer();
 
     List* list = &tracker->Modules;
-    byte* key  = &tracker->ModulesKey[0];
-    byte* iv   = &tracker->ModulesIV[0];
+    byte* key  = tracker->ModulesKey;
+    byte* iv   = tracker->ModulesIV;
     DecryptBuf(list->Data, List_Size(list), key, iv);
 
     dbg_log("[library]", "modules: %zu", list->Len);
@@ -686,7 +687,7 @@ errno LT_Clean()
     }
 
     // clean module list
-    RandBuf(modules->Data, List_Size(modules));
+    RandBuffer(modules->Data, List_Size(modules));
     if (!List_Free(modules) && errno == NO_ERROR)
     {
         errno = ERR_LIBRARY_FREE_LIST;
