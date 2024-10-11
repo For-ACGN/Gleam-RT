@@ -23,7 +23,6 @@ typedef void  (*MemFree_t)(void* ptr);
 // about thread module
 typedef HANDLE (*ThdNew_t)(void* address, void* parameter, bool track);
 typedef void   (*ThdExit_t)();
-typedef void   (*Sleep_t)(uint32 milliseconds);
 
 // about argument store
 typedef bool (*GetArgValue_t)(uint index, void* value, uint32* size);
@@ -88,13 +87,13 @@ typedef struct {
 
 // Runtime_M contains exported runtime methods.
 typedef struct {
-    struct HashAPI {
+    struct {
         FindAPI_t   FindAPI;
         FindAPI_A_t FindAPI_A;
         FindAPI_W_t FindAPI_W;
     } HashAPI;
 
-    struct DLL {
+    struct {
         LoadLibraryA_t   LoadA;
         LoadLibraryW_t   LoadW;
         LoadLibraryExA_t LoadExA;
@@ -103,34 +102,34 @@ typedef struct {
         GetProcAddress_t GetProc;
     } Library;
 
-    struct Memory {
+    struct {
         MemAlloc_t   Alloc;
         MemCalloc_t  Calloc;
         MemRealloc_t Realloc;
         MemFree_t    Free;
     } Memory;
 
-    struct Thread {
+    struct {
         ThdNew_t  New;
         ThdExit_t Exit;
         Sleep_t   Sleep;
     } Thread;
 
-    struct Argument {
+    struct {
         GetArgValue_t   GetValue;
         GetArgPointer_t GetPointer;
         EraseArgument_t Erase;
         EraseAllArgs_t  EraseAll;
     } Argument;
 
-    struct WinFile {
+    struct {
         ReadFileA_t  ReadFileA;
         ReadFileW_t  ReadFileW;
         WriteFileA_t WriteFileA;
         WriteFileW_t WriteFileW;
     } WinFile;
     
-    struct Random {
+    struct {
         RandBuffer_t  Buffer;
         RandBool_t    Bool;
         RandInt64_t   Int64;
@@ -139,23 +138,23 @@ typedef struct {
         RandUint64N_t Uint64N;
     } Random;
 
-    struct Crypto {
+    struct {
         Encrypt_t Encrypt;
         Decrypt_t Decrypt;
     } Crypto;
 
-    struct Compressor {
+    struct {
         Compress_t   Compress;
         Decompress_t Decompress;
     } Compressor;
 
-    struct IAT {
+    struct {
         GetProcByName_t   GetProcByName;
         GetProcByHash_t   GetProcByHash;
         GetProcOriginal_t GetProcOriginal;
     } IAT;
 
-    struct Core {
+    struct {
         SleepHR_t Sleep;
         Hide_t    Hide;
         Recover_t Recover;
