@@ -39,9 +39,9 @@ typedef struct {
     Sleep_t               Sleep;
 
     // protect data
-    bool   isLoad;
-    int32  counter;
-    HANDLE hMutex;
+    HMODULE hModule;
+    int32   counter;
+    HANDLE  hMutex;
 
     // submodules method
     malloc_t  malloc;
@@ -73,6 +73,8 @@ static bool updateModulePointer(WinHTTP* module);
 static bool recoverModulePointer(WinHTTP* module);
 static bool initModuleEnvironment(WinHTTP* module, Context* context);
 static void eraseModuleMethods(Context* context);
+
+static bool loadDLL();
 
 WinHTTP_M* InitWinHTTP(Context* context)
 {
@@ -268,8 +270,8 @@ static bool wh_lock()
 {
     WinHTTP* module = getModulePointer();
 
-    uint32 event = module->WaitForSingleObject(module->hMutex, INFINITE);
-    return event == WAIT_OBJECT_0;
+    DWORD event = module->WaitForSingleObject(module->hMutex, INFINITE);
+    return (event == WAIT_OBJECT_0 || event == WAIT_ABANDONED);
 }
 
 __declspec(noinline)
@@ -278,6 +280,42 @@ static bool wh_unlock()
     WinHTTP* module = getModulePointer();
 
     return module->ReleaseMutex(module->hMutex);
+}
+
+static bool loadDLL()
+{
+    WinHTTP* module = getModulePointer();
+
+    if (!wh_lock())
+    {
+        return false;
+    }
+
+    bool success = true;
+    for (;;)
+    {
+        if (module->hModule != NULL)
+        {
+            break;
+        }
+        LPSTR dllName[] = {
+            'w', 'i', 'n', 'h', 't', 't', 'p', '.', 'd', 'l', 'l', 0x00 
+        }; // winhttp.dll
+        HMODULE hModule = module->LoadLibraryA(dllName);
+        if (hModule == NULL)
+        {
+            success = false;
+            break;
+        }
+        module->hModule = hModule;
+        break;
+    }
+
+    if (!wh_unlock())
+    {
+        return false;
+    }
+    return success;
 }
 
 __declspec(noinline)
@@ -301,13 +339,13 @@ bool WH_Lock()
 {
     WinHTTP* module = getModulePointer();
 
-    for (int i = 0; i < 500; i++)
+    for (;;)
     {
         if (!wh_lock())
         {
             return false;
         }
-        if (module->counter == 0)
+        if (module->counter < 1)
         {
             return true;
         }
@@ -317,7 +355,6 @@ bool WH_Lock()
         }
         module->Sleep(10);
     }
-    return true;
 }
 
 __declspec(noinline)
@@ -333,5 +370,30 @@ errno WH_Uninstall()
 {
     WinHTTP* module = getModulePointer();
 
-    return NO_ERROR;
+    errno errno = NO_ERROR;
+
+    // free winhttp.dll
+    if (module->hModule != NULL)
+    {
+        if (!module->FreeLibrary(module->hModule) && errno == NO_ERROR)
+        {
+            errno = ERR_WIN_HTTP_FREE_LIBRARY;
+        }
+    }
+
+    // close mutex
+    if (!module->CloseHandle(module->hMutex) && errno == NO_ERROR)
+    {
+        errno = ERR_WIN_HTTP_CLOSE_MUTEX;
+    }
+
+    // recover instructions
+    if (module->NotEraseInstruction)
+    {
+        if (!recoverModulePointer(module) && errno == NO_ERROR)
+        {
+            errno = ERR_WIN_HTTP_RECOVER_INST;
+        }
+    }
+    return errno;
 }
