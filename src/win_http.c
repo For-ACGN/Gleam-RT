@@ -31,9 +31,12 @@ typedef struct {
     WinHttpReadData_t           WinHttpReadData;
     WinHttpCloseHandle_t        WinHttpCloseHandle;
 
-    LoadLibraryA_t LoadLibraryA;
-    FreeLibrary_t  FreeLibrary;
-    CloseHandle_t  CloseHandle;
+    LoadLibraryA_t        LoadLibraryA;
+    FreeLibrary_t         FreeLibrary;
+    ReleaseMutex_t        ReleaseMutex;
+    WaitForSingleObject_t WaitForSingleObject;
+    CloseHandle_t         CloseHandle;
+    Sleep_t               Sleep;
 
     // protect data
     bool   isLoad;
@@ -80,7 +83,39 @@ WinHTTP_M* InitWinHTTP(Context* context)
     // store options
     module->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
-
+    for (;;)
+    {
+        if (!initModuleAPI(module, context))
+        {
+            errno = ERR_WIN_HTTP_INIT_API;
+            break;
+        }
+        if (!updateModulePointer(module))
+        {
+            errno = ERR_WIN_HTTP_UPDATE_PTR;
+            break;
+        }
+        if (!initModuleEnvironment(module, context))
+        {
+            errno = ERR_WIN_HTTP_INIT_ENV;
+            break;
+        }
+        break;
+    }
+    eraseModuleMethods(context);
+    if (errno != NO_ERROR)
+    {
+        SetLastErrno(errno);
+        return NULL;
+    }
+    // create method set
+    WinHTTP_M* method = (WinHTTP_M*)methodAddr;
+    method->Get       = GetFuncAddr(&WH_Get);
+    method->Post      = GetFuncAddr(&WH_Post);
+    method->Lock      = GetFuncAddr(&WH_Lock);
+    method->Unlock    = GetFuncAddr(&WH_Unlock);
+    method->Uninstall = GetFuncAddr(&WH_Uninstall);
+    return method;
 }
 
 static bool initModuleAPI(WinHTTP* module, Context* context)
@@ -139,26 +174,80 @@ static bool initModuleAPI(WinHTTP* module, Context* context)
     module->LoadLibraryA              = list[0x09].proc;
     module->FreeLibrary               = list[0x0A].proc;
 
-    module->CloseHandle = context->CloseHandle;
+    module->ReleaseMutex        = context->ReleaseMutex;
+    module->WaitForSingleObject = context->WaitForSingleObject;
+    module->CloseHandle         = context->CloseHandle;
+    module->Sleep               = context->Sleep;
     return true;
 }
 
+// CANNOT merge updateModulePointer and recoverModulePointer
+// to one function with two arguments, otherwise the compiler
+// will generate the incorrect instructions.
+
 static bool updateModulePointer(WinHTTP* module)
 {
-
+    bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getModulePointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != MODULE_POINTER)
+        {
+            target++;
+            continue;
+        }
+        *pointer = (uintptr)module;
+        success = true;
+        break;
+    }
+    return success;
 }
 
 static bool recoverModulePointer(WinHTTP* module)
 {
-
+    bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getModulePointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != (uintptr)module)
+        {
+            target++;
+            continue;
+        }
+        *pointer = MODULE_POINTER;
+        success = true;
+        break;
+    }
+    return success;
 }
 
 static bool initModuleEnvironment(WinHTTP* module, Context* context)
 {
-
+    module->malloc = context->mt_malloc;
+    module->free   = context->mt_free;
+    return true;
 }
 
 static void eraseModuleMethods(Context* context)
 {
-
+    if (context->NotEraseInstruction)
+    {
+        return;
+    }
+    uintptr begin = (uintptr)(GetFuncAddr(&initModuleAPI));
+    uintptr end   = (uintptr)(GetFuncAddr(&eraseModuleMethods));
+    uintptr size  = end - begin;
+    RandBuffer((byte*)begin, (int64)size);
 }
+
+// updateModulePointer will replace hard encode address to the actual address.
+// Must disable compiler optimize, otherwise updateModulePointer will fail.
+#pragma optimize("", off)
+static WinHTTP* getModulePointer()
+{
+    uintptr pointer = MODULE_POINTER;
+    return (WinHTTP*)(pointer);
+}
+#pragma optimize("", on)
