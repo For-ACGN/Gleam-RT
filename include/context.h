@@ -42,6 +42,7 @@ typedef struct {
     FlushInstructionCache_t FlushInstructionCache;
     DuplicateHandle_t       DuplicateHandle;
     CloseHandle_t           CloseHandle;
+    Sleep_t                 Sleep;
 
     // for initialize high-level modules
     mt_malloc_t  mt_malloc;
