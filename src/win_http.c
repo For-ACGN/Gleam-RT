@@ -53,8 +53,8 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp);
 errno WH_Post(UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp);
 
 // methods for runtime
-errno WH_Lock();
-errno WH_Unlock();
+bool  WH_Lock();
+bool  WH_Unlock();
 errno WH_Uninstall();
 
 // hard encoded address in getModulePointer for replacement
@@ -64,6 +64,9 @@ errno WH_Uninstall();
     #define MODULE_POINTER 0x7FABCDE2
 #endif
 static WinHTTP* getModulePointer();
+
+static bool wh_lock();
+static bool wh_unlock();
 
 static bool initModuleAPI(WinHTTP* module, Context* context);
 static bool updateModulePointer(WinHTTP* module);
@@ -225,6 +228,14 @@ static bool recoverModulePointer(WinHTTP* module)
 
 static bool initModuleEnvironment(WinHTTP* module, Context* context)
 {
+    // create global mutex
+    HANDLE hMutex = context->CreateMutexA(NULL, false, NULL);
+    if (hMutex == NULL)
+    {
+        return false;
+    }
+    module->hMutex = hMutex;
+    // copy submodule methods
     module->malloc = context->mt_malloc;
     module->free   = context->mt_free;
     return true;
@@ -251,3 +262,76 @@ static WinHTTP* getModulePointer()
     return (WinHTTP*)(pointer);
 }
 #pragma optimize("", on)
+
+__declspec(noinline)
+static bool wh_lock()
+{
+    WinHTTP* module = getModulePointer();
+
+    uint32 event = module->WaitForSingleObject(module->hMutex, INFINITE);
+    return event == WAIT_OBJECT_0;
+}
+
+__declspec(noinline)
+static bool wh_unlock()
+{
+    WinHTTP* module = getModulePointer();
+
+    return module->ReleaseMutex(module->hMutex);
+}
+
+__declspec(noinline)
+errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
+{
+    WinHTTP* module = getModulePointer();
+
+    return NO_ERROR;
+}
+
+__declspec(noinline)
+errno WH_Post(UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
+{
+    WinHTTP* module = getModulePointer();
+
+    return NO_ERROR;
+}
+
+__declspec(noinline)
+bool WH_Lock()
+{
+    WinHTTP* module = getModulePointer();
+
+    for (int i = 0; i < 500; i++)
+    {
+        if (!wh_lock())
+        {
+            return false;
+        }
+        if (module->counter == 0)
+        {
+            return true;
+        }
+        if (!wh_unlock())
+        {
+            return false;
+        }
+        module->Sleep(10);
+    }
+    return true;
+}
+
+__declspec(noinline)
+bool WH_Unlock()
+{
+    WinHTTP* module = getModulePointer();
+
+    return wh_unlock();
+}
+
+__declspec(noinline)
+errno WH_Uninstall()
+{
+    WinHTTP* module = getModulePointer();
+
+    return NO_ERROR;
+}
