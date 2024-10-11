@@ -6,6 +6,8 @@
 #include "context.h"
 #include "errno.h"
 
+// The BodyBuf allocated from WinHTTP must call Runtime_M.Memory.Free().
+
 typedef struct {
     UTF16  UserAgent;   // default User-Agent
     UTF16  ContentType; // for POST method
@@ -15,20 +17,14 @@ typedef struct {
 } WinHTTP_Opts;
 
 typedef struct {
-    int32 StatusCode;
-    UTF16 Headers;
-    void* Body;
+    int32  StatusCode;
+    UTF16  Headers;
+    void*  BodyBuf; // need MemoruFree
+    uint32 BodySize;
 } WinHTTP_Resp;
 
-typedef errno (*WHGet_t)
-(
-    UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp
-);
-
-typedef errno (*WHPost_t)
-(
-    UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp
-);
+typedef errno (*WHGet_t)(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp);
+typedef errno (*WHPost_t)(UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp);
 
 typedef errno (*WHLock_t)();
 typedef errno (*WHUnlock_t)();
