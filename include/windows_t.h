@@ -461,6 +461,11 @@ typedef BOOL (*SetWaitableTimer_t)
     BOOL fResume
 );
 
+typedef void (*Sleep_t)
+(
+    DWORD dwMilliseconds
+);
+
 typedef DWORD (*SleepEx_t)
 (
     DWORD dwMilliseconds, BOOL bAlertable
