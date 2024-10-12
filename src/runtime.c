@@ -91,6 +91,7 @@ typedef struct {
 
     // high-level modules
     WinFile_M* WinFile;
+    WinHTTP_M* WinHTTP;
 } Runtime;
 
 // export methods and IAT hooks about Runtime
@@ -150,6 +151,7 @@ static errno initThreadTracker(Runtime* runtime, Context* context);
 static errno initResourceTracker(Runtime* runtime, Context* context);
 static errno initArgumentStore(Runtime* runtime, Context* context);
 static errno initWinFile(Runtime* runtime, Context* context);
+static errno initWinHTTP(Runtime* runtime, Context* context);
 static bool  initIATHooks(Runtime* runtime);
 static bool  flushInstructionCache(Runtime* runtime);
 
@@ -316,7 +318,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->WinFile.WriteFileA = runtime->WinFile->WriteFileA;
     module->WinFile.WriteFileW = runtime->WinFile->WriteFileW;
     // WinHTTP
-    
+
     // random module
     module->Random.Buffer  = GetFuncAddr(&RandBuffer);
     module->Random.Bool    = GetFuncAddr(&RandBool);
@@ -585,6 +587,7 @@ static errno initModules(Runtime* runtime)
         .FlushInstructionCache = runtime->FlushInstructionCache,
         .DuplicateHandle       = runtime->DuplicateHandle,
         .CloseHandle           = runtime->CloseHandle,
+        .Sleep                 = GetFuncAddr(&RT_Sleep),
     };
 
     typedef errno (*module_t)(Runtime* runtime, Context* context);
@@ -617,6 +620,7 @@ static errno initModules(Runtime* runtime)
     module_t hl_modules[] = 
     {
         GetFuncAddr(&initWinFile),
+        GetFuncAddr(&initWinHTTP),
     };
     for (int i = 0; i < arrlen(hl_modules); i++)
     {
@@ -697,6 +701,17 @@ static errno initWinFile(Runtime* runtime, Context* context)
         return GetLastErrno();
     }
     runtime->WinFile = winFile;
+    return NO_ERROR;
+}
+
+static errno initWinHTTP(Runtime* runtime, Context* context)
+{
+    WinHTTP_M* winHTTP = InitWinHTTP(context);
+    if (winHTTP == NULL)
+    {
+        return GetLastErrno();
+    }
+    runtime->WinHTTP = winHTTP;
     return NO_ERROR;
 }
 
@@ -1126,6 +1141,10 @@ errno RT_lock_mods()
     {
         return ERR_RUNTIME_LOCK_ARGUMENT;
     }
+    if (!runtime->WinHTTP->Lock())
+    {
+        return ERR_RUNTIME_LOCK_WIN_HTTP;
+    }
     if (!runtime->ThreadTracker->Lock())
     {
         return ERR_RUNTIME_LOCK_THREAD;
@@ -1141,6 +1160,10 @@ errno RT_unlock_mods()
     if (!runtime->ThreadTracker->Unlock())
     {
         return ERR_RUNTIME_UNLOCK_THREAD;
+    }
+    if (!runtime->WinHTTP->Unlock())
+    {
+        return ERR_RUNTIME_UNLOCK_WIN_HTTP;
     }
     if (!runtime->ArgumentStore->Unlock())
     {
@@ -1209,7 +1232,7 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook)
     }
     // use "mem_init" for prevent incorrect compiler
     // optimize and generate incorrect shellcode
-    byte module[MAX_PATH];
+    uint16 module[MAX_PATH];
     mem_init(module, sizeof(module));
     // get module file name
     if (GetModuleFileName(hModule, module, sizeof(module)) == 0)
@@ -2018,13 +2041,16 @@ errno RT_Exit()
     typedef errno (*submodule_t)();
     submodule_t submodules[] = 
     {
+        // runtime submodules
         runtime->ThreadTracker->Clean,
         runtime->ResourceTracker->Clean,
         runtime->LibraryTracker->Clean,
         runtime->MemoryTracker->Clean,
         runtime->ArgumentStore->Clean,
 
+        // high-level modules
         runtime->WinFile->Uninstall,
+        runtime->WinHTTP->Uninstall,
     };
     errno enmod = NO_ERROR;
     for (int i = 0; i < arrlen(submodules); i++)
