@@ -17,8 +17,8 @@ typedef struct {
     uint32 TextVirtualAddress;
     uint32 TextSizeOfRawData;
     uint32 TextPointerToRawData;
-} PE_Info;
+} PE_Image;
 
-void ParsePEImage(void* address, PE_Info* info);
+void ParsePEImage(void* address, PE_Image* image);
 
 #endif // PE_IMAGE_H
