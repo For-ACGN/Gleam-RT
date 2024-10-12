@@ -75,6 +75,7 @@ static bool initModuleEnvironment(WinHTTP* module, Context* context);
 static void eraseModuleMethods(Context* context);
 
 static bool initWinHTTPEnv();
+static void xorDLLName(byte* name);
 static bool findWinHTTPAPI();
 static bool increaseCounter();
 static bool decreaseCounter();
@@ -275,10 +276,11 @@ static bool initWinHTTPEnv()
             break;
         }
         // load winhttp.dll
-        LPSTR dllName[] = {
-            // TODO hide it
-            'w', 'i', 'n', 'h', 't', 't', 'p', '.', 'd', 'l', 'l', 0x00 
+        byte dllName[] = {
+            'w'^0xAC, 'i'^0xAC, 'n'^0xAC, 'h'^0xAC, 't'^0xAC, 't'^0xAC,
+            'p'^0xAC, '.'^0xAC, 'd'^0xAC, 'l'^0xAC, 'l'^0xAC, 0x00
         };
+        xorDLLName(dllName);
         HMODULE hModule = module->LoadLibraryA(dllName);
         if (hModule == NULL)
         {
@@ -302,6 +304,21 @@ static bool initWinHTTPEnv()
     }
     return success;
 }
+
+#pragma optimize("", off)
+static void xorDLLName(byte* name)
+{
+    for (;;)
+    {
+        if (*name == 0x00)
+        {
+            return;
+        }
+        *name ^= 0xAC;
+        name++;
+    }
+}
+#pragma optimize("", on)
 
 static bool findWinHTTPAPI()
 {
@@ -413,21 +430,90 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
         return GetLastErrno();
     }
 
+    if (opts == NULL)
+    {
+        WinHTTP_Opts opt = {
+            .UserAgent   = NULL,
+            .ContentType = NULL,
+            .Headers     = NULL,
+            .Proxy       = NULL,
+            .Timeout     = 15*1000,
+            .AccessType  = WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+        };
+        opts = &opt;
+    }
+
+    // parse URL
+    uint16 scheme[16];
+    uint16 hostname[256];
+    uint16 username[256];
+    uint16 password[256];
+    uint16 path[1024];
+    uint16 extra[4096];
+    mem_init(scheme, sizeof(scheme));
+    mem_init(hostname, sizeof(hostname));
+    mem_init(username, sizeof(username));
+    mem_init(password, sizeof(password));
+    mem_init(path, sizeof(path));
+    mem_init(extra, sizeof(extra));
+
+    URL_COMPONENTS url_com;
+    mem_init(&url_com, sizeof(url_com));
+    url_com.dwStructSize      = sizeof(url_com);
+    url_com.lpszScheme        = scheme;
+    url_com.dwSchemeLength    = arrlen(scheme);
+    url_com.lpszHostName      = hostname;
+    url_com.dwHostNameLength  = arrlen(hostname);
+    url_com.lpszUserName      = username;
+    url_com.dwUserNameLength  = arrlen(username);
+    url_com.lpszPassword      = password;
+    url_com.dwPasswordLength  = arrlen(password);
+    url_com.lpszUrlPath       = path;
+    url_com.dwUrlPathLength   = arrlen(path);
+    url_com.lpszExtraInfo     = extra;
+    url_com.dwExtraInfoLength = arrlen(extra);
+
+    HINTERNET hSession = NULL;
+
+    bool success = false;
     for (;;)
     {
+        if (!module->WinHttpCrackUrl(url, 0, 0, &url_com))
+        {
+            break;
+        }
+        dbg_log("[WinHTTP]", "Get %ls", url);
+        hSession = module->WinHttpOpen(
+            opts->UserAgent, opts->AccessType, NULL, NULL, 0
+        );
+        if (hSession == NULL)
+        {
+            break;
+        }
 
-
-
-
-
+        success = true;
         break;
+    }
+
+    errno errno = NO_ERROR;
+    if (!success)
+    {
+        errno = GetLastErrno();
+    }
+
+    if (hSession != NULL)
+    {
+        if (!module->WinHttpCloseHandle(hSession) && errno == NO_ERROR)
+        {
+            errno = GetLastErrno();
+        }
     }
 
     if (!decreaseCounter())
     {
         return GetLastErrno();
     }
-    return NO_ERROR;
+    return errno;
 }
 
 __declspec(noinline)
@@ -446,7 +532,7 @@ errno WH_Post(UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
 
     for (;;)
     {
-
+        module->WinHttpCrackUrl(url, 0, 0, NULL);
 
 
         break;
