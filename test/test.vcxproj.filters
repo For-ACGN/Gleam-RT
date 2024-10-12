@@ -107,6 +107,9 @@
     <ClCompile Include="win_http_test.c">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\pe_image.c">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\crypto.h">
@@ -182,6 +185,9 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="..\include\win_http.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\pe_image.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>
