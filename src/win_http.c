@@ -76,6 +76,8 @@ static void eraseModuleMethods(Context* context);
 
 static bool initWinHTTPEnv();
 static bool findWinHTTPAPI();
+static bool increaseCounter();
+static bool decreaseCounter();
 
 WinHTTP_M* InitWinHTTP(Context* context)
 {
@@ -274,6 +276,7 @@ static bool initWinHTTPEnv()
         }
         // load winhttp.dll
         LPSTR dllName[] = {
+            // TODO hide it
             'w', 'i', 'n', 'h', 't', 't', 'p', '.', 'd', 'l', 'l', 0x00 
         };
         HMODULE hModule = module->LoadLibraryA(dllName);
@@ -354,6 +357,48 @@ static bool findWinHTTPAPI()
     return true;
 }
 
+static bool increaseCounter()
+{
+    WinHTTP* module = getModulePointer();
+
+    if (!wh_lock())
+    {
+        return false;
+    }
+    module->counter++;
+    // prevent unexpected status
+    if (module->counter < 1)
+    {
+        module->counter = 1;
+    }
+    if (!wh_unlock())
+    {
+        return false;
+    }
+    return true;
+}
+
+static bool decreaseCounter()
+{
+    WinHTTP* module = getModulePointer();
+
+    if (!wh_lock())
+    {
+        return false;
+    }
+    module->counter--;
+    // prevent unexpected status
+    if (module->counter < 0)
+    {
+        module->counter = 0;
+    }
+    if (!wh_unlock())
+    {
+        return false;
+    }
+    return true;
+}
+
 __declspec(noinline)
 errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
 {
@@ -363,7 +408,25 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
     {
         return GetLastErrno();
     }
+    if (!increaseCounter())
+    {
+        return GetLastErrno();
+    }
 
+    for (;;)
+    {
+
+
+
+
+
+        break;
+    }
+
+    if (!decreaseCounter())
+    {
+        return GetLastErrno();
+    }
     return NO_ERROR;
 }
 
@@ -376,7 +439,23 @@ errno WH_Post(UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
     {
         return GetLastErrno();
     }
+    if (!increaseCounter())
+    {
+        return GetLastErrno();
+    }
 
+    for (;;)
+    {
+
+
+
+        break;
+    }
+
+    if (!decreaseCounter())
+    {
+        return GetLastErrno();
+    }
     return NO_ERROR;
 }
 
@@ -385,7 +464,8 @@ bool WH_Lock()
 {
     WinHTTP* module = getModulePointer();
 
-    for (;;)
+    // maximum sleep 10s 
+    for (int i = 0; i < 1000; i++)
     {
         if (!wh_lock())
         {
@@ -401,13 +481,19 @@ bool WH_Lock()
         }
         module->Sleep(10);
     }
+
+    // if timeout, reset counter
+    if (!wh_lock())
+    {
+        return false;
+    }
+    module->counter = 0;
+    return true;
 }
 
 __declspec(noinline)
 bool WH_Unlock()
 {
-    WinHTTP* module = getModulePointer();
-
     return wh_unlock();
 }
 
