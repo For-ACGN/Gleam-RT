@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -56,10 +57,10 @@ func main() {
 		// prevent incorrect cache
 		r.Header.Del("If-Modified-Since")
 		// redirect for process file directory
-		path := strings.ReplaceAll(r.URL.Path, handler, "/")
-		path = strings.ReplaceAll(filepath.Clean(path), "\\", "/")
+		path := strings.Replace(r.URL.Path, handler, "/", 1)
 		// prevent directory traversal
-		if path == "/" {
+		if isDir(filepath.Join(dir, path)) {
+			w.WriteHeader(http.StatusForbidden)
 			return
 		}
 		// process compress
@@ -104,6 +105,19 @@ func dumpRequest(r *http.Request) {
 		_, _ = fmt.Fprintf(buf, "\n%s: %s", k, v[0])
 	}
 	log.Printf("[handle request]\n%s\n\n", buf)
+}
+
+func isDir(path string) bool {
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer func() { _ = file.Close() }()
+	stat, err := file.Stat()
+	if err != nil {
+		return false
+	}
+	return stat.IsDir()
 }
 
 type gzipResponseWriter struct {
