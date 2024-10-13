@@ -584,3 +584,26 @@ void DecryptBuf(byte* buf, uint size, byte* key, byte* iv)
 }
 
 #endif
+
+#pragma optimize("", off)
+void XORBuf(void* buf, uint bufSize, void* key, uint keySize)
+{
+    if (bufSize == 0 || keySize == 0)
+    {
+        return;
+    }
+    byte* b = buf;
+    byte* k = key;
+    uint keyIdx = 0;
+    for (uint i = 0; i < bufSize; i++)
+    {
+        *b ^= *(k + keyIdx);
+        keyIdx++;
+        if (keyIdx >= keySize)
+        {
+            keyIdx = 0;
+        }
+        b++;
+    }
+}
+#pragma optimize("", on)
