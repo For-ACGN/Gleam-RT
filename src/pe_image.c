@@ -1,5 +1,7 @@
 #include "c_types.h"
 #include "windows_t.h"
+#include "lib_string.h"
+#include "crypto.h"
 #include "pe_image.h"
 
 void ParsePEImage(void* address, PE_Image* image)
@@ -17,13 +19,18 @@ void ParsePEImage(void* address, PE_Image* image)
     uintptr imageBase = *(uintptr*)(imageAddr + peOffset + 52);
 #endif
     uint32 imageSize = *(uint32*)(imageAddr + peOffset + 80);
+    // not record the original ".text" bytes
+    byte target[] = {
+        '.'^0x19, 't'^0xF4, 'e'^0xBF, 'x'^0x8C,
+        't'^0x19, 000^0xF4, 000^0xBF, 000^0x8C,
+    };
+    byte key[] = {0x19, 0xF4, 0xBF, 0x8C};
+    XORBuf(target, sizeof(target), key, sizeof(key));
     // parse sections and search .text
     uintptr section = imageAddr + PE_FILE_HEADER_SIZE + peOffset + optHeaderSize;
     for (uint16 i = 0; i < numSections; i++)
     {
-        // not record the original ".text" bytes
-        uint64 name = *(uint64*)section ^ 0x000000FFFFFFFFFF;
-        if (name != (0x000000747865742E ^ 0x000000FFFFFFFFFF))
+        if (strncmp_a((ANSI)section, (ANSI)target, sizeof(target)) != 0)
         {
             section += PE_SECTION_HEADER_SIZE;
             continue;
