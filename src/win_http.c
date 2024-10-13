@@ -4,6 +4,7 @@
 #include "lib_memory.h"
 #include "lib_string.h"
 #include "hash_api.h"
+#include "crypto.h"
 #include "context.h"
 #include "random.h"
 #include "errno.h"
@@ -44,8 +45,9 @@ typedef struct {
     HANDLE  hMutex;
 
     // submodules method
-    malloc_t  malloc;
-    mt_free_t free;
+    mt_malloc_t  malloc;
+    mt_realloc_t realloc;
+    mt_free_t    free;
 } WinHTTP;
 
 // methods for user
@@ -75,7 +77,6 @@ static bool initModuleEnvironment(WinHTTP* module, Context* context);
 static void eraseModuleMethods(Context* context);
 
 static bool initWinHTTPEnv();
-static void xorDLLName(byte* name);
 static bool findWinHTTPAPI();
 static bool increaseCounter();
 static bool decreaseCounter();
@@ -215,8 +216,9 @@ static bool initModuleEnvironment(WinHTTP* module, Context* context)
     }
     module->hMutex = hMutex;
     // copy submodule methods
-    module->malloc = context->mt_malloc;
-    module->free   = context->mt_free;
+    module->malloc  = context->mt_malloc;
+    module->realloc = context->mt_realloc;
+    module->free    = context->mt_free;
     return true;
 }
 
@@ -268,33 +270,36 @@ static bool initWinHTTPEnv()
         return false;
     }
 
-    bool success = true;
+    bool success = false;
     for (;;)
     {
         if (module->hModule != NULL)
         {
+            success = true;
             break;
         }
-        // load winhttp.dll
+        // decrypt to "winhttp.dll"
         byte dllName[] = {
-            'w'^0xAC, 'i'^0xAC, 'n'^0xAC, 'h'^0xAC, 't'^0xAC, 't'^0xAC,
-            'p'^0xAC, '.'^0xAC, 'd'^0xAC, 'l'^0xAC, 'l'^0xAC, 0x00
+            'w'^0xAC, 'i'^0x1F, 'n'^0x49, 'h'^0xC6, 
+            't'^0xAC, 't'^0x1F, 'p'^0x49, '.'^0xC6, 
+            'd'^0xAC, 'l'^0x1F, 'l'^0x49, 000^0xC6,
         };
-        xorDLLName(dllName);
+        byte key[] = {0xAC, 0x1F, 0x49, 0xC6};
+        XORBuf(dllName, sizeof(dllName), key, sizeof(key));
+        // load winhttp.dll
         HMODULE hModule = module->LoadLibraryA(dllName);
         if (hModule == NULL)
         {
-            success = false;
             break;
         }
         // prepare API address
         if (!findWinHTTPAPI())
         {
             module->FreeLibrary(hModule);
-            success = false;
             break;
         }
         module->hModule = hModule;
+        success = true;
         break;
     }
 
@@ -304,21 +309,6 @@ static bool initWinHTTPEnv()
     }
     return success;
 }
-
-#pragma optimize("", off)
-static void xorDLLName(byte* name)
-{
-    for (;;)
-    {
-        if (*name == 0x00)
-        {
-            return;
-        }
-        *name ^= 0xAC;
-        name++;
-    }
-}
-#pragma optimize("", on)
 
 static bool findWinHTTPAPI()
 {
@@ -443,13 +433,14 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
         opts = &opt;
     }
 
-    // parse URL
+    // parse input URL
     uint16 scheme[16];
     uint16 hostname[256];
     uint16 username[256];
     uint16 password[256];
     uint16 path[1024];
-    uint16 extra[4096];
+    uint16 extra[2048];
+
     mem_init(scheme, sizeof(scheme));
     mem_init(hostname, sizeof(hostname));
     mem_init(username, sizeof(username));
@@ -474,15 +465,29 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
     url_com.dwExtraInfoLength = arrlen(extra);
 
     HINTERNET hSession = NULL;
+    HINTERNET hConnect = NULL;
+    HINTERNET hRequest = NULL;
 
     bool success = false;
     for (;;)
     {
+        // split input url
         if (!module->WinHttpCrackUrl(url, 0, 0, &url_com))
         {
             break;
         }
         dbg_log("[WinHTTP]", "Get %ls", url);
+        switch (url_com.nScheme)
+        {
+        case INTERNET_SCHEME_HTTP:
+            break;
+        case INTERNET_SCHEME_HTTPS:
+            break;
+        default:
+            goto exit_loop;
+        }
+
+        // create session
         hSession = module->WinHttpOpen(
             opts->UserAgent, opts->AccessType, NULL, NULL, 0
         );
@@ -490,10 +495,83 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
         {
             break;
         }
-
+        // create connection
+        hConnect = module->WinHttpConnect(
+            hSession, hostname, url_com.nPort, 0
+        );
+        if (hConnect == NULL)
+        {
+            break;
+        }
+        // create request
+        uint16 reqPath[arrlen(path) + arrlen(extra)];
+        mem_init(reqPath, sizeof(reqPath));
+        strcpy_w(reqPath, path);
+        strcpy_w(reqPath + url_com.dwUrlPathLength, extra);
+        DWORD flags = 0;
+        if (url_com.nScheme == INTERNET_SCHEME_HTTPS)
+        {
+            flags = WINHTTP_FLAG_SECURE;
+        }
+        hRequest = module->WinHttpOpenRequest(
+            hConnect, L"GET", reqPath, NULL, 
+            WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags
+        );
+        if (hRequest == NULL)
+        {
+            break;
+        }
+        // send request
+        bool ok = module->WinHttpSendRequest(
+            hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
+            WINHTTP_NO_REQUEST_DATA, 0, 0, NULL
+        );
+        if (!ok)
+        {
+            break;
+        }
+        // receive response
+        if (!module->WinHttpReceiveResponse(hRequest, NULL))
+        {
+            break;
+        }
+        // read data
+        byte* buf = NULL;
+        uint  len = 0;
+        for (;;)
+        {
+            DWORD size;
+            if (!module->WinHttpQueryDataAvailable(hRequest, &size))
+            {
+                goto exit_loop;
+            }
+            if (size == 0)
+            {
+                break;
+            }
+            // record current offset
+            uint off = len;
+            // allocate buffer
+            len += (uint)size;
+            buf = module->realloc(buf, len);
+            if (buf == NULL)
+            {
+                goto exit_loop;
+            }
+            if (!module->WinHttpReadData(hRequest, buf + off, size, &size))
+            {
+                goto exit_loop;
+            }
+        }
+        // TODO
+        // resp->StatusCode = 200; 
+        // resp->Headers    = NULL;
+        resp->BodyBuf  = buf;
+        resp->BodySize = (uint64)len;
         success = true;
         break;
     }
+exit_loop:
 
     errno errno = NO_ERROR;
     if (!success)
@@ -501,6 +579,20 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
         errno = GetLastErrno();
     }
 
+    if (hRequest != NULL)
+    {
+        if (!module->WinHttpCloseHandle(hRequest) && errno == NO_ERROR)
+        {
+            errno = GetLastErrno();
+        }
+    }
+    if (hConnect != NULL)
+    {
+        if (!module->WinHttpCloseHandle(hConnect) && errno == NO_ERROR)
+        {
+            errno = GetLastErrno();
+        }
+    }
     if (hSession != NULL)
     {
         if (!module->WinHttpCloseHandle(hSession) && errno == NO_ERROR)
@@ -532,9 +624,6 @@ errno WH_Post(UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
 
     for (;;)
     {
-        module->WinHttpCrackUrl(url, 0, 0, NULL);
-
-
         break;
     }
 
