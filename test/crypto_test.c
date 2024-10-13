@@ -7,6 +7,7 @@
 
 static bool TestEncryptBuf();
 static bool TestDecryptBuf();
+static bool TestXORBuf();
 
 static void printHexBytes(byte* buf, uint size);
 
@@ -16,6 +17,7 @@ bool TestCrypto()
     {
         { TestEncryptBuf },
         { TestDecryptBuf },
+        { TestXORBuf     },
     };
     for (int i = 0; i < arrlen(tests); i++)
     {
@@ -119,6 +121,33 @@ static bool TestDecryptBuf()
     }
 
     printf_s("=======TestDecryptBuf passed=======\n\n");
+    return true;
+}
+
+static bool TestXORBuf()
+{
+    printf_s("=========TestXORBuf begin==========\n");
+
+    // generate random data and key
+    byte data[64];
+    byte key[4];
+    RandBuffer(data, sizeof(data));
+    RandBuffer(key, sizeof(key));
+    printf_s("plain data:\n");
+    printHexBytes(data, sizeof(data));
+
+    // encrypt and decrypt
+    byte cipher[sizeof(data)];
+    mem_copy(cipher, data, sizeof(data));
+    XORBuf(cipher, sizeof(data), key, sizeof(key));
+    XORBuf(cipher, sizeof(data), key, sizeof(key));
+
+    if (mem_cmp(data, cipher, sizeof(data)) != 0)
+    {
+        printf_s("[error] plain data is incorrect\n");
+    }
+
+    printf_s("=========TestXORBuf passed=========\n\n");
     return true;
 }
 
