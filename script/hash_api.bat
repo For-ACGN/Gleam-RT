@@ -96,6 +96,8 @@ hash_api -fmt 64 -conc -func WriteFile
 echo.
 
 echo [WinHTTP Module]
+hash_api -fmt 64 -conc -func LoadLibraryA
+hash_api -fmt 64 -conc -func FreeLibrary
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpCrackUrl
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpOpen
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpConnect
@@ -198,6 +200,8 @@ hash_api -fmt 32 -conc -func WriteFile
 echo.
 
 echo [WinHTTP Module]
+hash_api -fmt 32 -conc -func LoadLibraryA
+hash_api -fmt 32 -conc -func FreeLibrary
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpCrackUrl
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpOpen
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpConnect
