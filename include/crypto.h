@@ -12,4 +12,7 @@ void EncryptBuf(byte* buf, uint size, byte* key, byte* iv);
 // DecryptBuf is used to decrypt data in buffer with 256 bit key.
 void DecryptBuf(byte* buf, uint size, byte* key, byte* iv);
 
+// XORBuf is used to xor data in buffer with key.
+void XORBuf(void* buf, uint bufSize, void* key, uint keySize);
+
 #endif // CRYPTO_H
