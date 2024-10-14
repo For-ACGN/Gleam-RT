@@ -155,7 +155,7 @@ static errno initWinHTTP(Runtime* runtime, Context* context);
 static bool  initIATHooks(Runtime* runtime);
 static bool  flushInstructionCache(Runtime* runtime);
 
-static void* getRuntimeMethods(byte* module, LPCSTR lpProcName);
+static void* getRuntimeMethods(LPCWSTR module, LPCSTR lpProcName);
 static void* getLazyAPIHook(Runtime* runtime, void* proc);
 static void* replaceToIATHook(Runtime* runtime, void* proc);
 
@@ -318,7 +318,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->WinFile.WriteFileA = runtime->WinFile->WriteFileA;
     module->WinFile.WriteFileW = runtime->WinFile->WriteFileW;
     // WinHTTP
-
+    module->WinHTTP.Get  = runtime->WinHTTP->Get;
+    module->WinHTTP.Post = runtime->WinHTTP->Post;
     // random module
     module->Random.Buffer  = GetFuncAddr(&RandBuffer);
     module->Random.Bool    = GetFuncAddr(&RandBool);
@@ -1028,12 +1029,16 @@ static bool rt_unlock()
     return runtime->ReleaseMutex(runtime->hMutex);
 }
 
+// +---------+----------+-------------+
+// |  size   | capacity | user buffer |
+// +---------+----------+-------------+
+// |  uint   |   uint   |     var     |
+// +---------+----------+-------------+
+
 __declspec(noinline)
 void* RT_malloc(uint size)
 {
     Runtime* runtime = getRuntimePointer();
-
-    dbg_log("[runtime]", "malloc size: %zu", size);
 
     if (size == 0)
     {
@@ -1041,8 +1046,8 @@ void* RT_malloc(uint size)
     }
     // ensure the size is a multiple of memory page size.
     // it also for prevent track the special page size.
-    uint pageSize = ((size / runtime->PageSize) + 1) * runtime->PageSize;
-    void* addr = runtime->VirtualAlloc(NULL, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    uint memSize = ((size / runtime->PageSize) + 1) * runtime->PageSize;
+    void* addr = runtime->VirtualAlloc(NULL, memSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (addr == NULL)
     {
         return NULL;
@@ -1051,15 +1056,18 @@ void* RT_malloc(uint size)
     // ensure the memory address is 16 bytes aligned
     byte* address = (byte*)addr;
     RandBuffer(address, 16);
+    // record user input size
     mem_copy(address, &size, sizeof(uint));
+    // record buffer capacity
+    uint cap = memSize - 16;
+    mem_copy(address + sizeof(uint), &cap, sizeof(uint));
+    dbg_log("[runtime]", "malloc size: %zu", size);
     return (void*)(address + 16);
 }
 
 __declspec(noinline)
 void* RT_calloc(uint num, uint size)
 {
-    dbg_log("[runtime]", "calloc num: %zu, size: %zu", num, size);
-
     uint total = num * size;
     if (total == 0)
     {
@@ -1071,23 +1079,39 @@ void* RT_calloc(uint num, uint size)
         return NULL;
     }
     mem_init(addr, total);
+    dbg_log("[runtime]", "calloc num: %zu, size: %zu", num, size);
     return addr;
 }
 
 __declspec(noinline)
 void* RT_realloc(void* ptr, uint size)
 {
-    dbg_log("[runtime]", "realloc ptr: 0x%zX, size: %zu", ptr, size);
-
     if (ptr == NULL)
     {
         return RT_malloc(size);
     }
+    if (size == 0)
+    {
+        RT_free(ptr);
+        return NULL;
+    }
+    // check need expand capacity
+    uint cap = *(uint*)((uintptr)(ptr)-16+sizeof(uint));
+    if (size <= cap)
+    {
+        *(uint*)((uintptr)(ptr)-16) = size;
+        return ptr;
+    }
     // allocate new memory
+    if (cap < 65536)
+    {
+        cap = size * 2;
+    } else {
+        cap = size * 5 / 4; // size *= 1.25
+    }
     void* newPtr = RT_malloc(size);
     if (newPtr == NULL)
     {
-        RT_free(ptr);
         return NULL;
     }
     // copy data to new memory
@@ -1099,6 +1123,7 @@ void* RT_realloc(void* ptr, uint size)
         RT_free(newPtr);
         return NULL;
     }
+    dbg_log("[runtime]", "realloc ptr: 0x%zX, size: %zu", ptr, size);
     return newPtr;
 }
 
@@ -1106,8 +1131,6 @@ __declspec(noinline)
 bool RT_free(void* ptr)
 {
     Runtime* runtime = getRuntimePointer();
-
-    dbg_log("[runtime]", "free ptr: 0x%zX", ptr);
 
     if (ptr == NULL)
     {
@@ -1117,7 +1140,12 @@ bool RT_free(void* ptr)
     void* addr = (void*)((uintptr)(ptr)-16);
     uint  size = *(uint*)addr;
     mem_init((byte*)addr, size);
-    return runtime->VirtualFree(addr, 0, MEM_RELEASE);
+    if (!runtime->VirtualFree(addr, 0, MEM_RELEASE))
+    {
+        return false;
+    }
+    dbg_log("[runtime]", "free ptr: 0x%zX", ptr);
+    return true;
 }
 
 __declspec(noinline)
@@ -1308,7 +1336,7 @@ void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 #pragma optimize("", on)
 
 // TODO add more about basic modules
-static void* getRuntimeMethods(byte* module, LPCSTR lpProcName)
+static void* getRuntimeMethods(LPCWSTR module, LPCSTR lpProcName)
 {
     Runtime* runtime = getRuntimePointer();
 
