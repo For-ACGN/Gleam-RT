@@ -46,9 +46,14 @@ bool List_Insert(List* list, void* data)
         bool success;
         if (list->Cap == 0)
         {
-            success = List_Resize(list, 4);
+            success = List_Resize(list, 16);
         } else {
-            success = List_Resize(list, list->Cap * 2);
+            if (list->Cap < 1024)
+            {
+                success = List_Resize(list, list->Cap * 2);
+            } else {
+                success = List_Resize(list, list->Cap * 5 / 4);
+            }
         }
         if (!success)
         {
