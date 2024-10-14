@@ -45,9 +45,9 @@ errno AS_Clean();
 
 // hard encoded address in getStorePointer for replacement
 #ifdef _WIN64
-    #define STORE_POINTER 0x7FABCDEF11111105
+    #define STORE_POINTER 0x7FABCDEF111111C5
 #elif _WIN32
-    #define STORE_POINTER 0x7FABCD05
+    #define STORE_POINTER 0x7FABCDC5
 #endif
 static ArgumentStore* getStorePointer();
 
@@ -64,11 +64,11 @@ ArgumentStore_M* InitArgumentStore(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr storeAddr  = address + 7000 + RandUintN(address, 128);
-    uintptr moduleAddr = address + 7700 + RandUintN(address, 128);
+    uintptr storeAddr  = address + 10000 + RandUintN(address, 128);
+    uintptr moduleAddr = address + 11000 + RandUintN(address, 128);
     // initialize store
     ArgumentStore* store = (ArgumentStore*)storeAddr;
-    mem_clean(store, sizeof(ArgumentStore));
+    mem_init(store, sizeof(ArgumentStore));
     // store options
     store->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
@@ -184,8 +184,8 @@ static bool initStoreEnvironment(ArgumentStore* store, Context* context)
     }
     store->hMutex = hMutex;
     // set crypto context data
-    RandBuf(&store->Key[0], CRYPTO_KEY_SIZE);
-    RandBuf(&store->IV[0], CRYPTO_IV_SIZE);
+    RandBuffer(store->Key, CRYPTO_KEY_SIZE);
+    RandBuffer(store->IV, CRYPTO_IV_SIZE);
     return true;
 }
 
@@ -196,6 +196,7 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     uint32  size = *(uint32*)(stub + ARG_OFFSET_ARGS_SIZE);
     // allocate memory page for store them
     uint32 pageSize = ((size / context->PageSize) + 1) * context->PageSize;
+    pageSize += (uint32)(1 + RandUintN(0, 16)) * context->PageSize;
     void* mem = store->VirtualAlloc(NULL, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (mem == NULL)
     {
@@ -229,7 +230,7 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     // clean argument stub after decrypt
     if (!context->NotEraseInstruction)
     {
-        RandBuf((byte*)stub, ARG_HEADER_SIZE + size);
+        RandBuffer((byte*)stub, ARG_HEADER_SIZE + size);
     }
     dbg_log("[argument]", "mem page: 0x%zX", store->Address);
     dbg_log("[argument]", "num args: %zu", store->NumArgs);
@@ -246,7 +247,7 @@ static void eraseStoreMethods(Context* context)
     uintptr begin = (uintptr)(GetFuncAddr(&initStoreAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseStoreMethods));
     uintptr size  = end - begin;
-    RandBuf((byte*)begin, (int64)size);
+    RandBuffer((byte*)begin, (int64)size);
 }
 
 __declspec(noinline)
@@ -254,7 +255,7 @@ static void cleanStore(ArgumentStore* store)
 {
     if (store->Address != NULL)
     {
-        RandBuf(store->Address, (int64)(store->Size));
+        RandBuffer(store->Address, (int64)(store->Size));
     }
     if (store->VirtualFree != NULL && store->Address != NULL)
     {
@@ -271,7 +272,7 @@ static void cleanStore(ArgumentStore* store)
 #pragma optimize("", off)
 static ArgumentStore* getStorePointer()
 {
-    uint pointer = STORE_POINTER;
+    uintptr pointer = STORE_POINTER;
     return (ArgumentStore*)(pointer);
 }
 #pragma optimize("", on)
@@ -404,7 +405,7 @@ bool AS_Erase(uint index)
         }
         byte*  addr = store->Address + offset;
         uint32 size = *(uint32*)(store->Address + offset);
-        RandBuf(addr, (int64)(4+size));
+        RandBuffer(addr, (int64)(4+size));
         found = true;
         break;
     }
@@ -421,7 +422,7 @@ void AS_EraseAll()
 {
     ArgumentStore* store = getStorePointer();
 
-    RandBuf(store->Address, store->Size);
+    RandBuffer(store->Address, store->Size);
 }
 
 __declspec(noinline)
@@ -446,10 +447,10 @@ errno AS_Encrypt()
 {
     ArgumentStore* store = getStorePointer();
 
-    byte* key = &store->Key[0];
-    byte* iv  = &store->IV[0];
-    RandBuf(key, CRYPTO_KEY_SIZE);
-    RandBuf(iv, CRYPTO_IV_SIZE);
+    byte* key = store->Key;
+    byte* iv  = store->IV;
+    RandBuffer(key, CRYPTO_KEY_SIZE);
+    RandBuffer(iv, CRYPTO_IV_SIZE);
     EncryptBuf(store->Address, store->Size, key, iv);
     return NO_ERROR;
 }
@@ -459,8 +460,8 @@ errno AS_Decrypt()
 {
     ArgumentStore* store = getStorePointer();
 
-    byte* key = &store->Key[0];
-    byte* iv  = &store->IV[0];
+    byte* key = store->Key;
+    byte* iv  = store->IV;
     DecryptBuf(store->Address, store->Size, key, iv);
     return NO_ERROR;
 }
@@ -473,7 +474,7 @@ errno AS_Clean()
     errno errno = NO_ERROR;
 
     // free memory page
-    RandBuf(store->Address, store->Size);
+    RandBuffer(store->Address, store->Size);
     if (!store->VirtualFree(store->Address, 0, MEM_RELEASE) && errno == NO_ERROR)
     {
         errno = ERR_ARGUMENT_FREE_MEM;
