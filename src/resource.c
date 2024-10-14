@@ -97,9 +97,9 @@ errno RT_Clean();
 
 // hard encoded address in getTrackerPointer for replacement
 #ifdef _WIN64
-    #define TRACKER_POINTER 0x7FABCDEF11111104
+    #define TRACKER_POINTER 0x7FABCDEF111111C4
 #elif _WIN32
-    #define TRACKER_POINTER 0x7FABCD04
+    #define TRACKER_POINTER 0x7FABCDC4
 #endif
 static ResourceTracker* getTrackerPointer();
 
@@ -117,11 +117,11 @@ ResourceTracker_M* InitResourceTracker(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr trackerAddr = address + 6000 + RandUintN(address, 128);
-    uintptr moduleAddr  = address + 6700 + RandUintN(address, 128);
+    uintptr trackerAddr = address + 8500 + RandUintN(address, 128);
+    uintptr moduleAddr  = address + 9500 + RandUintN(address, 128);
     // initialize tracker
     ResourceTracker* tracker = (ResourceTracker*)trackerAddr;
-    mem_clean(tracker, sizeof(ResourceTracker));
+    mem_init(tracker, sizeof(ResourceTracker));
     // store options
     tracker->NotEraseInstruction = context->NotEraseInstruction;
     errno errno = NO_ERROR;
@@ -286,8 +286,8 @@ static bool initTrackerEnvironment(ResourceTracker* tracker, Context* context)
     };
     List_Init(&tracker->Handles, &ctx, sizeof(handle));
     // set crypto context data
-    RandBuf(&tracker->HandlesKey[0], CRYPTO_KEY_SIZE);
-    RandBuf(&tracker->HandlesIV[0], CRYPTO_IV_SIZE);
+    RandBuffer(tracker->HandlesKey, CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->HandlesIV, CRYPTO_IV_SIZE);
     // initialize counters
     for (int i = 0; i < arrlen(tracker->Counters); i++)
     {
@@ -306,7 +306,7 @@ static void eraseTrackerMethods(Context* context)
     uintptr begin = (uintptr)(GetFuncAddr(&initTrackerAPI));
     uintptr end   = (uintptr)(GetFuncAddr(&eraseTrackerMethods));
     uintptr size  = end - begin;
-    RandBuf((byte*)begin, (int64)size);
+    RandBuffer((byte*)begin, (int64)size);
 }
 
 __declspec(noinline)
@@ -328,7 +328,7 @@ static void cleanTracker(ResourceTracker* tracker)
 #pragma optimize("", off)
 static ResourceTracker* getTrackerPointer()
 {
-    uint pointer = TRACKER_POINTER;
+    uintptr pointer = TRACKER_POINTER;
     return (ResourceTracker*)(pointer);
 }
 #pragma optimize("", on)
@@ -839,10 +839,10 @@ errno RT_Encrypt()
     ResourceTracker* tracker = getTrackerPointer();
 
     List* list = &tracker->Handles;
-    byte* key  = &tracker->HandlesKey[0];
-    byte* iv   = &tracker->HandlesIV[0];
-    RandBuf(key, CRYPTO_KEY_SIZE);
-    RandBuf(iv, CRYPTO_IV_SIZE);
+    byte* key  = tracker->HandlesKey;
+    byte* iv   = tracker->HandlesIV;
+    RandBuffer(key, CRYPTO_KEY_SIZE);
+    RandBuffer(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
     return NO_ERROR;
 }
@@ -853,8 +853,8 @@ errno RT_Decrypt()
     ResourceTracker* tracker = getTrackerPointer();
 
     List* list = &tracker->Handles;
-    byte* key  = &tracker->HandlesKey[0];
-    byte* iv   = &tracker->HandlesIV[0];
+    byte* key  = tracker->HandlesKey;
+    byte* iv   = tracker->HandlesIV;
     DecryptBuf(list->Data, List_Size(list), key, iv);
 
     dbg_log("[resource]", "handles: %zu", list->Len);
@@ -901,7 +901,7 @@ errno RT_Clean()
     }
 
     // clean handle list
-    RandBuf(handles->Data, List_Size(handles));
+    RandBuffer(handles->Data, List_Size(handles));
     if (!List_Free(handles) && errno == NO_ERROR)
     {
         errno = ERR_RESOURCE_FREE_HANDLE_LIST;
