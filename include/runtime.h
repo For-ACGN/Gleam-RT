@@ -3,6 +3,7 @@
 
 #include "c_types.h"
 #include "windows_t.h"
+#include "lib_string.h"
 #include "hash_api.h"
 #include "errno.h"
 
@@ -31,10 +32,34 @@ typedef bool (*EraseArgument_t)(uint index);
 typedef void (*EraseAllArgs_t)();
 
 // about Win File
+// The buffer allocated from ReadFile must call Runtime_M.Memory.Free().
 typedef errno (*ReadFileA_t)(LPSTR path, byte** buf, int64* size);
 typedef errno (*ReadFileW_t)(LPWSTR path, byte** buf, int64* size);
 typedef errno (*WriteFileA_t)(LPSTR path, byte* buf, int64 size);
 typedef errno (*WriteFileW_t)(LPWSTR path, byte* buf, int64 size);
+
+// about WinHTTP
+// The BodyBuf allocated must call Runtime_M.Memory.Free().
+#ifndef WIN_HTTP_H
+typedef struct {
+    UTF16  UserAgent;   // default User-Agent
+    UTF16  ContentType; // for POST method
+    UTF16  Headers;     // split by "\r\n"
+    UTF16  Proxy;       // http://user:pass@host.com/
+    uint32 Timeout;     // millseconds
+    uint8  AccessType;  // reference document about WinHttpOpen
+} WinHTTP_Opts;
+
+typedef struct {
+    int32  StatusCode;
+    UTF16  Headers;
+    void*  BodyBuf;
+    uint32 BodySize;
+} WinHTTP_Resp;
+#endif // WIN_HTTP_H
+
+typedef errno (*Get_t)(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp);
+typedef errno (*Post_t)(UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp);
 
 // about random module
 typedef void   (*RandBuffer_t)(byte* buf, int64 size);
@@ -129,6 +154,11 @@ typedef struct {
         WriteFileW_t WriteFileW;
     } WinFile;
     
+    struct {
+        Get_t  Get;
+        Post_t Post;
+    } WinHTTP;
+
     struct {
         RandBuffer_t  Buffer;
         RandBool_t    Bool;
