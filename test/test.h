@@ -19,6 +19,7 @@ bool TestInitRuntime();
 bool TestRuntime_Memory();
 bool TestRuntime_Argument();
 bool TestRuntime_WinFile();
+bool TestRuntime_WinHTTP();
 bool TestRuntime_Exit();
 #pragma warning(pop)
 
@@ -36,6 +37,7 @@ static unit tests[] =
     { "Runtime_Memory",   TestRuntime_Memory   },
     { "Runtime_Argument", TestRuntime_Argument },
     { "Runtime_WinFile",  TestRuntime_WinFile  },
+    { "Runtime_WinHTTP",  TestRuntime_WinHTTP  },
     { "Runtime_Exit",     TestRuntime_Exit     },
 };
 
