@@ -6,7 +6,7 @@
 #include "context.h"
 #include "errno.h"
 
-// The buffer allocated from ReadFile must call Runtime_M.MemFree.
+// The buffer allocated from ReadFile must call Runtime_M.Memory.Free().
 
 typedef errno (*WFReadFileA_t)(LPSTR path, byte** buf, int64* size);
 typedef errno (*WFReadFileW_t)(LPWSTR path, byte** buf, int64* size);
