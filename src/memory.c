@@ -874,12 +874,16 @@ static bool recoverPageProtect(MemoryTracker* tracker, memPage* page)
     return tracker->VirtualProtect(address, size, page->protect, &old);
 }
 
+// +---------+----------+-------------+
+// |  size   | capacity | user buffer |
+// +---------+----------+-------------+
+// |  uint   |   uint   |     var     |
+// +---------+----------+-------------+
+
 __declspec(noinline)
 void* MT_MemAlloc(uint size)
 {
     MemoryTracker* tracker = getTrackerPointer();
-
-    dbg_log("[memory]", "malloc size: %zu", size);
 
     if (size == 0)
     {
@@ -897,15 +901,18 @@ void* MT_MemAlloc(uint size)
     // ensure the memory address is 16 bytes aligned
     byte* address = (byte*)addr;
     RandBuffer(address, 16);
+    // record user input size
     mem_copy(address, &size, sizeof(uint));
+    // record buffer capacity
+    uint cap = pageSize - 16;
+    mem_copy(address + sizeof(uint), &cap, sizeof(uint));
+    dbg_log("[memory]", "malloc size: %zu", size);
     return (void*)(address + 16);
 }
 
 __declspec(noinline)
 void* MT_MemCalloc(uint num, uint size)
 {
-    dbg_log("[memory]", "calloc num: %zu, size: %zu", num, size);
-
     uint total = num * size;
     if (total == 0)
     {
@@ -917,14 +924,13 @@ void* MT_MemCalloc(uint num, uint size)
         return NULL;
     }
     mem_init(addr, total);
+    dbg_log("[memory]", "calloc num: %zu, size: %zu", num, size);
     return addr;
 }
 
 __declspec(noinline)
 void* MT_MemRealloc(void* ptr, uint size)
 {
-    dbg_log("[memory]", "realloc ptr: 0x%zX, size: %zu", ptr, size);
-
     if (ptr == NULL)
     {
         return MT_MemAlloc(size);
@@ -934,11 +940,23 @@ void* MT_MemRealloc(void* ptr, uint size)
         MT_MemFree(ptr);
         return NULL;
     }
+    // check need expand
+    uint cap = *(uint*)((uintptr)(ptr)-16+sizeof(uint));
+    if (size <= cap)
+    {
+        *(uint*)((uintptr)(ptr)-16) = size;
+        return ptr;
+    }
     // allocate new memory
-    void* newPtr = MT_MemAlloc(size);
+    if (size < 1048576)
+    {
+        cap = size * 2;
+    } else {
+        cap = size * 5 / 4; // size *= 1.25
+    }
+    void* newPtr = MT_MemAlloc(cap);
     if (newPtr == NULL)
     {
-        MT_MemFree(ptr);
         return NULL;
     }
     // copy data to new memory
@@ -946,14 +964,13 @@ void* MT_MemRealloc(void* ptr, uint size)
     mem_copy(newPtr, ptr, oldSize);
     // free old memory
     MT_MemFree(ptr);
+    dbg_log("[memory]", "realloc ptr: 0x%zX, size: %zu", ptr, size);
     return newPtr;
 }
 
 __declspec(noinline)
 void MT_MemFree(void* ptr)
 {
-    dbg_log("[memory]", "free ptr: 0x%zX", ptr);
-
     if (ptr == NULL)
     {
         return;
@@ -964,9 +981,10 @@ void MT_MemFree(void* ptr)
     mem_init((byte*)addr, size);
     if (MT_VirtualFree(addr, 0, MEM_RELEASE))
     {
+        dbg_log("[memory]", "free ptr: 0x%zX", ptr);
         return;
     }
-    dbg_log("[memory]", "failed to VirtualFree: 0x%X", GetLastErrno());
+    dbg_log("[memory]", "failed to call VirtualFree: 0x%X", GetLastErrno());
 }
 
 __declspec(noinline)
