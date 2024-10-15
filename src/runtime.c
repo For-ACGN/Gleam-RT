@@ -120,6 +120,7 @@ void* RT_malloc(uint size);
 void* RT_calloc(uint num, uint size);
 void* RT_realloc(void* ptr, uint size);
 bool  RT_free(void* ptr);
+uint  RT_msize(void* ptr);
 
 errno RT_lock_mods();
 errno RT_unlock_mods();
@@ -575,6 +576,7 @@ static errno initModules(Runtime* runtime)
         .calloc  = GetFuncAddr(&RT_calloc),
         .realloc = GetFuncAddr(&RT_realloc),
         .free    = GetFuncAddr(&RT_free),
+        .msize   = GetFuncAddr(&RT_msize),
 
         .lock   = GetFuncAddr(&RT_lock_mods),
         .unlock = GetFuncAddr(&RT_unlock_mods),
@@ -616,6 +618,7 @@ static errno initModules(Runtime* runtime)
     context.mt_calloc  = runtime->MemoryTracker->Calloc;
     context.mt_realloc = runtime->MemoryTracker->Realloc;
     context.mt_free    = runtime->MemoryTracker->Free;
+    context.mt_msize   = runtime->MemoryTracker->Size;
 
     // initialize high-level modules
     module_t hl_modules[] = 
@@ -1146,6 +1149,16 @@ bool RT_free(void* ptr)
     }
     dbg_log("[runtime]", "free ptr: 0x%zX", ptr);
     return true;
+}
+
+__declspec(noinline)
+uint RT_msize(void* ptr)
+{
+    if (ptr == NULL)
+    {
+        return 0;
+    }
+    return *(uint*)((uintptr)(ptr)-16);
 }
 
 __declspec(noinline)
