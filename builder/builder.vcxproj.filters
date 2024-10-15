@@ -183,5 +183,11 @@
     <MASM Include="..\asm\_random.asm">
       <Filter>Assembly</Filter>
     </MASM>
+    <MASM Include="..\asm\msvc\llrem.asm">
+      <Filter>Assembly\MSVC</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\llshr.asm">
+      <Filter>Assembly\MSVC</Filter>
+    </MASM>
   </ItemGroup>
 </Project>
