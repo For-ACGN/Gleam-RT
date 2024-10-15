@@ -70,6 +70,7 @@ void* MT_MemAlloc(uint size);
 void* MT_MemCalloc(uint num, uint size);
 void* MT_MemRealloc(void* ptr, uint size);
 void  MT_MemFree(void* ptr);
+uint  MT_MemSize(void* ptr);
 
 bool  MT_Lock();
 bool  MT_Unlock();
@@ -169,6 +170,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->Calloc  = GetFuncAddr(&MT_MemCalloc);
     module->Realloc = GetFuncAddr(&MT_MemRealloc);
     module->Free    = GetFuncAddr(&MT_MemFree);
+    module->Size    = GetFuncAddr(&MT_MemSize);
     module->Lock    = GetFuncAddr(&MT_Lock);
     module->Unlock  = GetFuncAddr(&MT_Unlock);
     module->Encrypt = GetFuncAddr(&MT_Encrypt);
@@ -940,7 +942,7 @@ void* MT_MemRealloc(void* ptr, uint size)
         MT_MemFree(ptr);
         return NULL;
     }
-    // check need expand
+    // check need expand capacity
     uint cap = *(uint*)((uintptr)(ptr)-16+sizeof(uint));
     if (size <= cap)
     {
@@ -948,7 +950,7 @@ void* MT_MemRealloc(void* ptr, uint size)
         return ptr;
     }
     // allocate new memory
-    if (size < 1048576)
+    if (size < 65536)
     {
         cap = size * 2;
     } else {
@@ -985,6 +987,16 @@ void MT_MemFree(void* ptr)
         return;
     }
     dbg_log("[memory]", "failed to call VirtualFree: 0x%X", GetLastErrno());
+}
+
+__declspec(noinline)
+uint MT_MemSize(void* ptr)
+{
+    if (ptr == NULL)
+    {
+        return 0;
+    }
+    return *(uint*)((uintptr)(ptr)-16);
 }
 
 __declspec(noinline)
