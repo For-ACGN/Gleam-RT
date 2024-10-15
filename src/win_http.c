@@ -46,8 +46,10 @@ typedef struct {
 
     // submodules method
     mt_malloc_t  malloc;
+    mt_calloc_t  calloc;
     mt_realloc_t realloc;
     mt_free_t    free;
+    mt_msize_t   msize;
 } WinHTTP;
 
 // methods for user
@@ -217,8 +219,10 @@ static bool initModuleEnvironment(WinHTTP* module, Context* context)
     module->hMutex = hMutex;
     // copy submodule methods
     module->malloc  = context->mt_malloc;
+    module->calloc  = context->mt_calloc;
     module->realloc = context->mt_realloc;
     module->free    = context->mt_free;
+    module->msize   = context->mt_msize;
     return true;
 }
 
@@ -434,39 +438,35 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
     }
 
     // parse input URL
-    uint16 scheme[16];
-    uint16 hostname[256];
-    uint16 username[256];
-    uint16 password[256];
-    uint16 path[1024];
-    uint16 extra[2048];
-
-    mem_init(scheme, sizeof(scheme));
-    mem_init(hostname, sizeof(hostname));
-    mem_init(username, sizeof(username));
-    mem_init(password, sizeof(password));
-    mem_init(path, sizeof(path));
-    mem_init(extra, sizeof(extra));
+    uint16* scheme   = module->calloc(16,   sizeof(uint16));
+    uint16* hostname = module->calloc(256,  sizeof(uint16));
+    uint16* username = module->calloc(256,  sizeof(uint16));
+    uint16* password = module->calloc(256,  sizeof(uint16));
+    uint16* path     = module->calloc(4096, sizeof(uint16));
+    uint16* extra    = module->calloc(4096, sizeof(uint16));
+    uint16* reqPath  = module->calloc(8192, sizeof(uint16));
 
     URL_COMPONENTS url_com;
     mem_init(&url_com, sizeof(url_com));
     url_com.dwStructSize      = sizeof(url_com);
     url_com.lpszScheme        = scheme;
-    url_com.dwSchemeLength    = arrlen(scheme);
+    url_com.dwSchemeLength    = (DWORD)module->msize(scheme)/sizeof(uint16);
     url_com.lpszHostName      = hostname;
-    url_com.dwHostNameLength  = arrlen(hostname);
+    url_com.dwHostNameLength  = (DWORD)module->msize(hostname)/sizeof(uint16);
     url_com.lpszUserName      = username;
-    url_com.dwUserNameLength  = arrlen(username);
+    url_com.dwUserNameLength  = (DWORD)module->msize(username)/sizeof(uint16);
     url_com.lpszPassword      = password;
-    url_com.dwPasswordLength  = arrlen(password);
+    url_com.dwPasswordLength  = (DWORD)module->msize(password)/sizeof(uint16);
     url_com.lpszUrlPath       = path;
-    url_com.dwUrlPathLength   = arrlen(path);
+    url_com.dwUrlPathLength   = (DWORD)module->msize(path)/sizeof(uint16);
     url_com.lpszExtraInfo     = extra;
-    url_com.dwExtraInfoLength = arrlen(extra);
+    url_com.dwExtraInfoLength = (DWORD)module->msize(extra)/sizeof(uint16);
 
     HINTERNET hSession = NULL;
     HINTERNET hConnect = NULL;
     HINTERNET hRequest = NULL;
+
+    byte* bodyBuf = NULL;
 
     bool success = false;
     for (;;)
@@ -504,18 +504,23 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
             break;
         }
         // create request
-        uint16 reqPath[arrlen(path) + arrlen(extra)];
-        mem_init(reqPath, sizeof(reqPath));
+        uint16 method[] = {
+            L'G'^0x12AC, L'E'^0xDA1F, L'T'^0x12AC, 0000^0xDA1F, 
+        };
+        uint16 key[] = { 0x12AC, 0xDA1F};
+        XORBuf(method, sizeof(method), key, sizeof(key));
+        // build request path  
         strcpy_w(reqPath, path);
         strcpy_w(reqPath + url_com.dwUrlPathLength, extra);
+        // build flag
         DWORD flags = 0;
         if (url_com.nScheme == INTERNET_SCHEME_HTTPS)
         {
             flags = WINHTTP_FLAG_SECURE;
         }
         hRequest = module->WinHttpOpenRequest(
-            hConnect, L"GET", reqPath, NULL, 
-            WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags
+            hConnect, method, reqPath, NULL, WINHTTP_NO_REFERER,
+            WINHTTP_DEFAULT_ACCEPT_TYPES, flags
         );
         if (hRequest == NULL)
         {
@@ -536,8 +541,7 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
             break;
         }
         // read data
-        byte* buf = NULL;
-        uint  len = 0;
+        uint len = 0;
         for (;;)
         {
             DWORD size;
@@ -549,25 +553,23 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
             {
                 break;
             }
-            // record current offset
-            uint off = len;
             // allocate buffer
+            bodyBuf = module->realloc(bodyBuf, len+(uint)size);
+            if (bodyBuf == NULL)
+            {
+                goto exit_loop;
+            }
+            if (!module->WinHttpReadData(hRequest, bodyBuf+len, size, &size))
+            {
+                goto exit_loop;
+            }
             len += (uint)size;
-            buf = module->realloc(buf, len);
-            if (buf == NULL)
-            {
-                goto exit_loop;
-            }
-            if (!module->WinHttpReadData(hRequest, buf + off, size, &size))
-            {
-                goto exit_loop;
-            }
         }
         // TODO
         // resp->StatusCode = 200; 
         // resp->Headers    = NULL;
-        resp->BodyBuf  = buf;
-        resp->BodySize = (uint64)len;
+        resp->BodyBuf  = bodyBuf;
+        resp->BodySize = len;
         success = true;
         break;
     }
@@ -577,6 +579,7 @@ exit_loop:
     if (!success)
     {
         errno = GetLastErrno();
+        module->free(bodyBuf);
     }
 
     if (hRequest != NULL)
@@ -600,6 +603,13 @@ exit_loop:
             errno = GetLastErrno();
         }
     }
+    module->free(scheme);
+    module->free(hostname);
+    module->free(username);
+    module->free(password);
+    module->free(path);
+    module->free(extra);
+    module->free(reqPath);
 
     if (!decreaseCounter())
     {
