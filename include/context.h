@@ -13,6 +13,7 @@ typedef void* (*mt_malloc_t)(uint size);
 typedef void* (*mt_calloc_t)(uint num, uint size);
 typedef void* (*mt_realloc_t)(void* ptr, uint size);
 typedef void  (*mt_free_t)(void* ptr);
+typedef uint  (*mt_msize_t)(void* ptr);
 
 typedef struct {
     // runtime options
@@ -28,6 +29,7 @@ typedef struct {
     calloc_t  calloc;
     realloc_t realloc;
     free_t    free;
+    msize_t   msize;
 
     rt_lock_t   lock;
     rt_unlock_t unlock;
@@ -49,6 +51,7 @@ typedef struct {
     mt_calloc_t  mt_calloc;
     mt_realloc_t mt_realloc;
     mt_free_t    mt_free;
+    mt_msize_t   mt_msize;
 } Context;
 
 #endif // CONTEXT_H
