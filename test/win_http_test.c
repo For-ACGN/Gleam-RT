@@ -32,8 +32,8 @@ bool TestRuntime_WinHTTP()
 
 static bool TestWinHTTP_Get()
 {
-    UTF16 URL = L"http://127.0.0.1:8001/http_server.exe";
-    WinHTTP_Resp resp;
+    UTF16 URL = L"http://127.0.0.1:8001/hello.txt";
+    HTTP_Resp resp;
 
     errno err = runtime->WinHTTP.Get(URL, NULL, &resp);
     if (err != NO_ERROR)
@@ -42,19 +42,18 @@ static bool TestWinHTTP_Get()
         return false;
     }
 
-    // if (resp.BodySize != 5)
-    // {
-    //     printf_s("invalid response body size: %llu\n", resp.BodySize);
-    //     return false;
-    // }
-    // if (strncmp_a(resp.BodyBuf, "hello", 5) != 0)
-    // {
-    //     printf_s("invalid response body\n");
-    //     return false;
-    // }
-    printf_s("response size: %llu\n", resp.BodySize);
-    // printf_s("response body: %s\n", (byte*)resp.BodyBuf);
-
+    if (resp.Body.Size != 5)
+    {
+        printf_s("invalid response body size: %zu\n", resp.Body.Size);
+        return false;
+    }
+    if (strncmp_a(resp.Body.Buf, "hello", 5) != 0)
+    {
+        printf_s("invalid response body\n");
+        return false;
+    }
+    printf_s("response size: %zu\n", resp.Body.Size);
+    printf_s("response body: %s\n", (byte*)resp.Body.Buf);
 
     printf_s("test Get passed\n");
     return true;
@@ -62,6 +61,34 @@ static bool TestWinHTTP_Get()
 
 static bool TestWinHTTP_Post()
 {
+    UTF16 URL  = L"http://127.0.0.1:8001/hello.txt";
+    ANSI  data = "test body data";
+    HTTP_Body body = {
+        .Buf  = data,
+        .Size = strlen_a(data),
+    };
+    HTTP_Resp resp;
+
+    errno err = runtime->WinHTTP.Post(URL, &body, NULL, &resp);
+    if (err != NO_ERROR)
+    {
+        printf_s("failed to post: 0x%X\n", err);
+        return false;
+    }
+
+    if (resp.Body.Size != 5)
+    {
+        printf_s("invalid response body size: %zu\n", resp.Body.Size);
+        return false;
+    }
+    if (strncmp_a(resp.Body.Buf, "hello", 5) != 0)
+    {
+        printf_s("invalid response body\n");
+        return false;
+    }
+    printf_s("response size: %zu\n", resp.Body.Size);
+    printf_s("response body: %s\n", (byte*)resp.Body.Buf);
+
     printf_s("test Post passed\n");
     return true;
 }
