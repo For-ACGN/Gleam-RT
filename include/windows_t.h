@@ -235,6 +235,12 @@ typedef struct {
 #define INTERNET_SCHEME_HTTP  1
 #define INTERNET_SCHEME_HTTPS 2
 
+#define WINHTTP_OPTION_DECOMPRESSION 0x00000076
+
+#define WINHTTP_DECOMPRESSION_FLAG_GZIP    1
+#define WINHTTP_DECOMPRESSION_FLAG_DEFLATE 2
+#define WINHTTP_DECOMPRESSION_FLAG_ALL     3
+
 #define WINHTTP_ACCESS_TYPE_DEFAULT_PROXY   0
 #define WINHTTP_ACCESS_TYPE_NO_PROXY        1
 #define WINHTTP_ACCESS_TYPE_NAMED_PROXY     3
@@ -522,11 +528,28 @@ typedef HINTERNET (*WinHttpConnect_t)
     DWORD dwReserved
 );
 
+typedef BOOL (*WinHttpSetOption_t)
+(
+    HINTERNET hInternet, DWORD dwOption, LPVOID lpBuffer, DWORD dwBufferLength
+);
+
+typedef BOOL (*WinHttpSetTimeouts_t)
+(
+    HINTERNET hInternet, int nResolveTimeout, int nConnectTimeout,
+    int nSendTimeout, int nReceiveTimeout
+);
+
 typedef HINTERNET (*WinHttpOpenRequest_t)
 (
     HINTERNET hConnect, LPCWSTR pwszVerb, LPCWSTR pwszObjectName,
     LPCWSTR pwszVersion, LPCWSTR pwszReferrer, LPCWSTR* ppwszAcceptTypes, 
     DWORD dwFlags
+);
+
+typedef BOOL (*WinHttpSetCredentials_t)
+(
+    HINTERNET hRequest, DWORD AuthTargets, DWORD AuthScheme,
+    LPCWSTR pwszUserName, LPCWSTR pwszPassword, LPVOID pAuthParams
 );
 
 typedef BOOL (*WinHttpSendRequest_t)
@@ -539,6 +562,12 @@ typedef BOOL (*WinHttpSendRequest_t)
 typedef BOOL (*WinHttpReceiveResponse_t)
 (
     HINTERNET hRequest, LPVOID lpReserved
+);
+
+typedef BOOL (*WinHttpQueryHeaders_t)
+(
+    HINTERNET hRequest, DWORD dwInfoLevel, LPCWSTR pwszName,
+    LPVOID lpBuffer, DWORD* lpdwBufferLength, DWORD* lpdwIndex
 );
 
 typedef BOOL (*WinHttpQueryDataAvailable_t)
