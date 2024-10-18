@@ -12,6 +12,9 @@
     <Filter Include="Assembly">
       <UniqueIdentifier>{ee81bbf8-5d51-4226-8999-a80fba5a7c24}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assembly\MSVC">
+      <UniqueIdentifier>{62a1c87f-8d6a-40ff-a0b1-3867aa00f98f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="crypto_test.c">
@@ -203,6 +206,24 @@
     </MASM>
     <MASM Include="..\asm\_random.asm">
       <Filter>Assembly</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\llmul.asm">
+      <Filter>Assembly\MSVC</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\llrem.asm">
+      <Filter>Assembly\MSVC</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\llshl.asm">
+      <Filter>Assembly\MSVC</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\llshr.asm">
+      <Filter>Assembly\MSVC</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\ullrem.asm">
+      <Filter>Assembly\MSVC</Filter>
+    </MASM>
+    <MASM Include="..\asm\msvc\ullshr.asm">
+      <Filter>Assembly\MSVC</Filter>
     </MASM>
   </ItemGroup>
 </Project>
