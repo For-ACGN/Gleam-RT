@@ -321,6 +321,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     // WinHTTP
     module->WinHTTP.Get  = runtime->WinHTTP->Get;
     module->WinHTTP.Post = runtime->WinHTTP->Post;
+    module->WinHTTP.Do   = runtime->WinHTTP->Do;
     // random module
     module->Random.Buffer  = GetFuncAddr(&RandBuffer);
     module->Random.Bool    = GetFuncAddr(&RandBool);
@@ -390,7 +391,7 @@ static void* calculateEpilogue()
 {
     uintptr stub = (uintptr)(GetFuncAddr(&Argument_Stub));
     uint32  size = *(uint32*)(stub + ARG_OFFSET_ARGS_SIZE);
-    size += ARG_OFFSET_ARGS_SIZE + sizeof(uint32);
+    size += ARG_OFFSET_FIRST_ARG;
     return (void*)(stub + size);
 }
 
@@ -1339,7 +1340,6 @@ void* RT_GetProcAddressByHash(uint hash, uint key, bool hook)
 
 // disable optimize for use call NOT jmp to runtime->GetProcAddress.
 #pragma optimize("", off)
-__declspec(noinline)
 void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName)
 {
     Runtime* runtime = getRuntimePointer();
