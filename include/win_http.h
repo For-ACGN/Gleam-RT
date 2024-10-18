@@ -6,33 +6,44 @@
 #include "context.h"
 #include "errno.h"
 
-// The BodyBuf allocated from WinHTTP must call Runtime_M.Memory.Free().
+// The HTTP_Body.Buf allocated from WinHTTP must call Runtime_M.Memory.Free().
 
 typedef struct {
-    UTF16  UserAgent;   // default User-Agent
-    UTF16  ContentType; // for POST method
+    void* Buf;
+    uint  Size;
+} HTTP_Body;
+
+typedef struct {
     UTF16  Headers;     // split by "\r\n"
-    UTF16  Proxy;       // http://user:pass@host.com/
+    UTF16  ContentType; // for POST method
+    UTF16  UserAgent;   // default User-Agent
+    UTF16  ProxyURL;    // http://user:pass@host.com/
+    uint   MaxBodySize; // default is no limit
     uint32 Timeout;     // millseconds
-} WinHTTP_Opts;
+    uint8  AccessType;  // reference document about WinHttpOpen
+
+    HTTP_Body* Body;
+} HTTP_Opts;
 
 typedef struct {
-    int32  StatusCode;
-    UTF16  Headers;
-    void*  BodyBuf; // need MemoruFree
-    uint32 BodySize;
-} WinHTTP_Resp;
+    int32 StatusCode;
+    UTF16 Headers;
 
-typedef errno (*WHGet_t)(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp);
-typedef errno (*WHPost_t)(UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp);
+    HTTP_Body Body;
+} HTTP_Resp;
 
-typedef errno (*WHLock_t)();
-typedef errno (*WHUnlock_t)();
+typedef errno (*WHGet_t)(UTF16 url, HTTP_Opts* opts, HTTP_Resp* resp);
+typedef errno (*WHPost_t)(UTF16 url, HTTP_Body* body, HTTP_Opts* opts, HTTP_Resp* resp);
+typedef errno (*WHDo_t)(UTF16 url, UTF16 method, HTTP_Opts* opts, HTTP_Resp* resp);
+
+typedef bool  (*WHLock_t)();
+typedef bool  (*WHUnlock_t)();
 typedef errno (*WHUninstall_t)();
 
 typedef struct {
     WHGet_t  Get;
     WHPost_t Post;
+    WHDo_t   Do;
 
     WHLock_t      Lock;
     WHUnlock_t    Unlock;

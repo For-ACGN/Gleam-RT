@@ -51,7 +51,7 @@ typedef struct {
     UTF16  Headers;     // split by "\r\n"
     UTF16  ContentType; // for POST method
     UTF16  UserAgent;   // default User-Agent
-    UTF16  Proxy;       // http://user:pass@host.com/
+    UTF16  ProxyURL;    // http://user:pass@host.com/
     uint   MaxBodySize; // default is no limit
     uint32 Timeout;     // millseconds
     uint8  AccessType;  // reference document about WinHttpOpen
