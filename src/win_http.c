@@ -11,6 +11,8 @@
 #include "win_http.h"
 #include "debug.h"
 
+#define DEFAULT_TIMEOUT (60*1000) // 60s
+
 #ifdef RELEASE_MODE
     #define CHUNK_SIZE 4096
 #else
@@ -53,8 +55,9 @@ typedef struct {
 } WinHTTP;
 
 // methods for user
-errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp);
-errno WH_Post(UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp);
+errno WH_Get(UTF16 url, HTTP_Opts* opts, HTTP_Resp* resp);
+errno WH_Post(UTF16 url, HTTP_Body* body, HTTP_Opts* opts, HTTP_Resp* resp);
+errno WH_Do(UTF16 url, UTF16 method, HTTP_Opts* opts, HTTP_Resp* resp);
 
 // methods for runtime
 bool  WH_Lock();
@@ -82,6 +85,7 @@ static bool initWinHTTPEnv();
 static bool findWinHTTPAPI();
 static bool increaseCounter();
 static bool decreaseCounter();
+static void setDefaultOption(HTTP_Opts* opts);
 
 WinHTTP_M* InitWinHTTP(Context* context)
 {
@@ -124,6 +128,7 @@ WinHTTP_M* InitWinHTTP(Context* context)
     WinHTTP_M* method = (WinHTTP_M*)methodAddr;
     method->Get       = GetFuncAddr(&WH_Get);
     method->Post      = GetFuncAddr(&WH_Post);
+    method->Do        = GetFuncAddr(&WH_Do);
     method->Lock      = GetFuncAddr(&WH_Lock);
     method->Unlock    = GetFuncAddr(&WH_Unlock);
     method->Uninstall = GetFuncAddr(&WH_Uninstall);
@@ -411,9 +416,59 @@ static bool decreaseCounter()
 }
 
 __declspec(noinline)
-errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
+static void setDefaultOption(HTTP_Opts* opts)
+{
+    opts->Headers      = NULL;
+    opts->ContentType  = NULL;
+    opts->UserAgent    = NULL;
+    opts->ProxyURL     = NULL;
+    opts->MaxBodySize  = 0;
+    opts->Timeout      = DEFAULT_TIMEOUT;
+    opts->AccessType   = WINHTTP_ACCESS_TYPE_DEFAULT_PROXY;
+    opts->Body         = NULL;
+}
+
+__declspec(noinline)
+errno WH_Get(UTF16 url, HTTP_Opts* opts, HTTP_Resp* resp)
+{
+    // build "GET" string
+    uint16 method[] = {
+        L'G'^0x12AC, L'E'^0xDA1F, L'T'^0x4C7D, 0000^0x9A1E, 
+    };
+    uint16 key[] = { 0x12AC, 0xDA1F, 0x4C7D, 0x9A1E};
+    XORBuf(method, sizeof(method), key, sizeof(key));
+    return WH_Do(url, method, opts, resp);
+}
+
+__declspec(noinline)
+errno WH_Post(UTF16 url, HTTP_Body* body, HTTP_Opts* opts, HTTP_Resp* resp)
+{
+    // build "POST" string
+    uint16 method[] = {
+        L'P'^0x49C7, L'O'^0xC48D, L'S'^0xAB12, L'T'^0x49C2, 
+        0000^0x49C7, 
+    };
+    uint16 key[] = { 0x49C7, 0xC48D, 0xAB12, 0x49C2 };
+    XORBuf(method, sizeof(method), key, sizeof(key));
+    // process options and body
+    if (opts == NULL)
+    {
+        HTTP_Opts opt = {
+            .AccessType = 0,
+        };
+        setDefaultOption(&opt);
+        opt.Body = body;
+        opts = &opt;
+    }
+    return WH_Do(url, method, opts, resp);
+}
+
+__declspec(noinline)
+errno WH_Do(UTF16 url, UTF16 method, HTTP_Opts* opts, HTTP_Resp* resp)
 {
     WinHTTP* module = getModulePointer();
+
+    dbg_log("[WinHTTP]", "%ls %ls", method, url);
 
     if (!initWinHTTPEnv())
     {
@@ -426,14 +481,10 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
 
     if (opts == NULL)
     {
-        WinHTTP_Opts opt = {
-            .UserAgent   = NULL,
-            .ContentType = NULL,
-            .Headers     = NULL,
-            .Proxy       = NULL,
-            .Timeout     = 15*1000,
-            .AccessType  = WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+        HTTP_Opts opt = {
+            .AccessType = 0,
         };
+        setDefaultOption(&opt);
         opts = &opt;
     }
 
@@ -476,7 +527,6 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
         {
             break;
         }
-        dbg_log("[WinHTTP]", "Get %ls", url);
         switch (url_com.nScheme)
         {
         case INTERNET_SCHEME_HTTP:
@@ -503,12 +553,6 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
         {
             break;
         }
-        // create request
-        uint16 method[] = {
-            L'G'^0x12AC, L'E'^0xDA1F, L'T'^0x12AC, 0000^0xDA1F, 
-        };
-        uint16 key[] = { 0x12AC, 0xDA1F};
-        XORBuf(method, sizeof(method), key, sizeof(key));
         // build request path  
         strcpy_w(reqPath, path);
         strcpy_w(reqPath + url_com.dwUrlPathLength, extra);
@@ -527,11 +571,23 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
             break;
         }
         // send request
-        bool ok = module->WinHttpSendRequest(
-            hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0,
-            WINHTTP_NO_REQUEST_DATA, 0, 0, NULL
-        );
-        if (!ok)
+        LPCWSTR headers    = WINHTTP_NO_ADDITIONAL_HEADERS;
+        DWORD   headersLen = 0;
+        if (opts->Headers != NULL)
+        {
+            headers    = opts->Headers;
+            headersLen = (DWORD)(-1);
+        }
+        LPVOID body    = WINHTTP_NO_REQUEST_DATA;
+        DWORD  bodyLen = 0;
+        if (opts->Body != NULL && opts->Body->Size != 0)
+        {
+            body    = opts->Body->Buf;
+            bodyLen = (DWORD)opts->Body->Size;
+        }
+        if (!module->WinHttpSendRequest(
+            hRequest, headers, headersLen, body, bodyLen, bodyLen, NULL
+        ))
         {
             break;
         }
@@ -540,8 +596,8 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
         {
             break;
         }
-        // read data
-        uint len = 0;
+        // read body data
+        uint bodySize = 0;
         for (;;)
         {
             DWORD size;
@@ -554,22 +610,22 @@ errno WH_Get(UTF16 url, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
                 break;
             }
             // allocate buffer
-            bodyBuf = module->realloc(bodyBuf, len+(uint)size);
+            bodyBuf = module->realloc(bodyBuf, bodySize+(uint)size);
             if (bodyBuf == NULL)
             {
                 goto exit_loop;
             }
-            if (!module->WinHttpReadData(hRequest, bodyBuf+len, size, &size))
+            if (!module->WinHttpReadData(hRequest, bodyBuf+bodySize, size, &size))
             {
                 goto exit_loop;
             }
-            len += (uint)size;
+            bodySize += (uint)size;
         }
         // TODO
         // resp->StatusCode = 200; 
         // resp->Headers    = NULL;
-        resp->BodyBuf  = bodyBuf;
-        resp->BodySize = len;
+        resp->Body.Buf  = bodyBuf;
+        resp->Body.Size = bodySize;
         success = true;
         break;
     }
@@ -616,32 +672,6 @@ exit_loop:
         return GetLastErrno();
     }
     return errno;
-}
-
-__declspec(noinline)
-errno WH_Post(UTF16 url, void* body, WinHTTP_Opts* opts, WinHTTP_Resp* resp)
-{
-    WinHTTP* module = getModulePointer();
-
-    if (!initWinHTTPEnv())
-    {
-        return GetLastErrno();
-    }
-    if (!increaseCounter())
-    {
-        return GetLastErrno();
-    }
-
-    for (;;)
-    {
-        break;
-    }
-
-    if (!decreaseCounter())
-    {
-        return GetLastErrno();
-    }
-    return NO_ERROR;
 }
 
 __declspec(noinline)
