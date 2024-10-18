@@ -101,9 +101,13 @@ hash_api -fmt 64 -conc -func FreeLibrary
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpCrackUrl
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpOpen
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpConnect
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpSetOption
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpSetTimeouts
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpOpenRequest
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpSetCredentials
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpSendRequest
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpReceiveResponse
+hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpQueryHeaders
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpQueryDataAvailable
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpReadData
 hash_api -fmt 64 -conc -mod "winhttp.dll" -func WinHttpCloseHandle
@@ -205,9 +209,13 @@ hash_api -fmt 32 -conc -func FreeLibrary
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpCrackUrl
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpOpen
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpConnect
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpSetOption
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpSetTimeouts
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpOpenRequest
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpSetCredentials
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpSendRequest
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpReceiveResponse
+hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpQueryHeaders
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpQueryDataAvailable
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpReadData
 hash_api -fmt 32 -conc -mod "winhttp.dll" -func WinHttpCloseHandle
