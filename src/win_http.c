@@ -27,9 +27,13 @@ typedef struct {
     WinHttpCrackUrl_t           WinHttpCrackUrl;
     WinHttpOpen_t               WinHttpOpen;
     WinHttpConnect_t            WinHttpConnect;
+    WinHttpSetOption_t          WinHttpSetOption;
+    WinHttpSetTimeouts_t        WinHttpSetTimeouts;
     WinHttpOpenRequest_t        WinHttpOpenRequest;
+    WinHttpSetCredentials_t     WinHttpSetCredentials;
     WinHttpSendRequest_t        WinHttpSendRequest;
     WinHttpReceiveResponse_t    WinHttpReceiveResponse;
+    WinHttpQueryHeaders_t       WinHttpQueryHeaders;
     WinHttpQueryDataAvailable_t WinHttpQueryDataAvailable;
     WinHttpReadData_t           WinHttpReadData;
     WinHttpCloseHandle_t        WinHttpCloseHandle;
@@ -329,27 +333,35 @@ static bool findWinHTTPAPI()
     winapi list[] =
 #ifdef _WIN64
     {
-        { 0xEC3F06518D55B0C7, 0x0706C192EB0BF16E }, // WinHttpCrackUrl
-        { 0x5029A572232B4141, 0x6ED6F8304F6E818F }, // WinHttpOpen
-        { 0xD1329B7029BBB9AE, 0x34A46B22BB2E9DD9 }, // WinHttpConnect
-        { 0xB52D706DDFB69F24, 0xFAFDABC91A9EF4E8 }, // WinHttpOpenRequest
-        { 0xBD8A60F53EAB080D, 0xD594CC87C67311C8 }, // WinHttpSendRequest
-        { 0xABA74353B61115E5, 0xAE6EF6D3F07F50A7 }, // WinHttpReceiveResponse
-        { 0xB4DEE83E6F30EE22, 0xD15DF5DAA1F5C82B }, // WinHttpQueryDataAvailable
-        { 0x8222A4742A82B293, 0x7033455E4998396E }, // WinHttpReadData
-        { 0x40949660847FA663, 0x27F73DB59BBAD437 }, // WinHttpCloseHandle
+        { 0x62EA4FC32B55857E, 0x6B27C051C7F60422 }, // WinHttpCrackUrl
+        { 0x1267A9EEDB99E181, 0xB41CF5D67E16D815 }, // WinHttpOpen
+        { 0xA4CFDBCF777FB49E, 0x49B9E3980C8AD1DD }, // WinHttpConnect
+        { 0x8242A6CE50212202, 0x2F491ECB0FBF3CA6 }, // WinHttpSetOption
+        { 0xE1EB9927C8B0E8EC, 0x345008256D48B401 }, // WinHttpSetTimeouts
+        { 0xECE538251C35E9EA, 0x26D21A52453C514A }, // WinHttpOpenRequest
+        { 0xCF86A08B3A40FDAB, 0xD0AAF1B60D845011 }, // WinHttpSetCredentials
+        { 0xAA71C1860B6CB78D, 0x8FD7A27D14C8254C }, // WinHttpSendRequest
+        { 0xBAF3D0185F2E7094, 0xFDA31AE507B6FB12 }, // WinHttpReceiveResponse
+        { 0x8D1E52DBB477E02E, 0x61D0554B71E7FD43 }, // WinHttpQueryHeaders
+        { 0x5C469E2A43DF4080, 0x5A2F580559E64F36 }, // WinHttpQueryDataAvailable
+        { 0x0BF6F5AAF70C8544, 0xDAB6BC2D844D328B }, // WinHttpReadData
+        { 0x8BB59C8AEF72DAC1, 0xCA4475F306F5D45C }, // WinHttpCloseHandle
     };
 #elif _WIN32
     {
-        { 0x39CD8BBF, 0x0343789D }, // WinHttpCrackUrl
-        { 0x1B1A608A, 0xD4DB3A21 }, // WinHttpOpen
-        { 0x3AA6FEC9, 0xF63606EE }, // WinHttpConnect
-        { 0xB8414830, 0x4896A05B }, // WinHttpOpenRequest
-        { 0x8E57BC99, 0x46690252 }, // WinHttpSendRequest
-        { 0x9B938432, 0x876406EC }, // WinHttpReceiveResponse
-        { 0xCF231202, 0x4558CCF5 }, // WinHttpQueryDataAvailable
-        { 0xCB96057E, 0xE272676B }, // WinHttpReadData
-        { 0xF87CC6CD, 0x1CDF2720 }, // WinHttpCloseHandle
+        { 0xA0E97382, 0x86619CBC }, // WinHttpCrackUrl
+        { 0xFA3A70B4, 0xA43EA698 }, // WinHttpOpen
+        { 0x0BE11F33, 0xCC38EE75 }, // WinHttpConnect
+        { 0xE9319484, 0xFC564C7E }, // WinHttpSetOption
+        { 0xFA06B187, 0x3942E8ED }, // WinHttpSetTimeouts
+        { 0x7F719278, 0x3706020A }, // WinHttpOpenRequest
+        { 0x4222DDA2, 0xD5A26D8D }, // WinHttpSetCredentials
+        { 0x91688CB4, 0x9986E1B6 }, // WinHttpSendRequest
+        { 0xF69E6547, 0xFD292EE8 }, // WinHttpReceiveResponse
+        { 0xBD960E7A, 0xD29D7213 }, // WinHttpQueryHeaders
+        { 0x549BFA55, 0xB03FE5F9 }, // WinHttpQueryDataAvailable
+        { 0x38C41147, 0xDBD59C70 }, // WinHttpReadData
+        { 0x173816BB, 0x52FA19B1 }, // WinHttpCloseHandle
     };
 #endif
     for (int i = 0; i < arrlen(list); i++)
@@ -361,15 +373,19 @@ static bool findWinHTTPAPI()
         }
         list[i].proc = proc;
     }
-    module->WinHttpCrackUrl           = list[0x00].proc;
-    module->WinHttpOpen               = list[0x01].proc;
-    module->WinHttpConnect            = list[0x02].proc;
-    module->WinHttpOpenRequest        = list[0x03].proc;
-    module->WinHttpSendRequest        = list[0x04].proc;
-    module->WinHttpReceiveResponse    = list[0x05].proc;
-    module->WinHttpQueryDataAvailable = list[0x06].proc;
-    module->WinHttpReadData           = list[0x07].proc;
-    module->WinHttpCloseHandle        = list[0x08].proc;
+    module->WinHttpCrackUrl            = list[0x00].proc;
+    module->WinHttpOpen                = list[0x01].proc;
+    module->WinHttpConnect             = list[0x02].proc;
+    module->WinHttpSetOption           = list[0x03].proc;
+    module->WinHttpSetTimeouts         = list[0x04].proc;
+    module->WinHttpOpenRequest         = list[0x05].proc;
+    module->WinHttpSetCredentials      = list[0x06].proc; 
+    module->WinHttpSendRequest         = list[0x07].proc;
+    module->WinHttpReceiveResponse     = list[0x08].proc;  
+    module->WinHttpQueryHeaders        = list[0x09].proc;
+    module->WinHttpQueryDataAvailable  = list[0x0A].proc;     
+    module->WinHttpReadData            = list[0x0B].proc;
+    module->WinHttpCloseHandle         = list[0x0C].proc;     
     return true;
 }
 
@@ -536,7 +552,6 @@ errno WH_Do(UTF16 url, UTF16 method, HTTP_Opts* opts, HTTP_Resp* resp)
         default:
             goto exit_loop;
         }
-
         // create session
         hSession = module->WinHttpOpen(
             opts->UserAgent, opts->AccessType, NULL, NULL, 0
@@ -545,6 +560,11 @@ errno WH_Do(UTF16 url, UTF16 method, HTTP_Opts* opts, HTTP_Resp* resp)
         {
             break;
         }
+        // try to enable compression
+        DWORD optFlag = WINHTTP_DECOMPRESSION_FLAG_ALL;
+        module->WinHttpSetOption(
+            hSession, WINHTTP_OPTION_DECOMPRESSION, &optFlag, sizeof(optFlag)
+        );
         // create connection
         hConnect = module->WinHttpConnect(
             hSession, hostname, url_com.nPort, 0
