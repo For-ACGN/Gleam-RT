@@ -28,15 +28,15 @@ typedef struct {
     CloseHandle_t   CloseHandle;
 
     // submodules method
-    malloc_t  malloc;
-    mt_free_t free;
+    mt_malloc_t malloc;
+    mt_free_t   free;
 } WinFile;
 
 // methods for user
-errno WF_ReadFileA(LPSTR path, byte** buf, int64* size);
-errno WF_ReadFileW(LPWSTR path, byte** buf, int64* size);
-errno WF_WriteFileA(LPSTR path, byte* buf, int64 size);
-errno WF_WriteFileW(LPWSTR path, byte* buf, int64 size);
+errno WF_ReadFileA(LPSTR path, byte** buf, uint* size);
+errno WF_ReadFileW(LPWSTR path, byte** buf, uint* size);
+errno WF_WriteFileA(LPSTR path, byte* buf, uint size);
+errno WF_WriteFileW(LPWSTR path, byte* buf, uint size);
 
 // methods for runtime
 errno WF_Uninstall();
@@ -55,8 +55,8 @@ static bool recoverModulePointer(WinFile* module);
 static bool initModuleEnvironment(WinFile* module, Context* context);
 static void eraseModuleMethods(Context* context);
 
-errno readFile(HANDLE hFile, byte** buf, int64* size);
-errno writeFile(HANDLE hFile, byte* buf, int64 size);
+errno readFile(HANDLE hFile, byte** buf, uint* size);
+errno writeFile(HANDLE hFile, byte* buf, uint size);
 
 WinFile_M* InitWinFile(Context* context)
 {
@@ -95,7 +95,7 @@ WinFile_M* InitWinFile(Context* context)
         SetLastErrno(errno);
         return NULL;
     }
-    // create methods
+    // create method set
     WinFile_M* method = (WinFile_M*)methodAddr;
     method->ReadFileA  = GetFuncAddr(&WF_ReadFileA);
     method->ReadFileW  = GetFuncAddr(&WF_ReadFileW);
@@ -153,7 +153,7 @@ static bool initModuleAPI(WinFile* module, Context* context)
 
 static bool updateModulePointer(WinFile* module)
 {
-   bool success = false;
+    bool success = false;
     uintptr target = (uintptr)(GetFuncAddr(&getModulePointer));
     for (uintptr i = 0; i < 64; i++)
     {
@@ -172,7 +172,7 @@ static bool updateModulePointer(WinFile* module)
 
 static bool recoverModulePointer(WinFile* module)
 {
-   bool success = false;
+    bool success = false;
     uintptr target = (uintptr)(GetFuncAddr(&getModulePointer));
     for (uintptr i = 0; i < 64; i++)
     {
@@ -219,7 +219,7 @@ static WinFile* getModulePointer()
 #pragma optimize("", on)
 
 __declspec(noinline)
-errno WF_ReadFileA(LPSTR path, byte** buf, int64* size)
+errno WF_ReadFileA(LPSTR path, byte** buf, uint* size)
 {
     WinFile* module = getModulePointer();
 
@@ -235,7 +235,7 @@ errno WF_ReadFileA(LPSTR path, byte** buf, int64* size)
 }
 
 __declspec(noinline)
-errno WF_ReadFileW(LPWSTR path, byte** buf, int64* size)
+errno WF_ReadFileW(LPWSTR path, byte** buf, uint* size)
 {
     WinFile* module = getModulePointer();
 
@@ -251,7 +251,7 @@ errno WF_ReadFileW(LPWSTR path, byte** buf, int64* size)
 }
 
 __declspec(noinline)
-errno readFile(HANDLE hFile, byte** buf, int64* size)
+errno readFile(HANDLE hFile, byte** buf, uint* size)
 {
     WinFile* module = getModulePointer();
 
@@ -319,13 +319,16 @@ errno readFile(HANDLE hFile, byte** buf, int64* size)
     }
 
     // write result
-    *buf  = buffer;
-    *size = fSize;
+    *buf = buffer;
+    if (size != NULL)
+    {
+        *size = (uint)fSize;
+    }
     return NO_ERROR;
 }
 
 __declspec(noinline)
-errno WF_WriteFileA(LPSTR path, byte* buf, int64 size)
+errno WF_WriteFileA(LPSTR path, byte* buf, uint size)
 {
     WinFile* module = getModulePointer();
 
@@ -341,7 +344,7 @@ errno WF_WriteFileA(LPSTR path, byte* buf, int64 size)
 }
 
 __declspec(noinline)
-errno WF_WriteFileW(LPWSTR path, byte* buf, int64 size)
+errno WF_WriteFileW(LPWSTR path, byte* buf, uint size)
 {
     WinFile* module = getModulePointer();
 
@@ -357,17 +360,17 @@ errno WF_WriteFileW(LPWSTR path, byte* buf, int64 size)
 }
 
 __declspec(noinline)
-errno writeFile(HANDLE hFile, byte* buf, int64 size)
+errno writeFile(HANDLE hFile, byte* buf, uint size)
 {
     WinFile* module = getModulePointer();
 
-    int64 written = 0;
+    uint  written = 0;
     errno errno   = NO_ERROR;
     for (;;)
     {
         // prevent buffer overflow
-        int64 chunkSize = CHUNK_SIZE;
-        int64 remaining = size - written;
+        uint chunkSize = CHUNK_SIZE;
+        uint remaining = size - written;
         if (remaining < chunkSize)
         {
             chunkSize = remaining;
