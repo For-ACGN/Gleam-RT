@@ -1405,10 +1405,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
     hook hooks[] =
 #ifdef _WIN64
     {
-        { 0xF33526E8D89DA508, 0xEDA6329C4F2F200E, memoryTracker->Alloc},   // msvcrt.malloc
-        { 0x499BBE04FBC79BFA, 0xC31A2116AB845FD3, memoryTracker->Calloc},  // msvcrt.calloc
-        { 0xFEE7DFC00D4FF138, 0xFDCD79409B4540BE, memoryTracker->Realloc}, // msvcrt.realloc
-        { 0xE38030369E1A493B, 0xA71437DCA268E161, memoryTracker->Free},    // msvcrt.free
+        { 0x4D084BEDB72AB139, 0x0C3B997786E5B372, memoryTracker->Alloc},   // msvcrt.malloc
+        { 0x608A1F623962E67B, 0xABB120953420F49C, memoryTracker->Calloc},  // msvcrt.calloc
+        { 0xCDE1ED75FE80407B, 0xC64B380372D117F2, memoryTracker->Realloc}, // msvcrt.realloc
+        { 0xECC6F0177F0CCDE2, 0x43C1FCC7169E67D3, memoryTracker->Free},    // msvcrt.free
         { 0x94DAFAE03484102D, 0x300F881516DC2FF5, resourceTracker->CreateFileA      },
         { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, resourceTracker->CreateFileW      },
         { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, resourceTracker->FindFirstFileA   },
@@ -1422,10 +1422,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
     };
 #elif _WIN32
     {
-        { 0x741595B4, 0xABC3E3AF, memoryTracker->Alloc},   // msvcrt.malloc
-        { 0x0613B03E, 0x876EF514, memoryTracker->Calloc},  // msvcrt.calloc
-        { 0x9BD791D3, 0xD0EE91DC, memoryTracker->Realloc}, // msvcrt.realloc
-        { 0xB83C96F7, 0x2C2BF526, memoryTracker->Free},    // msvcrt.free
+        { 0xAABF9FB6, 0x16072717, memoryTracker->Alloc},   // msvcrt.malloc
+        { 0xD34DACA0, 0xD69C094E, memoryTracker->Calloc},  // msvcrt.calloc
+        { 0x644CBC49, 0x332496CD, memoryTracker->Realloc}, // msvcrt.realloc
+        { 0xDFACD52A, 0xE56FB206, memoryTracker->Free},    // msvcrt.free
         { 0x79796D6E, 0x6DBBA55C, resourceTracker->CreateFileA      },
         { 0x0370C4B8, 0x76254EF3, resourceTracker->CreateFileW      },
         { 0x629ADDFA, 0x749D1CC9, resourceTracker->FindFirstFileA   },

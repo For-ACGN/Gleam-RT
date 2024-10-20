@@ -34,10 +34,10 @@ typedef void (*EraseAllArgs_t)();
 // about WinFile
 
 // The buffer allocated from ReadFile must call Runtime_M.Memory.Free().
-typedef errno (*ReadFileA_t)(LPSTR path, byte** buf, int64* size);
-typedef errno (*ReadFileW_t)(LPWSTR path, byte** buf, int64* size);
-typedef errno (*WriteFileA_t)(LPSTR path, byte* buf, int64 size);
-typedef errno (*WriteFileW_t)(LPWSTR path, byte* buf, int64 size);
+typedef errno (*ReadFileA_t)(LPSTR path, byte** buf, uint* size);
+typedef errno (*ReadFileW_t)(LPWSTR path, byte** buf, uint* size);
+typedef errno (*WriteFileA_t)(LPSTR path, byte* buf, uint size);
+typedef errno (*WriteFileW_t)(LPWSTR path, byte* buf, uint size);
 
 // about WinHTTP
 #ifndef WIN_HTTP_H
