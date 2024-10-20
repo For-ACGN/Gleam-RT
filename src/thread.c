@@ -4,6 +4,7 @@
 #include "lib_memory.h"
 #include "hash_api.h"
 #include "list_md.h"
+#include "pe_image.h"
 #include "win_api.h"
 #include "context.h"
 #include "random.h"
@@ -517,12 +518,12 @@ static void* camouflageStartAddress(uint seed)
     uintptr modAddr = *(uintptr*)(mod + 16);
 #endif
     // parse module information
-    PE_Info info;
-    ParsePEImage((byte*)modAddr, &info);
+    PE_Image image;
+    ParsePEImage((byte*)modAddr, &image);
     // select a random start address
-    uintptr base  = modAddr + info.TextVirtualAddress;
-    uintptr begin = base + RandUintN(seed, info.TextSizeOfRawData);
-    uintptr end   = base + info.TextSizeOfRawData;
+    uintptr base  = modAddr + image.TextVirtualAddress;
+    uintptr begin = base + RandUintN(seed, image.TextSizeOfRawData);
+    uintptr end   = base + image.TextSizeOfRawData;
     for (uintptr addr = begin; addr < end; addr++)
     {
         byte b = *(byte*)addr; 
