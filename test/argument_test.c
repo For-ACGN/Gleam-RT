@@ -82,6 +82,7 @@ static bool TestArgument_GetValue()
     if (arg2 != 123)
     {
         printf_s("argument 2 is invalid data\n");
+        return false;
     }
     if (size != 0)
     {
@@ -163,6 +164,7 @@ static bool TestArgument_GetPointer()
     if (arg2 != NULL)
     {
         printf_s("argument 2 is invalid data\n");
+        return false;
     }
     if (size != 0)
     {
@@ -214,12 +216,47 @@ static bool TestArgument_Erase()
         printf_s("argument 1 is not be erased\n");
         return false;
     }
-    if (size == 12)
+    if (size != 12)
     {
-        printf_s("argument 1 size is not be erased\n");
+        printf_s("argument 1 size is incorrect\n");
         return false;
     }
     printf_s("check erased argument 1\n");
+
+    // check arguments around it
+    uint32* arg0 = NULL;
+    if (!runtime->Argument.GetPointer(0, &arg0, &size))
+    {
+        printf_s("failed to get argument 0\n");
+        return false;
+    }
+    if (*arg0 != 0x12345678)
+    {
+        printf_s("argument 0 is invalid data\n");
+        return false;
+    }
+    if (size != 4)
+    {
+        printf_s("argument 0 size is invalid\n");
+        return false;
+    }
+
+    byte* arg2 = (byte*)123;
+    if (!runtime->Argument.GetPointer(2, &arg2, &size))
+    {
+        printf_s("failed to get argument 2\n");
+        return false;
+    }
+    if (arg2 != NULL)
+    {
+        printf_s("argument 2 is invalid data\n");
+        return false;
+    }
+    if (size != 0)
+    {
+        printf_s("argument 2 size is invalid\n");
+        return false;
+    }
     return true;
 }
 
