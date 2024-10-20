@@ -195,15 +195,15 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     byte*   addr = (byte*)(stub + ARG_OFFSET_FIRST_ARG);
     uint32  size = *(uint32*)(stub + ARG_OFFSET_ARGS_SIZE);
     // allocate memory page for store them
-    uint32 pageSize = ((size / context->PageSize) + 1) * context->PageSize;
-    pageSize += (uint32)(1 + RandUintN(0, 16)) * context->PageSize;
-    void* mem = store->VirtualAlloc(NULL, pageSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
+    uint32 memSize = ((size / context->PageSize) + 1) * context->PageSize;
+    memSize += (uint32)(1 + RandUintN(0, 16)) * context->PageSize;
+    void* mem = store->VirtualAlloc(NULL, memSize, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE);
     if (mem == NULL)
     {
         return ERR_ARGUMENT_ALLOC_MEM;
     }
     store->Address = mem;
-    store->Size    = pageSize;
+    store->Size    = memSize;
     store->NumArgs = *(uint32*)(stub + ARG_OFFSET_NUM_ARGS);
     // copy encrypted arguments to new memory page
     mem_copy(mem, addr, size);
@@ -227,7 +227,7 @@ static errno loadArguments(ArgumentStore* store, Context* context)
         // update address
         data++;
     }
-    // clean argument stub after decrypt
+    // erase argument stub after decrypt
     if (!context->NotEraseInstruction)
     {
         RandBuffer((byte*)stub, ARG_HEADER_SIZE + size);
@@ -404,8 +404,9 @@ bool AS_Erase(uint index)
             continue;
         }
         byte*  addr = store->Address + offset;
-        uint32 size = *(uint32*)(store->Address + offset);
-        RandBuffer(addr, (int64)(4+size));
+        uint32 size = *(uint32*)(addr);
+        // erase argument data except it length
+        RandBuffer(addr + 4, (int64)size);
         found = true;
         break;
     }
@@ -473,8 +474,9 @@ errno AS_Clean()
 
     errno errno = NO_ERROR;
 
-    // free memory page
+    // erase all arguments
     RandBuffer(store->Address, store->Size);
+    // free memory page
     if (!store->VirtualFree(store->Address, 0, MEM_RELEASE) && errno == NO_ERROR)
     {
         errno = ERR_ARGUMENT_FREE_MEM;
