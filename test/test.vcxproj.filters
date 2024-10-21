@@ -15,21 +15,15 @@
     <Filter Include="Assembly\MSVC">
       <UniqueIdentifier>{62a1c87f-8d6a-40ff-a0b1-3867aa00f98f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Test">
+      <UniqueIdentifier>{3e6e0269-94a7-40be-aea9-9bd72b3b78b2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="crypto_test.c">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="random_test.c">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\crypto.c">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\src\random.c">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="runtime_test.c">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\src\hash_api.c">
@@ -42,12 +36,6 @@
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\src\thread.c">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="memory_test.c">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="thread_test.c">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\src\list_md.c">
@@ -83,19 +71,10 @@
     <ClCompile Include="..\src\argument.c">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="argument_test.c">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="lib_string_test.c">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\rel_addr.c">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\src\compress.c">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="lib_memory_test.c">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\src\win_file.c">
@@ -104,14 +83,38 @@
     <ClCompile Include="..\src\win_http.c">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="win_file_test.c">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="win_http_test.c">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\pe_image.c">
       <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="src\argument_test.c">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="src\crypto_test.c">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib_memory_test.c">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lib_string_test.c">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="src\memory_test.c">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="src\random_test.c">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="src\runtime_test.c">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="src\thread_test.c">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="src\win_file_test.c">
+      <Filter>Test</Filter>
+    </ClCompile>
+    <ClCompile Include="src\win_http_test.c">
+      <Filter>Test</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

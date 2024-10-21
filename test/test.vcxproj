@@ -39,17 +39,17 @@
     <ClInclude Include="..\include\debug.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="test_main.c" />
-    <ClCompile Include="lib_memory_test.c" />
-    <ClCompile Include="lib_string_test.c" />
-    <ClCompile Include="crypto_test.c" />
-    <ClCompile Include="random_test.c" />
-    <ClCompile Include="runtime_test.c" />
-    <ClCompile Include="memory_test.c" />
-    <ClCompile Include="thread_test.c" />
-    <ClCompile Include="argument_test.c" />
-    <ClCompile Include="win_file_test.c" />
-    <ClCompile Include="win_http_test.c" />
+	<ClCompile Include="test_main.c" />
+    <ClCompile Include="src\lib_memory_test.c" />
+    <ClCompile Include="src\lib_string_test.c" />
+    <ClCompile Include="src\random_test.c" />
+	<ClCompile Include="src\crypto_test.c" />
+    <ClCompile Include="src\runtime_test.c" />
+	<ClCompile Include="src\memory_test.c" />
+    <ClCompile Include="src\thread_test.c" />
+	<ClCompile Include="src\argument_test.c" />
+    <ClCompile Include="src\win_file_test.c" />
+    <ClCompile Include="src\win_http_test.c" />
     <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\lib_memory.c" />
     <ClCompile Include="..\src\lib_string.c" />
