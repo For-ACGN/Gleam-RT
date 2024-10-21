@@ -50,7 +50,7 @@ static bool TestWinFile_ReadFileA()
     LPSTR path = "test.vcxproj";
 
     byte* data;
-    int64 size;
+    uint  size;
     errno errno = runtime->WinFile.ReadFileA(path, &data, &size);
     if (errno != NO_ERROR)
     {
@@ -73,9 +73,9 @@ static bool TestWinFile_ReadFileA()
         printf_s("failed to get file size: 0x%X\n", GetLastErrno());
         return false;
     }
-    if (size != fSize)
+    if (size != (uint)fSize)
     {
-        printf_s("get different file size %llu %llu\n", size, fSize);
+        printf_s("get different file size %zu %llu\n", size, fSize);
         return false;
     }
     byte* buf = runtime->Memory.Alloc((uint)fSize);
@@ -106,7 +106,7 @@ static bool TestWinFile_ReadFileW()
     LPWSTR path = L"test.vcxproj.filters";
 
     byte* data;
-    int64 size;
+    uint  size;
     errno errno = runtime->WinFile.ReadFileW(path, &data, &size);
     if (errno != NO_ERROR)
     {
@@ -129,9 +129,9 @@ static bool TestWinFile_ReadFileW()
         printf_s("failed to get file size: 0x%X\n", GetLastErrno());
         return false;
     }
-    if (size != fSize)
+    if (size != (uint)fSize)
     {
-        printf_s("get different file size %llu %llu\n", size, fSize);
+        printf_s("get different file size %zu %llu\n", size, fSize);
         return false;
     }
     byte* buf = runtime->Memory.Alloc((uint)fSize);
@@ -174,8 +174,8 @@ static bool TestWinFile_WriteFileA()
         return false;
     }
 
-    byte* buf;
-    int64 size;
+    byte* buf  = NULL;
+    uint  size = 0;
     errno = runtime->WinFile.ReadFileA(path, &buf, &size);
     if (errno != NO_ERROR)
     {
@@ -215,8 +215,8 @@ static bool TestWinFile_WriteFileW()
         return false;
     }
 
-    byte* buf;
-    int64 size;
+    byte* buf  = NULL;
+    uint  size = 0;
     errno = runtime->WinFile.ReadFileW(path, &buf, &size);
     if (errno != NO_ERROR)
     {
