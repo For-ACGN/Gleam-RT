@@ -29,19 +29,19 @@ static void init()
     CreateFileA  = FindAPI_A("kernel32.dll", "CreateFileA");
     WriteFile    = FindAPI_A("kernel32.dll", "WriteFile");
     CloseHandle  = FindAPI_A("kernel32.dll", "CloseHandle");
+
+    HMODULE hModule = LoadLibraryA("msvcrt.dll");
+    if (hModule == NULL)
+    {
+        return;
+    }
+    printf_s = FindAPI_A("msvcrt.dll", "printf_s");
 }
 
 #pragma comment(linker, "/ENTRY:EntryPoint")
 int EntryPoint()
 {
     init();
-
-    HMODULE hModule = LoadLibraryA("msvcrt.dll");
-    if (hModule == NULL)
-    {
-        return -1;
-    }
-    printf_s = FindAPI_A("msvcrt.dll", "printf_s");
 
     if (!testShellcode(false))
     {
@@ -55,12 +55,7 @@ int EntryPoint()
     {
         return 3;
     }
-    printf_s("save shellcode successfully\n");
-    
-    if (!FreeLibrary(hModule))
-    {
-        return -2;
-    }
+    printf_s("build shellcode successfully\n");
     return 0;
 }
 
@@ -121,12 +116,12 @@ bool saveShellcode()
     );
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        printf_s("failed to create shellcode output file: 0x%X\n", GetLastErrno());
+        printf_s("failed to create output file: 0x%X\n", GetLastErrno());
         return false;
     }
     if (!WriteFile(hFile, (byte*)begin, (DWORD)size, NULL, NULL))
     {
-        printf_s("failed to save shellcode: 0x%X\n", GetLastErrno());
+        printf_s("failed to write shellcode: 0x%X\n", GetLastErrno());
         return false;
     }
     if (!CloseHandle(hFile))
