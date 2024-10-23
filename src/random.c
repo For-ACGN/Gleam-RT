@@ -30,7 +30,7 @@ void RandBuffer(byte* buf, int64 size)
         {
             b = 170;
         }
-        seed += ror(seed, b%4);
+        seed += ror(seed, b % 4);
         seed += b;
     }
     for (int64 i = 0; i < size; i++)
@@ -164,7 +164,7 @@ static uint64 rand(uint64 seed, uint64 mod)
     seed += GenerateSeed();
     uint64 a = (uint64)(GetFuncAddr(&ror));
     uint64 c = (uint64)(GetFuncAddr(&getStackAddr));
-    int times = 8 + seed%32;
+    int times = 8 + seed % 32;
     for (int i = 0; i < times; i++)
     {
         // just play game
