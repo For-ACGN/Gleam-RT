@@ -309,7 +309,7 @@ HMODULE LT_LoadLibraryA(LPCSTR lpLibFileName)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryA: 0x%zX", hModule);
+    dbg_log("[library]", "LoadLibraryA: %s 0x%zX", lpLibFileName, hModule);
 
     if (!LT_Unlock())
     {
@@ -355,7 +355,7 @@ HMODULE LT_LoadLibraryW(LPCWSTR lpLibFileName)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryW: 0x%zX", hModule);
+    dbg_log("[library]", "LoadLibraryW: %ls 0x%zX", lpLibFileName, hModule);
 
     if (!LT_Unlock())
     {
@@ -401,7 +401,7 @@ HMODULE LT_LoadLibraryExA(LPCSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryExA: 0x%zX", hModule);
+    dbg_log("[library]", "LoadLibraryExA: %s 0x%zX", lpLibFileName, hModule);
 
     if (!LT_Unlock())
     {
@@ -447,7 +447,7 @@ HMODULE LT_LoadLibraryExW(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
         break;
     }
 
-    dbg_log("[library]", "LoadLibraryExW: 0x%zX", hModule);
+    dbg_log("[library]", "LoadLibraryExW: %ls 0x%zX", lpLibFileName, hModule);
 
     if (!LT_Unlock())
     {
