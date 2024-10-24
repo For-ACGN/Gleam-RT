@@ -87,6 +87,11 @@ hash_api -fmt 64 -conc -mod ws2_32.dll -func WSAStartup
 hash_api -fmt 64 -conc -mod ws2_32.dll -func WSACleanup
 echo.
 
+echo [WinBase Module]
+hash_api -fmt 64 -conc -func MultiByteToWideChar
+hash_api -fmt 64 -conc -func WideCharToMultiByte
+echo.
+
 echo [WinFile Module]
 hash_api -fmt 64 -conc -func CreateFileA
 hash_api -fmt 64 -conc -func CreateFileW
@@ -193,6 +198,11 @@ hash_api -fmt 32 -conc -func FindFirstFileExW
 hash_api -fmt 32 -conc -func FindClose
 hash_api -fmt 32 -conc -mod ws2_32.dll -func WSAStartup
 hash_api -fmt 32 -conc -mod ws2_32.dll -func WSACleanup
+echo.
+
+echo [WinBase Module]
+hash_api -fmt 32 -conc -func MultiByteToWideChar
+hash_api -fmt 32 -conc -func WideCharToMultiByte
 echo.
 
 echo [WinFile Module]
