@@ -49,6 +49,8 @@ https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-sleepex
 https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
 https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-duplicatehandle
 https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
+https://learn.microsoft.com/en-us/windows/win32/api/stringapiset/nf-stringapiset-multibytetowidechar
+https://learn.microsoft.com/en-us/windows/win32/api/stringapiset/nf-stringapiset-widechartomultibyte
 https://learn.microsoft.com/en-us/windows/win32/wininet/wininet-vs-winhttp
 https://learn.microsoft.com/en-us/windows/win32/api/winhttp/ns-winhttp-url_components
 https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nf-winhttp-winhttpcrackurl
