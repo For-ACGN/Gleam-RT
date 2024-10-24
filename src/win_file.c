@@ -43,9 +43,9 @@ errno WF_Uninstall();
 
 // hard encoded address in getModulePointer for replacement
 #ifdef _WIN64
-    #define MODULE_POINTER 0x7FABCDEF111111E1
+    #define MODULE_POINTER 0x7FABCDEF111111E2
 #elif _WIN32
-    #define MODULE_POINTER 0x7FABCDE1
+    #define MODULE_POINTER 0x7FABCDE2
 #endif
 static WinFile* getModulePointer();
 
@@ -62,8 +62,8 @@ WinFile_M* InitWinFile(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr moduleAddr = address + 16384 + RandUintN(address, 128);
-    uintptr methodAddr = address + 17000 + RandUintN(address, 128);
+    uintptr moduleAddr = address + 18000 + RandUintN(address, 128);
+    uintptr methodAddr = address + 19000 + RandUintN(address, 128);
     // initialize module
     WinFile* module = (WinFile*)moduleAddr;
     mem_init(module, sizeof(WinFile));

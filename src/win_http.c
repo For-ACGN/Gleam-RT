@@ -70,9 +70,9 @@ errno WH_Uninstall();
 
 // hard encoded address in getModulePointer for replacement
 #ifdef _WIN64
-    #define MODULE_POINTER 0x7FABCDEF111111E2
+    #define MODULE_POINTER 0x7FABCDEF111111E3
 #elif _WIN32
-    #define MODULE_POINTER 0x7FABCDE2
+    #define MODULE_POINTER 0x7FABCDE3
 #endif
 static WinHTTP* getModulePointer();
 
@@ -95,8 +95,8 @@ WinHTTP_M* InitWinHTTP(Context* context)
 {
     // set structure address
     uintptr address = context->MainMemPage;
-    uintptr moduleAddr = address + 18000 + RandUintN(address, 128);
-    uintptr methodAddr = address + 19000 + RandUintN(address, 128);
+    uintptr moduleAddr = address + 20000 + RandUintN(address, 128);
+    uintptr methodAddr = address + 21000 + RandUintN(address, 128);
     // initialize module
     WinHTTP* module = (WinHTTP*)moduleAddr;
     mem_init(module, sizeof(WinHTTP));
