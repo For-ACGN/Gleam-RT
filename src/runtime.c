@@ -16,6 +16,7 @@
 #include "thread.h"
 #include "resource.h"
 #include "argument.h"
+#include "win_base.h"
 #include "win_file.h"
 #include "win_http.h"
 #include "shield.h"
@@ -90,6 +91,7 @@ typedef struct {
     ArgumentStore_M*   ArgumentStore;
 
     // high-level modules
+    WinBase_M* WinBase;
     WinFile_M* WinFile;
     WinHTTP_M* WinHTTP;
 } Runtime;
@@ -151,6 +153,7 @@ static errno initMemoryTracker(Runtime* runtime, Context* context);
 static errno initThreadTracker(Runtime* runtime, Context* context);
 static errno initResourceTracker(Runtime* runtime, Context* context);
 static errno initArgumentStore(Runtime* runtime, Context* context);
+static errno initWinBase(Runtime* runtime, Context* context);
 static errno initWinFile(Runtime* runtime, Context* context);
 static errno initWinHTTP(Runtime* runtime, Context* context);
 static bool  initIATHooks(Runtime* runtime);
@@ -624,6 +627,7 @@ static errno initModules(Runtime* runtime)
     // initialize high-level modules
     module_t hl_modules[] = 
     {
+        GetFuncAddr(&initWinBase),
         GetFuncAddr(&initWinFile),
         GetFuncAddr(&initWinHTTP),
     };
@@ -695,6 +699,17 @@ static errno initArgumentStore(Runtime* runtime, Context* context)
         return GetLastErrno();
     }
     runtime->ArgumentStore = store;
+    return NO_ERROR;
+}
+
+static errno initWinBase(Runtime* runtime, Context* context)
+{
+    WinBase_M* winBase = InitWinBase(context);
+    if (winBase == NULL)
+    {
+        return GetLastErrno();
+    }
+    runtime->WinBase = winBase;
     return NO_ERROR;
 }
 
@@ -2090,6 +2105,7 @@ errno RT_Exit()
         runtime->ArgumentStore->Clean,
 
         // high-level modules
+        runtime->WinBase->Uninstall,
         runtime->WinFile->Uninstall,
         runtime->WinHTTP->Uninstall,
     };
