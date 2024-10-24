@@ -28,8 +28,8 @@ typedef struct {
 // methods for user
 UTF16 WB_ANSIToUTF16(ANSI s);
 ANSI  WB_UTF16ToANSI(UTF16 s);
-UTF16 WB_ANSIToUTF16N(ANSI s, uint n);
-ANSI  WB_UTF16ToANSIN(UTF16 s, uint n);
+UTF16 WB_ANSIToUTF16N(ANSI s, int n);
+ANSI  WB_UTF16ToANSIN(UTF16 s, int n);
 
 // methods for runtime
 errno WB_Uninstall();
@@ -123,6 +123,8 @@ static bool initModuleAPI(WinBase* module, Context* context)
     }
     module->MultiByteToWideChar = list[0].proc;
     module->WideCharToMultiByte = list[1].proc;
+    // skip warning
+    context = NULL;
     return true;
 }
 
@@ -202,27 +204,61 @@ static WinBase* getModulePointer()
 __declspec(noinline)
 UTF16 WB_ANSIToUTF16(ANSI s)
 {
-    return WB_ANSIToUTF16N(s, strlen_a(s));
+    return WB_ANSIToUTF16N(s, -1);
 }
 
 __declspec(noinline)
 ANSI WB_UTF16ToANSI(UTF16 s)
 {
-    return WB_UTF16ToANSIN(s, strlen_w(s));
+    return WB_UTF16ToANSIN(s, -1);
 }
 
 __declspec(noinline)
-UTF16 WB_ANSIToUTF16N(ANSI s, uint n)
+UTF16 WB_ANSIToUTF16N(ANSI s, int n)
 {
     WinBase* module = getModulePointer();
 
+    int len = module->MultiByteToWideChar(CP_ACP, 0, s, n, NULL, 0);
+    if (len == 0)
+    {
+        return NULL;
+    }
+    UTF16 str = module->malloc((uint)(len * 2));
+    if (str == NULL)
+    {
+        return NULL;
+    }
+    len = module->MultiByteToWideChar(CP_ACP, 0, s, n, str, len);
+    if (len == 0)
+    {
+        module->free(str);
+        return NULL;
+    }
+    return str;
 }
 
 __declspec(noinline)
-ANSI WB_UTF16ToANSIN(UTF16 s, uint n)
+ANSI WB_UTF16ToANSIN(UTF16 s, int n)
 {
     WinBase* module = getModulePointer();
 
+    int len = module->WideCharToMultiByte(CP_ACP, 0, s, n, NULL, 0, NULL, NULL);
+    if (len == 0)
+    {
+        return NULL;
+    }
+    ANSI str = module->malloc(len);
+    if (str == NULL)
+    {
+        return NULL;
+    }
+    len = module->WideCharToMultiByte(CP_ACP, 0, s, n, str, len, NULL, NULL);
+    if (len == 0)
+    {
+        module->free(str);
+        return NULL;
+    }
+    return str;
 }
 
 __declspec(noinline)
