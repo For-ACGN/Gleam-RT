@@ -232,6 +232,8 @@ typedef struct {
 #define WSASYSNOTREADY 10091
 #define WSAEINPROGRESS 10036
 
+#define CP_ACP 0
+
 #define INTERNET_SCHEME_HTTP  1
 #define INTERNET_SCHEME_HTTPS 2
 
@@ -508,6 +510,19 @@ typedef BOOL (*DuplicateHandle_t)
 typedef BOOL (*CloseHandle_t)
 (
     HANDLE hObject
+);
+
+typedef int (*MultiByteToWideChar_t)
+(
+    UINT CodePage, DWORD dwFlags, LPSTR lpMultiByteStr, 
+    int cbMultiByte, LPWSTR lpWideCharStr, int cchWideChar
+);
+
+typedef int (*WideCharToMultiByte_t)
+(
+    UINT CodePage, DWORD dwFlags, LPWSTR lpWideCharStr,
+    int cchWideChar, LPSTR lpMultiByteStr, int cbMultiByte,
+    byte* lpDefaultChar, BOOL* lpUsedDefaultChar
 );
 
 typedef BOOL (*WinHttpCrackUrl_t)
