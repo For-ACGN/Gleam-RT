@@ -2,6 +2,7 @@
 #include "windows_t.h"
 #include "rel_addr.h"
 #include "lib_memory.h"
+#include "lib_string.h"
 #include "hash_api.h"
 #include "context.h"
 #include "random.h"
@@ -25,10 +26,10 @@ typedef struct {
 } WinBase;
 
 // methods for user
-errno WB_ANSIToUTF16(ANSI s);
-errno WB_UTF16ToANSI(UTF16 s);
-errno WB_ANSIToUTF16N(ANSI s, uint n);
-errno WB_UTF16ToANSIN(UTF16 s, uint n);
+UTF16 WB_ANSIToUTF16(ANSI s);
+ANSI  WB_UTF16ToANSI(UTF16 s);
+UTF16 WB_ANSIToUTF16N(ANSI s, uint n);
+ANSI  WB_UTF16ToANSIN(UTF16 s, uint n);
 
 // methods for runtime
 errno WB_Uninstall();
@@ -58,8 +59,40 @@ WinBase_M* InitWinBase(Context* context)
     mem_init(module, sizeof(WinBase));
     // store options
     module->NotEraseInstruction = context->NotEraseInstruction;
-
-
+    errno errno = NO_ERROR;
+    for (;;)
+    {
+        if (!initModuleAPI(module, context))
+        {
+            errno = ERR_WIN_BASE_INIT_API;
+            break;
+        }
+        if (!updateModulePointer(module))
+        {
+            errno = ERR_WIN_BASE_UPDATE_PTR;
+            break;
+        }
+        if (!initModuleEnvironment(module, context))
+        {
+            errno = ERR_WIN_BASE_INIT_ENV;
+            break;
+        }
+        break;
+    }
+    eraseModuleMethods(context);
+    if (errno != NO_ERROR)
+    {
+        SetLastErrno(errno);
+        return NULL;
+    }
+    // create method set
+    WinBase_M* method = (WinBase_M*)methodAddr;
+    method->ANSIToUTF16  = GetFuncAddr(&WB_ANSIToUTF16);
+    method->UTF16ToANSI  = GetFuncAddr(&WB_UTF16ToANSI);
+    method->ANSIToUTF16N = GetFuncAddr(&WB_ANSIToUTF16N);
+    method->UTF16ToANSIN = GetFuncAddr(&WB_UTF16ToANSIN);
+    method->Uninstall    = GetFuncAddr(&WB_Uninstall);
+    return method;
 }
 
 static bool initModuleAPI(WinBase* module, Context* context)
@@ -93,3 +126,119 @@ static bool initModuleAPI(WinBase* module, Context* context)
     return true;
 }
 
+// CANNOT merge updateModulePointer and recoverModulePointer
+// to one function with two arguments, otherwise the compiler
+// will generate the incorrect instructions.
+
+static bool updateModulePointer(WinBase* module)
+{
+    bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getModulePointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != MODULE_POINTER)
+        {
+            target++;
+            continue;
+        }
+        *pointer = (uintptr)module;
+        success = true;
+        break;
+    }
+    return success;
+}
+
+static bool recoverModulePointer(WinBase* module)
+{
+    bool success = false;
+    uintptr target = (uintptr)(GetFuncAddr(&getModulePointer));
+    for (uintptr i = 0; i < 64; i++)
+    {
+        uintptr* pointer = (uintptr*)(target);
+        if (*pointer != (uintptr)module)
+        {
+            target++;
+            continue;
+        }
+        *pointer = MODULE_POINTER;
+        success = true;
+        break;
+    }
+    return success;
+}
+
+static bool initModuleEnvironment(WinBase* module, Context* context)
+{
+    module->malloc  = context->mt_malloc;
+    module->calloc  = context->mt_calloc;
+    module->realloc = context->mt_realloc;
+    module->free    = context->mt_free;
+    return true;
+}
+
+static void eraseModuleMethods(Context* context)
+{
+    if (context->NotEraseInstruction)
+    {
+        return;
+    }
+    uintptr begin = (uintptr)(GetFuncAddr(&initModuleAPI));
+    uintptr end   = (uintptr)(GetFuncAddr(&eraseModuleMethods));
+    uintptr size  = end - begin;
+    RandBuffer((byte*)begin, (int64)size);
+}
+
+// updateModulePointer will replace hard encode address to the actual address.
+// Must disable compiler optimize, otherwise updateModulePointer will fail.
+#pragma optimize("", off)
+static WinBase* getModulePointer()
+{
+    uintptr pointer = MODULE_POINTER;
+    return (WinBase*)(pointer);
+}
+#pragma optimize("", on)
+
+__declspec(noinline)
+UTF16 WB_ANSIToUTF16(ANSI s)
+{
+    return WB_ANSIToUTF16N(s, strlen_a(s));
+}
+
+__declspec(noinline)
+ANSI WB_UTF16ToANSI(UTF16 s)
+{
+    return WB_UTF16ToANSIN(s, strlen_w(s));
+}
+
+__declspec(noinline)
+UTF16 WB_ANSIToUTF16N(ANSI s, uint n)
+{
+    WinBase* module = getModulePointer();
+
+}
+
+__declspec(noinline)
+ANSI WB_UTF16ToANSIN(UTF16 s, uint n)
+{
+    WinBase* module = getModulePointer();
+
+}
+
+__declspec(noinline)
+errno WB_Uninstall()
+{
+    WinBase* module = getModulePointer();
+
+    errno errno = NO_ERROR;
+
+    // recover instructions
+    if (module->NotEraseInstruction)
+    {
+        if (!recoverModulePointer(module) && errno == NO_ERROR)
+        {
+            errno = ERR_WIN_BASE_RECOVER_INST;
+        }
+    }
+    return errno;
+}
