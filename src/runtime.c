@@ -316,7 +316,12 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->Argument.EraseAll   = runtime->ArgumentStore->EraseAll;
     // in-memory storage
 
-    // Windows File
+    // WinBase
+    module->WinBase.ANSIToUTF16  = runtime->WinBase->ANSIToUTF16;
+    module->WinBase.UTF16ToANSI  = runtime->WinBase->UTF16ToANSI;
+    module->WinBase.ANSIToUTF16N = runtime->WinBase->ANSIToUTF16N;
+    module->WinBase.UTF16ToANSIN = runtime->WinBase->UTF16ToANSIN;
+    // WinFile
     module->WinFile.ReadFileA  = runtime->WinFile->ReadFileA;
     module->WinFile.ReadFileW  = runtime->WinFile->ReadFileW;
     module->WinFile.WriteFileA = runtime->WinFile->WriteFileA;
