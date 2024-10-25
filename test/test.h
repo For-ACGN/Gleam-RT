@@ -18,6 +18,7 @@ bool TestCrypto();
 bool TestInitRuntime();
 bool TestRuntime_Memory();
 bool TestRuntime_Argument();
+bool TestRuntime_WinBase();
 bool TestRuntime_WinFile();
 bool TestRuntime_WinHTTP();
 bool TestRuntime_Exit();
@@ -36,6 +37,7 @@ static unit tests[] =
     { "InitRuntime",      TestInitRuntime      },
     { "Runtime_Memory",   TestRuntime_Memory   },
     { "Runtime_Argument", TestRuntime_Argument },
+    { "Runtime_WinBase",  TestRuntime_WinBase  },
     { "Runtime_WinFile",  TestRuntime_WinFile  },
     { "Runtime_WinHTTP",  TestRuntime_WinHTTP  },
     { "Runtime_Exit",     TestRuntime_Exit     },
