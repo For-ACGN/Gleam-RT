@@ -11,8 +11,8 @@
 
 typedef UTF16 (*WBANSIToUTF16_t)(ANSI s);
 typedef ANSI  (*WBUTF16ToANSI_t)(UTF16 s);
-typedef UTF16 (*WBANSIToUTF16N_t)(ANSI s, uint n);
-typedef ANSI  (*WBUTF16ToANSIN_t)(UTF16 s, uint n);
+typedef UTF16 (*WBANSIToUTF16N_t)(ANSI s, int n);
+typedef ANSI  (*WBUTF16ToANSIN_t)(UTF16 s, int n);
 
 typedef errno (*WBUninstall_t)();
 
