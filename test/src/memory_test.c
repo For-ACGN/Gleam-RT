@@ -69,7 +69,7 @@ bool TestRuntime_Memory()
         printf_s("failed to recover: 0x%X\n", errno);
         return false;
     }
-    errno = runtime->Core.Sleep(1000);
+    errno = runtime->Core.Sleep(100);
     if (errno != NO_ERROR)
     {
         printf_s("failed to call SleepHR: 0x%X\n", errno);
