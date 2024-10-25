@@ -31,8 +31,14 @@ typedef bool (*GetArgPointer_t)(uint index, void** pointer, uint32* size);
 typedef bool (*EraseArgument_t)(uint index);
 typedef void (*EraseAllArgs_t)();
 
-// about WinFile
+// about WinBase
+// The buffer allocated from methods must call Runtime_M.Memory.Free().
+typedef UTF16 (*ANSIToUTF16_t)(ANSI s);
+typedef ANSI  (*UTF16ToANSI_t)(UTF16 s);
+typedef UTF16 (*ANSIToUTF16N_t)(ANSI s, int n);
+typedef ANSI  (*UTF16ToANSIN_t)(UTF16 s, int n);
 
+// about WinFile
 // The buffer allocated from ReadFile must call Runtime_M.Memory.Free().
 typedef errno (*ReadFileA_t)(LPSTR path, byte** buf, uint* size);
 typedef errno (*ReadFileW_t)(LPWSTR path, byte** buf, uint* size);
@@ -156,6 +162,13 @@ typedef struct {
         EraseArgument_t Erase;
         EraseAllArgs_t  EraseAll;
     } Argument;
+
+    struct {
+        ANSIToUTF16_t  ANSIToUTF16;
+        UTF16ToANSI_t  UTF16ToANSI;
+        ANSIToUTF16N_t ANSIToUTF16N;
+        UTF16ToANSIN_t UTF16ToANSIN;
+    } WinBase;
 
     struct {
         ReadFileA_t  ReadFileA;
