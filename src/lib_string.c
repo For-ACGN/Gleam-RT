@@ -150,11 +150,11 @@ uint strcpy_a(ANSI dst, ANSI src)
     for (;;)
     {
         byte s = *src;
+        *dst = s;
         if (s == 0x00)
         {
             break;
         }
-        *dst = s;
 
         l++;
         dst++;
@@ -170,11 +170,11 @@ uint strcpy_w(UTF16 dst, UTF16 src)
     for (;;)
     {
         uint16 s = *src;
+        *dst = s;
         if (s == 0x0000)
         {
             break;
         }
-        *dst = s;
 
         l++;
         dst++;
@@ -190,11 +190,11 @@ uint strncpy_a(ANSI dst, ANSI src, int64 n)
     for (int64 i = 0; i < n; i++)
     {
         byte s = *src;
+        *dst = s;
         if (s == 0x00)
         {
             break;
         }
-        *dst = s;
 
         l++;
         dst++;
@@ -210,11 +210,11 @@ uint strncpy_w(UTF16 dst, UTF16 src, int64 n)
     for (int64 i = 0; i < n; i++)
     {
         uint16 s = *src;
+        *dst = s;
         if (s == 0x0000)
         {
             break;
         }
-        *dst = s;
 
         l++;
         dst++;
