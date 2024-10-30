@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -48,8 +49,13 @@ func main() {
 		}
 	}
 
+	// for support old operating system
+	tlsConfig := tls.Config{
+		MinVersion: tls.VersionTLS10,
+	}
 	server := http.Server{
-		Addr: addr,
+		Addr:      addr,
+		TLSConfig: &tlsConfig,
 	}
 	fileServer := http.FileServer(http.Dir(dir))
 	handlerFn := func(w http.ResponseWriter, r *http.Request) {
