@@ -57,10 +57,16 @@ hash_api -fmt 64 -conc -func VirtualProtect
 hash_api -fmt 64 -conc -func VirtualQuery
 hash_api -fmt 64 -conc -func VirtualLock
 hash_api -fmt 64 -conc -func VirtualUnlock
-hash_api -fmt 64 -conc -mod msvcrt.dll -func malloc
-hash_api -fmt 64 -conc -mod msvcrt.dll -func calloc
-hash_api -fmt 64 -conc -mod msvcrt.dll -func realloc
-hash_api -fmt 64 -conc -mod msvcrt.dll -func free
+hash_api -fmt 64 -conc -func GetProcessHeap
+hash_api -fmt 64 -conc -func HeapCreate
+hash_api -fmt 64 -conc -func HeapDestroy
+hash_api -fmt 64 -conc -func HeapAlloc
+hash_api -fmt 64 -conc -func HeapReAlloc
+hash_api -fmt 64 -conc -func HeapFree
+hash_api -fmt 64 -conc -mod "msvcrt.dll" -func malloc
+hash_api -fmt 64 -conc -mod "msvcrt.dll" -func calloc
+hash_api -fmt 64 -conc -mod "msvcrt.dll" -func realloc
+hash_api -fmt 64 -conc -mod "msvcrt.dll" -func free
 echo.
 
 echo [Thread Tracker]
@@ -83,8 +89,8 @@ hash_api -fmt 64 -conc -func FindFirstFileW
 hash_api -fmt 64 -conc -func FindFirstFileExA
 hash_api -fmt 64 -conc -func FindFirstFileExW
 hash_api -fmt 64 -conc -func FindClose
-hash_api -fmt 64 -conc -mod ws2_32.dll -func WSAStartup
-hash_api -fmt 64 -conc -mod ws2_32.dll -func WSACleanup
+hash_api -fmt 64 -conc -mod "ws2_32.dll" -func WSAStartup
+hash_api -fmt 64 -conc -mod "ws2_32.dll" -func WSACleanup
 echo.
 
 echo [WinBase Module]
@@ -170,10 +176,16 @@ hash_api -fmt 32 -conc -func VirtualProtect
 hash_api -fmt 32 -conc -func VirtualQuery
 hash_api -fmt 32 -conc -func VirtualLock
 hash_api -fmt 32 -conc -func VirtualUnlock
-hash_api -fmt 32 -conc -mod msvcrt.dll -func malloc
-hash_api -fmt 32 -conc -mod msvcrt.dll -func calloc
-hash_api -fmt 32 -conc -mod msvcrt.dll -func realloc
-hash_api -fmt 32 -conc -mod msvcrt.dll -func free
+hash_api -fmt 32 -conc -func GetProcessHeap
+hash_api -fmt 32 -conc -func HeapCreate
+hash_api -fmt 32 -conc -func HeapDestroy
+hash_api -fmt 32 -conc -func HeapAlloc
+hash_api -fmt 32 -conc -func HeapReAlloc
+hash_api -fmt 32 -conc -func HeapFree
+hash_api -fmt 32 -conc -mod "msvcrt.dll" -func malloc
+hash_api -fmt 32 -conc -mod "msvcrt.dll" -func calloc
+hash_api -fmt 32 -conc -mod "msvcrt.dll" -func realloc
+hash_api -fmt 32 -conc -mod "msvcrt.dll" -func free
 echo.
 
 echo [Thread Tracker]
@@ -196,8 +208,8 @@ hash_api -fmt 32 -conc -func FindFirstFileW
 hash_api -fmt 32 -conc -func FindFirstFileExA
 hash_api -fmt 32 -conc -func FindFirstFileExW
 hash_api -fmt 32 -conc -func FindClose
-hash_api -fmt 32 -conc -mod ws2_32.dll -func WSAStartup
-hash_api -fmt 32 -conc -mod ws2_32.dll -func WSACleanup
+hash_api -fmt 32 -conc -mod "ws2_32.dll" -func WSAStartup
+hash_api -fmt 32 -conc -mod "ws2_32.dll" -func WSACleanup
 echo.
 
 echo [WinBase Module]
