@@ -176,6 +176,11 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->VirtualQuery   = GetFuncAddr(&MT_VirtualQuery);
     module->VirtualLock    = GetFuncAddr(&MT_VirtualLock);
     module->VirtualUnlock  = GetFuncAddr(&MT_VirtualUnlock);
+    module->HeapCreate     = GetFuncAddr(&MT_HeapCreate);
+    module->HeapDestroy    = GetFuncAddr(&MT_HeapDestroy);
+    module->HeapAlloc      = GetFuncAddr(&MT_HeapAlloc);
+    module->HeapReAlloc    = GetFuncAddr(&MT_HeapReAlloc);
+    module->HeapFree       = GetFuncAddr(&MT_HeapFree);
     // methods for runtime
     module->Alloc   = GetFuncAddr(&MT_MemAlloc);
     module->Calloc  = GetFuncAddr(&MT_MemCalloc);
@@ -762,31 +767,31 @@ BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
 __declspec(noinline)
 HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize)
 {
-
+    return NULL;
 }
 
 __declspec(noinline)
 BOOL MT_HeapDestroy(HANDLE hHeap)
 {
-
+    return true;
 }
 
 __declspec(noinline)
 LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
 {
-
+    return NULL;
 }
 
 __declspec(noinline)
 LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
 {
-
+    return NULL;
 }
 
 __declspec(noinline)
 BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 {
-
+    return true;
 }
 
 static bool lock_memory(MemoryTracker* tracker, uintptr address)

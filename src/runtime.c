@@ -1634,14 +1634,7 @@ errno RT_ExitProcess(UINT uExitCode)
     {
         return ERR_RUNTIME_UNLOCK;
     }
-
-    if (err != NO_ERROR)
-    {
-        return err;
-    }
-    // exit current thread
-    runtime->ThreadTracker->Exit();
-    return NO_ERROR;
+    return err;
 }
 
 __declspec(noinline)

@@ -208,16 +208,16 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     // copy encrypted arguments to new memory page
     mem_copy(mem, addr, size);
     // decrypted arguments
-    byte* key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
     byte* data = (byte*)mem;
+    byte* key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
     byte  last = 0xFF;
     uint  keyIdx = 0;
     for (uint32 i = 0; i < size; i++)
     {
         byte b = *data ^ last;
         b ^= *(key + keyIdx);
-        *data = b;
-        last = b;
+        *data = b;  // last = *data;
+        last = b;   // *data = b;
         // update key index
         keyIdx++;
         if (keyIdx >= ARG_CRYPTO_KEY_SIZE)

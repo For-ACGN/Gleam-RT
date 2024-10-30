@@ -370,8 +370,7 @@ __declspec(noinline)
 HANDLE tt_createThread(
     POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
     LPVOID lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId, BOOL track
-)
-{
+){
     ThreadTracker* tracker = getTrackerPointer();
 
     if (!TT_Lock())
