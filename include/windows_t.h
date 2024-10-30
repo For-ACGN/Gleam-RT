@@ -325,6 +325,33 @@ typedef BOOL (*VirtualUnlock_t)
     LPVOID lpAddress, SIZE_T dwSize
 );
 
+typedef HANDLE (*GetProcessHeap_t)();
+
+typedef HANDLE (*HeapCreate_t)
+(
+    DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize
+);
+
+typedef BOOL (*HeapDestroy_t)
+(
+    HANDLE hHeap
+);
+
+typedef LPVOID (*HeapAlloc_t)
+(
+    HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes
+);
+
+typedef LPVOID (*HeapReAlloc_t)
+(
+    HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes
+);
+
+typedef BOOL (*HeapFree_t)
+(
+    HANDLE hHeap, DWORD dwFlags, LPVOID lpMem
+);
+
 typedef HANDLE (*CreateThread_t)
 (
     POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
