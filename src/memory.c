@@ -37,6 +37,12 @@ typedef struct {
     VirtualQuery_t          VirtualQuery;
     VirtualLock_t           VirtualLock;
     VirtualUnlock_t         VirtualUnlock;
+    GetProcessHeap_t        GetProcessHeap;
+    HeapCreate_t            HeapCreate;
+    HeapDestroy_t           HeapDestroy;
+    HeapAlloc_t             HeapAlloc;
+    HeapReAlloc_t           HeapReAlloc;
+    HeapFree_t              HeapFree;
     ReleaseMutex_t          ReleaseMutex;
     WaitForSingleObject_t   WaitForSingleObject;
     FlushInstructionCache_t FlushInstructionCache;
@@ -64,6 +70,11 @@ BOOL   MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old);
 SIZE_T MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length);
 BOOL   MT_VirtualLock(LPVOID address, SIZE_T size);
 BOOL   MT_VirtualUnlock(LPVOID address, SIZE_T size);
+HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize);
+BOOL   MT_HeapDestroy(HANDLE hHeap);
+LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes);
+LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes);
+BOOL   MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem);
 
 // methods for runtime and hooks about msvcrt.dll
 void* MT_MemAlloc(uint size);
@@ -192,12 +203,24 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
         { 0x69E4CD5EB08400FD, 0x648D50E649F8C06E }, // VirtualQuery
         { 0x24AB671FD240FDCB, 0x40A8B468E734C166 }, // VirtualLock
         { 0x5BE15B295B21235B, 0x5E6AFF64FB431502 }, // VirtualUnlock
+        { 0xA9CA8BFA460B3D0E, 0x30FECC3CA9988F6A }, // GetProcessHeap
+        { 0x3CF9F7C4C1B8FD43, 0x34B7FC51484FB2A3 }, // HeapCreate
+        { 0xEBA36FC951FD2B34, 0x59504100D9684B0E }, // HeapDestroy
+        { 0x8D604A3248B6EAFE, 0x496C489A6E3B8ECD }, // HeapAlloc
+        { 0xE04E489AFF9C386C, 0x1A2E6AE0D610549B }, // HeapReAlloc
+        { 0x76F81CD39D7A292A, 0x82332A8834C25FA2 }, // HeapFree
     };
 #elif _WIN32
     {
         { 0x79D75104, 0x92F1D233 }, // VirtualQuery
         { 0x2149FD08, 0x6537772D }, // VirtualLock
         { 0xCE162EEC, 0x5D903E73 }, // VirtualUnlock
+        { 0x758C3172, 0x23E44CDB }, // GetProcessHeap
+        { 0x857D374F, 0x7DC1A133 }, // HeapCreate
+        { 0x87A7067F, 0x5B6BA0B9 }, // HeapDestroy
+        { 0x6E86E11A, 0x692C7E92 }, // HeapAlloc
+        { 0x0E0168E2, 0xFBFF0866 }, // HeapReAlloc
+        { 0x94D5662A, 0x266763A1 }, // HeapFree
     };
 #endif
     for (int i = 0; i < arrlen(list); i++)
@@ -209,9 +232,15 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
         }
         list[i].proc = proc;
     }
-    tracker->VirtualQuery  = list[0].proc;
-    tracker->VirtualLock   = list[1].proc;
-    tracker->VirtualUnlock = list[2].proc;
+    tracker->VirtualQuery   = list[0].proc;
+    tracker->VirtualLock    = list[1].proc;
+    tracker->VirtualUnlock  = list[2].proc;
+    tracker->GetProcessHeap = list[3].proc;
+    tracker->HeapCreate     = list[4].proc;
+    tracker->HeapDestroy    = list[5].proc;
+    tracker->HeapAlloc      = list[6].proc;
+    tracker->HeapReAlloc    = list[7].proc;
+    tracker->HeapFree       = list[8].proc;
 
     tracker->VirtualAlloc          = context->VirtualAlloc;
     tracker->VirtualFree           = context->VirtualFree;
@@ -728,6 +757,36 @@ BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
         return false;
     }
     return success;
+}
+
+__declspec(noinline)
+HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize)
+{
+
+}
+
+__declspec(noinline)
+BOOL MT_HeapDestroy(HANDLE hHeap)
+{
+
+}
+
+__declspec(noinline)
+LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
+{
+
+}
+
+__declspec(noinline)
+LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
+{
+
+}
+
+__declspec(noinline)
+BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
+{
+
 }
 
 static bool lock_memory(MemoryTracker* tracker, uintptr address)
