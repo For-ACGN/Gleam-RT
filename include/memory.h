@@ -26,6 +26,11 @@ typedef struct {
     VirtualQuery_t   VirtualQuery;
     VirtualLock_t    VirtualLock;
     VirtualUnlock_t  VirtualUnlock;
+    HeapCreate_t     HeapCreate;
+    HeapDestroy_t    HeapDestroy;
+    HeapAlloc_t      HeapAlloc;
+    HeapReAlloc_t    HeapReAlloc;
+    HeapFree_t       HeapFree;
 
     MemAlloc_t   Alloc;
     MemCalloc_t  Calloc;
