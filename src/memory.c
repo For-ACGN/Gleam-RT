@@ -805,7 +805,7 @@ HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize
 
     if (!MT_Lock())
     {
-        return false;
+        return NULL;
     }
 
     dbg_log(
@@ -835,7 +835,7 @@ HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize
 
     if (!MT_Unlock())
     {
-        return false;
+        return NULL;
     }
 
     SetLastErrno(lastErr);
@@ -859,12 +859,57 @@ static bool addHeapObject(MemoryTracker* tracker, HANDLE hHeap, uint32 options)
 __declspec(noinline)
 BOOL MT_HeapDestroy(HANDLE hHeap)
 {
-    return true;
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return false;
+    }
+
+    dbg_log("[memory]", "HeapDestroy: 0x%X", hHeap);
+
+    errno lastErr = NO_ERROR;
+    bool  success = false;
+    for (;;)
+    {
+        if (!tracker->HeapDestroy(hHeap))
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        if (!delHeapObject(tracker, hHeap))
+        {
+            break;
+        }
+        success = true;
+        break;
+    }
+
+    if (!MT_Unlock())
+    {
+        return false;
+    }
+
+    SetLastErrno(lastErr);
+    return success;
 }
 
 static bool delHeapObject(MemoryTracker* tracker, HANDLE hHeap)
 {
-
+    List* heaps = &tracker->Heaps;
+    heapObject heap = {
+        .hHeap = hHeap,
+    };
+    uint index;
+    if (!List_Find(heaps, &heap, sizeof(heap.hHeap), &index))
+    {
+        return false;
+    }
+    if (!List_Delete(heaps, index))
+    {
+        return false;
+    }
+    return true;
 }
 
 __declspec(noinline)
