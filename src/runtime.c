@@ -49,6 +49,7 @@ typedef struct {
     VirtualFree_t           VirtualFree;
     VirtualProtect_t        VirtualProtect;
     FlushInstructionCache_t FlushInstructionCache;
+    GetProcessHeap_t        GetProcessHeap;
     SetCurrentDirectoryA_t  SetCurrentDirectoryA;
     SetCurrentDirectoryW_t  SetCurrentDirectoryW;
     CreateMutexA_t          CreateMutexA;
@@ -68,6 +69,7 @@ typedef struct {
     void*  MainMemPage; // store all structures
     void*  Epilogue;    // store shellcode epilogue
     uint32 PageSize;    // for memory management
+    HANDLE hHeap;       // process default heap handle
     HANDLE hMutex;      // global method mutex
 
     // about event handler
@@ -106,6 +108,10 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 void* RT_GetProcAddressByHash(uint hash, uint key, bool hook);
 void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 
+void* RT_Hook_malloc(uint size);
+void* RT_Hook_calloc(uint num, uint size);
+void* RT_Hook_realloc(void* ptr, uint size);
+void  RT_Hook_free(void* ptr);
 BOOL  RT_SetCurrentDirectoryA(LPSTR lpPathName);
 BOOL  RT_SetCurrentDirectoryW(LPWSTR lpPathName);
 void  RT_Sleep(DWORD dwMilliseconds);
@@ -416,6 +422,7 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0xAC150252A6CA3960, 0x12EFAEA421D60C3E }, // VirtualFree
         { 0xEA5B0C76C7946815, 0x8846C203C35DE586 }, // VirtualProtect
         { 0x8172B49F66E495BA, 0x8F0D0796223B56C2 }, // FlushInstructionCache
+        { 0xA9CA8BFA460B3D0E, 0x30FECC3CA9988F6A }, // GetProcessHeap
         { 0x94EC785163801E26, 0xCBF66516D38443F0 }, // SetCurrentDirectoryA
         { 0x7A6FB9987CB1DB85, 0xF6A56D0FD43D9096 }, // SetCurrentDirectoryW
         { 0x31FE697F93D7510C, 0x77C8F05FE04ED22D }, // CreateMutexA
@@ -438,6 +445,7 @@ static bool initRuntimeAPI(Runtime* runtime)
         { 0xF76A2ADE, 0x4D8938BD }, // VirtualFree
         { 0xB2AC456D, 0x2A690F63 }, // VirtualProtect
         { 0x87A2CEE8, 0x42A3C1AF }, // FlushInstructionCache
+        { 0x758C3172, 0x23E44CDB }, // GetProcessHeap
         { 0xBCCEAFB1, 0x99C565BD }, // SetCurrentDirectoryA
         { 0x499657EA, 0x7D23F113 }, // SetCurrentDirectoryW
         { 0x8F5BAED2, 0x43487DC7 }, // CreateMutexA
@@ -469,20 +477,21 @@ static bool initRuntimeAPI(Runtime* runtime)
     runtime->VirtualFree           = list[0x02].proc;
     runtime->VirtualProtect        = list[0x03].proc;
     runtime->FlushInstructionCache = list[0x04].proc;
-    runtime->SetCurrentDirectoryA  = list[0x05].proc;
-    runtime->SetCurrentDirectoryW  = list[0x06].proc;
-    runtime->CreateMutexA          = list[0x07].proc;
-    runtime->ReleaseMutex          = list[0x08].proc;
-    runtime->CreateEventA          = list[0x09].proc;
-    runtime->SetEvent              = list[0x0A].proc;
-    runtime->ResetEvent            = list[0x0B].proc;
-    runtime->CreateWaitableTimerW  = list[0x0C].proc;
-    runtime->SetWaitableTimer      = list[0x0D].proc;
-    runtime->SleepEx               = list[0x0E].proc;
-    runtime->WaitForSingleObject   = list[0x0F].proc;
-    runtime->DuplicateHandle       = list[0x10].proc;
-    runtime->CloseHandle           = list[0x11].proc;
-    runtime->GetProcAddress        = list[0x12].proc;
+    runtime->GetProcessHeap        = list[0x05].proc;
+    runtime->SetCurrentDirectoryA  = list[0x06].proc;
+    runtime->SetCurrentDirectoryW  = list[0x07].proc;
+    runtime->CreateMutexA          = list[0x08].proc;
+    runtime->ReleaseMutex          = list[0x09].proc;
+    runtime->CreateEventA          = list[0x0A].proc;
+    runtime->SetEvent              = list[0x0B].proc;
+    runtime->ResetEvent            = list[0x0C].proc;
+    runtime->CreateWaitableTimerW  = list[0x0D].proc;
+    runtime->SetWaitableTimer      = list[0x0E].proc;
+    runtime->SleepEx               = list[0x0F].proc;
+    runtime->WaitForSingleObject   = list[0x10].proc;
+    runtime->DuplicateHandle       = list[0x11].proc;
+    runtime->CloseHandle           = list[0x12].proc;
+    runtime->GetProcAddress        = list[0x13].proc;
     return true;
 }
 
@@ -534,6 +543,8 @@ static errno initRuntimeEnvironment(Runtime* runtime)
     SYSTEM_INFO sysInfo;
     runtime->GetSystemInfo(&sysInfo);
     runtime->PageSize = sysInfo.PageSize;
+    // get process default heap handle
+    runtime->hHeap = runtime->GetProcessHeap();
     // create global mutex
     HANDLE hMutex = runtime->CreateMutexA(NULL, false, NAME_RT_MUTEX_GLOBAL);
     if (hMutex == NULL)
@@ -770,11 +781,11 @@ static bool initIATHooks(Runtime* runtime)
         { 0xE9ECDC63F6D3DC53, 0x815C2FDFE640307E, memoryTracker->VirtualQuery },
         { 0xDCFB29E5457FC2AC, 0xE730BA5E1DAF71D7, memoryTracker->VirtualLock },
         { 0x6BA2D5251AA73581, 0x74B6BED239151714, memoryTracker->VirtualUnlock },
-        { 0xFFDAAC40C9760BF6, 0x75E3BCA6D545E130, memoryTracker->HeapCreate},
-        { 0xF2B10CAD6B4626E6, 0x14D21E0224A81F33, memoryTracker->HeapDestroy},
-        { 0x2D5BD20546A9F7FF, 0xD1569863116D78AA, memoryTracker->HeapAlloc},
-        { 0x622C7DF56116553C, 0x4545A260B5B4EE4F, memoryTracker->HeapReAlloc},
-        { 0xEB6C5AC538D9CB88, 0x31C1AE2150C892FA, memoryTracker->HeapFree},
+        // { 0xFFDAAC40C9760BF6, 0x75E3BCA6D545E130, memoryTracker->HeapCreate},
+        // { 0xF2B10CAD6B4626E6, 0x14D21E0224A81F33, memoryTracker->HeapDestroy},
+        // { 0x2D5BD20546A9F7FF, 0xD1569863116D78AA, memoryTracker->HeapAlloc},
+        // { 0x622C7DF56116553C, 0x4545A260B5B4EE4F, memoryTracker->HeapReAlloc},
+        // { 0xEB6C5AC538D9CB88, 0x31C1AE2150C892FA, memoryTracker->HeapFree},
         { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, threadTracker->CreateThread },
         { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, threadTracker->ExitThread },
         { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, threadTracker->SuspendThread },
@@ -1426,7 +1437,6 @@ static void* getRuntimeMethods(LPCWSTR module, LPCSTR lpProcName)
 // Hooks in initIATHooks() are all in kernel32.dll.
 static void* getLazyAPIHook(Runtime* runtime, void* proc)
 {
-    MemoryTracker_M*   memoryTracker   = runtime->MemoryTracker;
     ResourceTracker_M* resourceTracker = runtime->ResourceTracker;
 
     typedef struct {
@@ -1435,10 +1445,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
     hook hooks[] =
 #ifdef _WIN64
     {
-        // { 0x4D084BEDB72AB139, 0x0C3B997786E5B372, memoryTracker->Alloc},   // msvcrt.malloc
-        // { 0x608A1F623962E67B, 0xABB120953420F49C, memoryTracker->Calloc},  // msvcrt.calloc
-        // { 0xCDE1ED75FE80407B, 0xC64B380372D117F2, memoryTracker->Realloc}, // msvcrt.realloc
-        // { 0xECC6F0177F0CCDE2, 0x43C1FCC7169E67D3, memoryTracker->Free},    // msvcrt.free
+        // { 0x4D084BEDB72AB139, 0x0C3B997786E5B372, GetFuncAddr(&RT_Hook_malloc)},  // msvcrt.malloc
+        // { 0x608A1F623962E67B, 0xABB120953420F49C, GetFuncAddr(&RT_Hook_calloc)},  // msvcrt.calloc
+        // { 0xCDE1ED75FE80407B, 0xC64B380372D117F2, GetFuncAddr(&RT_Hook_realloc)}, // msvcrt.realloc
+        // { 0xECC6F0177F0CCDE2, 0x43C1FCC7169E67D3, GetFuncAddr(&RT_Hook_free)},    // msvcrt.free
         { 0x94DAFAE03484102D, 0x300F881516DC2FF5, resourceTracker->CreateFileA      },
         { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, resourceTracker->CreateFileW      },
         { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, resourceTracker->FindFirstFileA   },
@@ -1452,10 +1462,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
     };
 #elif _WIN32
     {
-        // { 0xAABF9FB6, 0x16072717, memoryTracker->Alloc},   // msvcrt.malloc
-        // { 0xD34DACA0, 0xD69C094E, memoryTracker->Calloc},  // msvcrt.calloc
-        // { 0x644CBC49, 0x332496CD, memoryTracker->Realloc}, // msvcrt.realloc
-        // { 0xDFACD52A, 0xE56FB206, memoryTracker->Free},    // msvcrt.free
+        { 0xAABF9FB6, 0x16072717, GetFuncAddr(&RT_Hook_malloc)},  // msvcrt.malloc
+        { 0xD34DACA0, 0xD69C094E, GetFuncAddr(&RT_Hook_calloc)},  // msvcrt.calloc
+        { 0x644CBC49, 0x332496CD, GetFuncAddr(&RT_Hook_realloc)}, // msvcrt.realloc
+        { 0xDFACD52A, 0xE56FB206, GetFuncAddr(&RT_Hook_free)},    // msvcrt.free
         { 0x79796D6E, 0x6DBBA55C, resourceTracker->CreateFileA      },
         { 0x0370C4B8, 0x76254EF3, resourceTracker->CreateFileW      },
         { 0x629ADDFA, 0x749D1CC9, resourceTracker->FindFirstFileA   },
@@ -1490,6 +1500,33 @@ static void* replaceToIATHook(Runtime* runtime, void* proc)
         return runtime->IATHooks[i].Hook;
     }
     return proc;
+}
+
+__declspec(noinline)
+void* RT_Hook_malloc(uint size)
+{
+    Runtime* runtime = getRuntimePointer();
+
+    HeapAlloc_t HeapAlloc = runtime->MemoryTracker->HeapAlloc;
+    return HeapAlloc(runtime->hHeap, 0, size);
+}
+
+__declspec(noinline)
+void* RT_Hook_calloc(uint num, uint size)
+{
+    Runtime* runtime = getRuntimePointer();
+}
+
+__declspec(noinline)
+void* RT_Hook_realloc(void* ptr, uint size)
+{
+    Runtime* runtime = getRuntimePointer();
+}
+
+__declspec(noinline)
+void RT_Hook_free(void* ptr)
+{
+    Runtime* runtime = getRuntimePointer();
 }
 
 __declspec(noinline)
