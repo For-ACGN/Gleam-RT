@@ -27,6 +27,23 @@ typedef struct {
 } memPage;
 
 typedef struct {
+    HANDLE hHeap;
+    uint   initSize;
+    uint   maxSize;
+    uint32 options;
+} heapObject;
+
+typedef struct {
+    uintptr address;
+    uint    size;
+    uint32  flags;
+    HANDLE  hHeap;
+
+    byte key[CRYPTO_KEY_SIZE];
+    byte iv [CRYPTO_IV_SIZE];
+} heapBlock;
+
+typedef struct {
     // store options
     bool NotEraseInstruction;
 
@@ -61,6 +78,16 @@ typedef struct {
     List Pages;
     byte PagesKey[CRYPTO_KEY_SIZE];
     byte PagesIV [CRYPTO_IV_SIZE];
+
+    // store private heap objects
+    List Heaps;
+    byte HeapsKey[CRYPTO_KEY_SIZE];
+    byte HeapsIV [CRYPTO_IV_SIZE];
+
+    // store heap blocks
+    List Blocks;
+    byte BlocksKey[CRYPTO_KEY_SIZE];
+    byte BlocksIV[CRYPTO_IV_SIZE];
 } MemoryTracker;
 
 // methods for IAT hooks
@@ -319,11 +346,17 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     };
     List_Init(&tracker->Regions, &ctx, sizeof(memRegion));
     List_Init(&tracker->Pages,   &ctx, sizeof(memPage));
+    List_Init(&tracker->Heaps,   &ctx, sizeof(heapObject));
+    List_Init(&tracker->Blocks,  &ctx, sizeof(heapBlock));
     // set crypto context data
     RandBuffer(tracker->RegionsKey, CRYPTO_KEY_SIZE);
     RandBuffer(tracker->RegionsIV,  CRYPTO_IV_SIZE);
     RandBuffer(tracker->PagesKey,   CRYPTO_KEY_SIZE);
     RandBuffer(tracker->PagesIV,    CRYPTO_IV_SIZE);
+    RandBuffer(tracker->HeapsKey,   CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->HeapsIV,    CRYPTO_IV_SIZE);
+    RandBuffer(tracker->BlocksKey,  CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->BlocksIV,   CRYPTO_IV_SIZE);
     // copy runtime context data
     tracker->PageSize = context->PageSize;
     return true;
@@ -351,6 +384,8 @@ static void cleanTracker(MemoryTracker* tracker)
     }
     List_Free(&tracker->Regions);
     List_Free(&tracker->Pages);
+    List_Free(&tracker->Heaps);
+    List_Free(&tracker->Blocks);
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.
@@ -767,8 +802,48 @@ BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
 __declspec(noinline)
 HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize)
 {
-    return NULL;
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return false;
+    }
+
+    HANDLE hHeap;
+    bool success = false;
+    for (;;)
+    {
+        hHeap = tracker->HeapCreate(flOptions, dwInitialSize, dwMaximumSize);
+        if (hHeap == NULL)
+        {
+            break;
+        }
+        if (!allocPage(tracker, (uintptr)page, size, type, protect))
+        {
+            success = false;
+            break;
+        }
+        break;
+    }
+
+    errno last = GetLastErrno();
+
+    dbg_log("[memory]", "HeapCreate: 0x%zX", hHeap);
+
+    if (!MT_Unlock())
+    {
+        return false;
+    }
+
+    SetLastErrno(last);
+    return hHeap;
 }
+
+bool addHeapObject()
+{
+
+}
+
 
 __declspec(noinline)
 BOOL MT_HeapDestroy(HANDLE hHeap)
