@@ -798,6 +798,77 @@ BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
     return success;
 }
 
+static bool lock_memory(MemoryTracker* tracker, uintptr address)
+{
+    return set_memory_locker(tracker, address, true);
+}
+
+static bool unlock_memory(MemoryTracker* tracker, uintptr address)
+{
+    return set_memory_locker(tracker, address, false);
+}
+
+#pragma optimize("t", on)
+static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock)
+{
+    // search memory regions list
+    register List* regions = &tracker->Regions;
+    register uint  len     = regions->Len;
+    register uint  index   = 0;
+    register memRegion* region;
+
+    // record region size and set locker
+    uint regionSize = 0;
+    bool found = false;
+    for (uint num = 0; num < len; index++)
+    {
+        region = List_Get(regions, index);
+        if (region->address == 0)
+        {
+            continue;
+        }
+        if (region->address != address)
+        {
+            num++;
+            continue;
+        }
+        regionSize = region->size;
+        region->lock = lock;
+        found = true;
+        break;
+    }
+    if (!found || regionSize == 0)
+    {
+        return false;
+    }
+
+    // set memory page locker
+    register uint pageSize = tracker->PageSize;
+    register List* pages   = &tracker->Pages;
+    len   = pages->Len;
+    index = 0;
+    register memPage* page;
+    found = false;
+    for (uint num = 0; num < len; index++)
+    {
+        page = List_Get(pages, index);
+        if (page->address == 0)
+        {
+            continue;
+        }
+        if ((page->address + pageSize <= address) || (page->address >= address + regionSize))
+        {
+            num++;
+            continue;
+        }
+        page->lock = lock;
+        found = true;
+        num++;
+    }
+    return found;
+}
+#pragma optimize("t", off)
+
 __declspec(noinline)
 HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize)
 {
@@ -929,77 +1000,6 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 {
     return true;
 }
-
-static bool lock_memory(MemoryTracker* tracker, uintptr address)
-{
-    return set_memory_locker(tracker, address, true);
-}
-
-static bool unlock_memory(MemoryTracker* tracker, uintptr address)
-{
-    return set_memory_locker(tracker, address, false);
-}
-
-#pragma optimize("t", on)
-static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock)
-{
-    // search memory regions list
-    register List* regions = &tracker->Regions;
-    register uint  len     = regions->Len;
-    register uint  index   = 0;
-    register memRegion* region;
-
-    // record region size and set locker
-    uint regionSize = 0;
-    bool found = false;
-    for (uint num = 0; num < len; index++)
-    {
-        region = List_Get(regions, index);
-        if (region->address == 0)
-        {
-            continue;
-        }
-        if (region->address != address)
-        {
-            num++;
-            continue;
-        }
-        regionSize = region->size;
-        region->lock = lock;
-        found = true;
-        break;
-    }
-    if (!found || regionSize == 0)
-    {
-        return false;
-    }
-
-    // set memory page locker
-    register uint pageSize = tracker->PageSize;
-    register List* pages   = &tracker->Pages;
-    len   = pages->Len;
-    index = 0;
-    register memPage* page;
-    found = false;
-    for (uint num = 0; num < len; index++)
-    {
-        page = List_Get(pages, index);
-        if (page->address == 0)
-        {
-            continue;
-        }
-        if ((page->address + pageSize <= address) || (page->address >= address + regionSize))
-        {
-            num++;
-            continue;
-        }
-        page->lock = lock;
-        found = true;
-        num++;
-    }
-    return found;
-}
-#pragma optimize("t", off)
 
 // replacePageProtect is used to make sure all the page are readable.
 // avoid inadvertently using sensitive permissions.
