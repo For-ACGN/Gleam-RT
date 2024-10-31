@@ -81,7 +81,7 @@ typedef struct {
     HANDLE hThreadEvent; // event handler thread
 
     // IAT hooks about GetProcAddress
-    Hook IATHooks[25];
+    Hook IATHooks[30];
 
     // runtime submodules
     LibraryTracker_M*  LibraryTracker;
@@ -770,6 +770,11 @@ static bool initIATHooks(Runtime* runtime)
         { 0xE9ECDC63F6D3DC53, 0x815C2FDFE640307E, memoryTracker->VirtualQuery },
         { 0xDCFB29E5457FC2AC, 0xE730BA5E1DAF71D7, memoryTracker->VirtualLock },
         { 0x6BA2D5251AA73581, 0x74B6BED239151714, memoryTracker->VirtualUnlock },
+        { 0xFFDAAC40C9760BF6, 0x75E3BCA6D545E130, memoryTracker->HeapCreate},
+        { 0xF2B10CAD6B4626E6, 0x14D21E0224A81F33, memoryTracker->HeapDestroy},
+        { 0x2D5BD20546A9F7FF, 0xD1569863116D78AA, memoryTracker->HeapAlloc},
+        { 0x622C7DF56116553C, 0x4545A260B5B4EE4F, memoryTracker->HeapReAlloc},
+        { 0xEB6C5AC538D9CB88, 0x31C1AE2150C892FA, memoryTracker->HeapFree},
         { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, threadTracker->CreateThread },
         { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, threadTracker->ExitThread },
         { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, threadTracker->SuspendThread },
@@ -798,6 +803,11 @@ static bool initIATHooks(Runtime* runtime)
         { 0xD17B0461, 0xFB4E5DB5, memoryTracker->VirtualQuery },
         { 0x105F3B24, 0x2919B75B, memoryTracker->VirtualLock },
         { 0x78F96542, 0x1FCAE820, memoryTracker->VirtualUnlock },
+        { 0xDEBEFC7A, 0x5430728E, memoryTracker->HeapCreate },
+        { 0x939FB28D, 0x2A9F34C6, memoryTracker->HeapDestroy },
+        { 0x05810867, 0xF2ABDB50, memoryTracker->HeapAlloc },
+        { 0x7A3662A9, 0x71FAAA63, memoryTracker->HeapReAlloc },
+        { 0xDB3AEF73, 0x380DB39D, memoryTracker->HeapFree },
         { 0x20744CA1, 0x4FA1647D, threadTracker->CreateThread },
         { 0xED42C0F0, 0xC59EBA39, threadTracker->ExitThread },
         { 0x133B00D5, 0x48E02627, threadTracker->SuspendThread },
@@ -1425,10 +1435,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
     hook hooks[] =
 #ifdef _WIN64
     {
-        { 0x4D084BEDB72AB139, 0x0C3B997786E5B372, memoryTracker->Alloc},   // msvcrt.malloc
-        { 0x608A1F623962E67B, 0xABB120953420F49C, memoryTracker->Calloc},  // msvcrt.calloc
-        { 0xCDE1ED75FE80407B, 0xC64B380372D117F2, memoryTracker->Realloc}, // msvcrt.realloc
-        { 0xECC6F0177F0CCDE2, 0x43C1FCC7169E67D3, memoryTracker->Free},    // msvcrt.free
+        // { 0x4D084BEDB72AB139, 0x0C3B997786E5B372, memoryTracker->Alloc},   // msvcrt.malloc
+        // { 0x608A1F623962E67B, 0xABB120953420F49C, memoryTracker->Calloc},  // msvcrt.calloc
+        // { 0xCDE1ED75FE80407B, 0xC64B380372D117F2, memoryTracker->Realloc}, // msvcrt.realloc
+        // { 0xECC6F0177F0CCDE2, 0x43C1FCC7169E67D3, memoryTracker->Free},    // msvcrt.free
         { 0x94DAFAE03484102D, 0x300F881516DC2FF5, resourceTracker->CreateFileA      },
         { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, resourceTracker->CreateFileW      },
         { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, resourceTracker->FindFirstFileA   },
@@ -1442,10 +1452,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
     };
 #elif _WIN32
     {
-        { 0xAABF9FB6, 0x16072717, memoryTracker->Alloc},   // msvcrt.malloc
-        { 0xD34DACA0, 0xD69C094E, memoryTracker->Calloc},  // msvcrt.calloc
-        { 0x644CBC49, 0x332496CD, memoryTracker->Realloc}, // msvcrt.realloc
-        { 0xDFACD52A, 0xE56FB206, memoryTracker->Free},    // msvcrt.free
+        // { 0xAABF9FB6, 0x16072717, memoryTracker->Alloc},   // msvcrt.malloc
+        // { 0xD34DACA0, 0xD69C094E, memoryTracker->Calloc},  // msvcrt.calloc
+        // { 0x644CBC49, 0x332496CD, memoryTracker->Realloc}, // msvcrt.realloc
+        // { 0xDFACD52A, 0xE56FB206, memoryTracker->Free},    // msvcrt.free
         { 0x79796D6E, 0x6DBBA55C, resourceTracker->CreateFileA      },
         { 0x0370C4B8, 0x76254EF3, resourceTracker->CreateFileW      },
         { 0x629ADDFA, 0x749D1CC9, resourceTracker->FindFirstFileA   },
