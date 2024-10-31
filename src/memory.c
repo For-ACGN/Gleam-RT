@@ -11,6 +11,8 @@
 #include "memory.h"
 #include "debug.h"
 
+#define HEAP_MARK_SIZE 16
+
 typedef struct {
     uintptr address;
     uint    size;
@@ -65,6 +67,9 @@ typedef struct {
     // runtime data
     uint32 PageSize; // memory page size
     HANDLE hMutex;   // protect data
+    
+    // mark the tracked heap block
+    byte heapMark[HEAP_MARK_SIZE];
 
     // store memory regions
     List Regions;
@@ -337,6 +342,8 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
         return false;
     }
     tracker->hMutex = hMutex;
+    // generate the random heap mark
+    RandBuffer(tracker->heapMark, HEAP_MARK_SIZE);
     // initialize memory region and page list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -381,6 +388,7 @@ static void cleanTracker(MemoryTracker* tracker)
     {
         tracker->CloseHandle(tracker->hMutex);
     }
+    RandBuffer(tracker->heapMark, HEAP_MARK_SIZE);
     List_Free(&tracker->Regions);
     List_Free(&tracker->Pages);
     List_Free(&tracker->Heaps);
@@ -986,7 +994,40 @@ static bool delHeapObject(MemoryTracker* tracker, HANDLE hHeap)
 __declspec(noinline)
 LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
 {
-    return NULL;
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+    dbg_log("[memory]", "HeapAlloc: 0x%X, 0x%zX", hHeap, dwBytes);
+
+    LPVOID address;
+
+    bool success = false;
+    for (;;)
+    {
+        address = tracker->HeapAlloc(hHeap, dwFlags, dwBytes);
+        if (address == NULL)
+        {
+            break;
+        }
+
+        dbg_log("[memory]", "HeapAlloc address: 0x%zX", address);
+
+        // write heap block mark
+        // byte* tail = (byte*)((uintptr)address + dwBytes);
+        // mem_copy(tail, tracker->heapMark, HEAP_MARK_SIZE);
+        success = true;
+        break;
+    }
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+    return address;
 }
 
 __declspec(noinline)
@@ -998,6 +1039,9 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
 __declspec(noinline)
 BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 {
+
+
+
     return true;
 }
 
