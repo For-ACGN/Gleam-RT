@@ -28,15 +28,12 @@ typedef struct {
 
 typedef struct {
     HANDLE hHeap;
-    uint   initSize;
-    uint   maxSize;
     uint32 options;
 } heapObject;
 
 typedef struct {
     uintptr address;
     uint    size;
-    uint32  flags;
     HANDLE  hHeap;
 
     byte key[CRYPTO_KEY_SIZE];
@@ -140,6 +137,8 @@ static void protectPage(MemoryTracker* tracker, uintptr address, uint size, uint
 static bool lock_memory(MemoryTracker* tracker, uintptr address);
 static bool unlock_memory(MemoryTracker* tracker, uintptr address);
 static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock);
+static bool addHeapObject(MemoryTracker* tracker, HANDLE hHeap, uint32 options);
+static bool delHeapObject(MemoryTracker* tracker, HANDLE hHeap);
 
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
@@ -809,46 +808,63 @@ HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize
         return false;
     }
 
+    dbg_log(
+        "[memory]", "HeapCreate: 0x%X, 0x%zX, 0x%zX",
+        flOptions, dwInitialSize, dwMaximumSize
+    );
+
     HANDLE hHeap;
-    bool success = false;
+
+    errno lastErr = NO_ERROR;
+    bool  success = false;
     for (;;)
     {
         hHeap = tracker->HeapCreate(flOptions, dwInitialSize, dwMaximumSize);
         if (hHeap == NULL)
         {
+            lastErr = GetLastErrno();
             break;
         }
-        if (!allocPage(tracker, (uintptr)page, size, type, protect))
+        if (!addHeapObject(tracker, hHeap, flOptions))
         {
-            success = false;
             break;
         }
+        success = true;
         break;
     }
-
-    errno last = GetLastErrno();
-
-    dbg_log("[memory]", "HeapCreate: 0x%zX", hHeap);
 
     if (!MT_Unlock())
     {
         return false;
     }
 
-    SetLastErrno(last);
+    SetLastErrno(lastErr);
     return hHeap;
 }
 
-bool addHeapObject()
+static bool addHeapObject(MemoryTracker* tracker, HANDLE hHeap, uint32 options)
 {
-
+    heapObject heap = {
+        .hHeap   = hHeap,
+        .options = options,
+    };
+    if (!List_Insert(&tracker->Heaps, &heap))
+    {
+        tracker->HeapDestroy(hHeap);
+        return false;
+    }
+    return true;
 }
-
 
 __declspec(noinline)
 BOOL MT_HeapDestroy(HANDLE hHeap)
 {
     return true;
+}
+
+static bool delHeapObject(MemoryTracker* tracker, HANDLE hHeap)
+{
+
 }
 
 __declspec(noinline)
