@@ -1,5 +1,6 @@
 #include "c_types.h"
 #include "windows_t.h"
+#include "msvcrt_t.h"
 #include "rel_addr.h"
 #include "lib_memory.h"
 #include "hash_api.h"
@@ -103,6 +104,16 @@ BOOL   MT_HeapDestroy(HANDLE hHeap);
 LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes);
 LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes);
 BOOL   MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem);
+
+void* MT_msvcrt_malloc(uint size);
+void* MT_msvcrt_calloc(uint num, uint size);
+void* MT_msvcrt_realloc(void* ptr, uint size);
+void  MT_msvcrt_free(void* ptr);
+
+void* MT_ucrtbase_malloc(uint size);
+void* MT_ucrtbase_calloc(uint num, uint size);
+void* MT_ucrtbase_realloc(void* ptr, uint size);
+void  MT_ucrtbase_free(void* ptr);
 
 // methods for runtime and hooks about msvcrt.dll
 void* MT_MemAlloc(uint size);
@@ -212,6 +223,10 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->HeapAlloc      = GetFuncAddr(&MT_HeapAlloc);
     module->HeapReAlloc    = GetFuncAddr(&MT_HeapReAlloc);
     module->HeapFree       = GetFuncAddr(&MT_HeapFree);
+    module->msvcrt_malloc  = GetFuncAddr(&MT_msvcrt_malloc);
+    module->msvcrt_calloc  = GetFuncAddr(&MT_msvcrt_calloc);
+    module->msvcrt_realloc = GetFuncAddr(&MT_msvcrt_realloc);
+    module->msvcrt_free    = GetFuncAddr(&MT_msvcrt_free);
     // methods for runtime
     module->Alloc   = GetFuncAddr(&MT_MemAlloc);
     module->Calloc  = GetFuncAddr(&MT_MemCalloc);
@@ -1117,6 +1132,110 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 
     SetLastErrno(lastErr);
     return success;
+}
+
+// 0xFD7DFE823F8533B7, 0xBEC6D4C78D168493 // malloc
+// 0x286555ECFD620100, 0x58661E2CD9AFD903 // calloc
+// 0x73C74D96B0628E11, 0x6B60E812280A1A13 // realloc
+// 0xDBBA3D4DD22EE2C3, 0xF050775619325CB5 // free
+// 
+// 0x60E86880, 0xC8186851 // malloc
+// 0x5F5752CD, 0x9FEEAFA7 // calloc
+// 0x02ECACC6, 0x7CEA5567 // realloc
+// 0x9235925D, 0x6A110995 // free
+
+__declspec(noinline) 
+void* MT_msvcrt_malloc(uint size)
+{
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+#ifdef _WIN64
+    msvcrt_malloc_t malloc = FindAPI(0xFD7DFE823F8533B7, 0xBEC6D4C78D168493);
+#elif _WIN32
+    msvcrt_malloc_t malloc = FindAPI(0x60E86880, 0xC8186851);
+#endif
+    if (malloc == NULL)
+    {
+        return NULL;
+    }
+
+    void* address = NULL;
+
+    errno lastErr = NO_ERROR;
+    bool  success = false;
+    for (;;)
+    {
+        address = malloc(size + sizeof(uint));
+        if (address == NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        // // write heap block mark
+        uint* tail = (uint*)((uintptr)address + size);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        // update counter
+        tracker->NumHeaps++;
+        success = true;
+        break;
+    }
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+
+    dbg_log("[memory]", "msvcrt malloc: 0x%zX, %zu", address, size);
+
+    SetLastErrno(lastErr);
+    return address;
+}
+
+__declspec(noinline)
+void* MT_msvcrt_calloc(uint num, uint size)
+{
+    dbg_log("[memory]", "calloc num: %zu, size: %zu", num, size);
+}
+
+__declspec(noinline)
+void* MT_msvcrt_realloc(void* ptr, uint size)
+{
+    dbg_log("[memory]", "realloc ptr: 0x%zX, size: %zu", ptr, size);
+}
+
+__declspec(noinline)
+void MT_msvcrt_free(void* ptr)
+{
+    dbg_log("[memory]", "free ptr: 0x%zX", ptr);
+}
+
+__declspec(noinline)
+void* MT_ucrtbase_malloc(uint size)
+{
+
+}
+
+__declspec(noinline)
+void* MT_ucrtbase_calloc(uint num, uint size)
+{
+
+}
+
+__declspec(noinline)
+void* MT_ucrtbase_realloc(void* ptr, uint size)
+{
+
+}
+
+__declspec(noinline)
+void MT_ucrtbase_free(void* ptr)
+{
+
 }
 
 // replacePageProtect is used to make sure all the page are readable.
