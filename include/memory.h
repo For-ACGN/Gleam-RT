@@ -3,6 +3,7 @@
 
 #include "c_types.h"
 #include "windows_t.h"
+#include "msvcrt_t.h"
 #include "context.h"
 #include "errno.h"
 
@@ -31,6 +32,10 @@ typedef struct {
     HeapAlloc_t      HeapAlloc;
     HeapReAlloc_t    HeapReAlloc;
     HeapFree_t       HeapFree;
+    msvcrt_malloc_t  msvcrt_malloc;
+    msvcrt_calloc_t  msvcrt_calloc;
+    msvcrt_realloc_t msvcrt_realloc;
+    msvcrt_free_t    msvcrt_free;
 
     MemAlloc_t   Alloc;
     MemCalloc_t  Calloc;
