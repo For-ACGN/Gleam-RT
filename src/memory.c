@@ -11,8 +11,6 @@
 #include "memory.h"
 #include "debug.h"
 
-#define HEAP_MARK_SIZE 16
-
 typedef struct {
     uintptr address;
     uint    size;
@@ -69,7 +67,7 @@ typedef struct {
     HANDLE hMutex;   // protect data
     
     // mark the tracked heap block
-    byte heapMark[HEAP_MARK_SIZE];
+    uint heapMark;
 
     // store memory regions
     List Regions;
@@ -144,6 +142,7 @@ static bool unlock_memory(MemoryTracker* tracker, uintptr address);
 static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock);
 static bool addHeapObject(MemoryTracker* tracker, HANDLE hHeap, uint32 options);
 static bool delHeapObject(MemoryTracker* tracker, HANDLE hHeap);
+static uint calcHeapMark(uint mark, uintptr addr);
 
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
@@ -343,7 +342,7 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     }
     tracker->hMutex = hMutex;
     // generate the random heap mark
-    RandBuffer(tracker->heapMark, HEAP_MARK_SIZE);
+    tracker->heapMark = RandUint((uint64)hMutex);
     // initialize memory region and page list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -388,7 +387,6 @@ static void cleanTracker(MemoryTracker* tracker)
     {
         tracker->CloseHandle(tracker->hMutex);
     }
-    RandBuffer(tracker->heapMark, HEAP_MARK_SIZE);
     List_Free(&tracker->Regions);
     List_Free(&tracker->Pages);
     List_Free(&tracker->Heaps);
@@ -991,6 +989,12 @@ static bool delHeapObject(MemoryTracker* tracker, HANDLE hHeap)
     return true;
 }
 
+// +-------------+-------------+-------------+
+// | heap header | user buffer | random mark |
+// +-------------+-------------+-------------+
+// |     var     |     var     |     uint    |
+// +-------------+-------------+-------------+
+
 __declspec(noinline)
 LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
 {
@@ -1001,33 +1005,36 @@ LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
         return NULL;
     }
 
-    dbg_log("[memory]", "HeapAlloc: 0x%X, 0x%zX", hHeap, dwBytes);
-
     LPVOID address;
 
     bool success = false;
     for (;;)
     {
-        address = tracker->HeapAlloc(hHeap, dwFlags, dwBytes);
+        address = tracker->HeapAlloc(hHeap, dwFlags, dwBytes+sizeof(uint));
         if (address == NULL)
         {
             break;
         }
-
-        dbg_log("[memory]", "HeapAlloc address: 0x%zX", address);
-
         // write heap block mark
-        // byte* tail = (byte*)((uintptr)address + dwBytes);
-        // mem_copy(tail, tracker->heapMark, HEAP_MARK_SIZE);
+        uint* tail = (uint*)((uintptr)address + dwBytes);
+        *tail = calcHeapMark(tracker->heapMark, (uintptr)address);
         success = true;
         break;
     }
+
+    dbg_log("[memory]", "HeapAlloc: 0x%zX, 0x%zX", address, dwBytes);
 
     if (!MT_Unlock())
     {
         return NULL;
     }
     return address;
+}
+
+static uint calcHeapMark(uint mark, uintptr addr)
+{
+    mark = XORShift(mark ^ addr);
+    return XORShift(mark);
 }
 
 __declspec(noinline)
@@ -1039,9 +1046,6 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
 __declspec(noinline)
 BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 {
-
-
-
     return true;
 }
 
