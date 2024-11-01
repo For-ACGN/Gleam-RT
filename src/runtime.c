@@ -781,11 +781,11 @@ static bool initIATHooks(Runtime* runtime)
         { 0xE9ECDC63F6D3DC53, 0x815C2FDFE640307E, memoryTracker->VirtualQuery },
         { 0xDCFB29E5457FC2AC, 0xE730BA5E1DAF71D7, memoryTracker->VirtualLock },
         { 0x6BA2D5251AA73581, 0x74B6BED239151714, memoryTracker->VirtualUnlock },
-        // { 0xFFDAAC40C9760BF6, 0x75E3BCA6D545E130, memoryTracker->HeapCreate},
-        // { 0xF2B10CAD6B4626E6, 0x14D21E0224A81F33, memoryTracker->HeapDestroy},
-        // { 0x2D5BD20546A9F7FF, 0xD1569863116D78AA, memoryTracker->HeapAlloc},
-        // { 0x622C7DF56116553C, 0x4545A260B5B4EE4F, memoryTracker->HeapReAlloc},
-        // { 0xEB6C5AC538D9CB88, 0x31C1AE2150C892FA, memoryTracker->HeapFree},
+        { 0xFFDAAC40C9760BF6, 0x75E3BCA6D545E130, memoryTracker->HeapCreate},
+        { 0xF2B10CAD6B4626E6, 0x14D21E0224A81F33, memoryTracker->HeapDestroy},
+        { 0x2D5BD20546A9F7FF, 0xD1569863116D78AA, memoryTracker->HeapAlloc},
+        { 0x622C7DF56116553C, 0x4545A260B5B4EE4F, memoryTracker->HeapReAlloc},
+        { 0xEB6C5AC538D9CB88, 0x31C1AE2150C892FA, memoryTracker->HeapFree},
         { 0x84AC57FA4D95DE2E, 0x5FF86AC14A334443, threadTracker->CreateThread },
         { 0xA6E10FF27A1085A8, 0x24815A68A9695B16, threadTracker->ExitThread },
         { 0x82ACE4B5AAEB22F1, 0xF3132FCE3AC7AD87, threadTracker->SuspendThread },
@@ -1437,6 +1437,7 @@ static void* getRuntimeMethods(LPCWSTR module, LPCSTR lpProcName)
 // Hooks in initIATHooks() are all in kernel32.dll.
 static void* getLazyAPIHook(Runtime* runtime, void* proc)
 {
+    MemoryTracker_M*   memoryTracker   = runtime->MemoryTracker;
     ResourceTracker_M* resourceTracker = runtime->ResourceTracker;
 
     typedef struct {
@@ -1445,7 +1446,7 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
     hook hooks[] =
 #ifdef _WIN64
     {
-        // { 0x4D084BEDB72AB139, 0x0C3B997786E5B372, GetFuncAddr(&RT_Hook_malloc)},  // msvcrt.malloc
+        { 0x4D084BEDB72AB139, 0x0C3B997786E5B372, memoryTracker->msvcrt_malloc}, // msvcrt.malloc
         // { 0x608A1F623962E67B, 0xABB120953420F49C, GetFuncAddr(&RT_Hook_calloc)},  // msvcrt.calloc
         // { 0xCDE1ED75FE80407B, 0xC64B380372D117F2, GetFuncAddr(&RT_Hook_realloc)}, // msvcrt.realloc
         // { 0xECC6F0177F0CCDE2, 0x43C1FCC7169E67D3, GetFuncAddr(&RT_Hook_free)},    // msvcrt.free
@@ -1462,10 +1463,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
     };
 #elif _WIN32
     {
-        { 0xAABF9FB6, 0x16072717, GetFuncAddr(&RT_Hook_malloc)},  // msvcrt.malloc
-        { 0xD34DACA0, 0xD69C094E, GetFuncAddr(&RT_Hook_calloc)},  // msvcrt.calloc
-        { 0x644CBC49, 0x332496CD, GetFuncAddr(&RT_Hook_realloc)}, // msvcrt.realloc
-        { 0xDFACD52A, 0xE56FB206, GetFuncAddr(&RT_Hook_free)},    // msvcrt.free
+        { 0xD15ACBB7, 0x2881CB25, memoryTracker->msvcrt_malloc }, // msvcrt.malloc
+        // { 0xD34DACA0, 0xD69C094E, GetFuncAddr(&RT_Hook_calloc)},  // msvcrt.calloc
+        // { 0x644CBC49, 0x332496CD, GetFuncAddr(&RT_Hook_realloc)}, // msvcrt.realloc
+        // { 0xDFACD52A, 0xE56FB206, GetFuncAddr(&RT_Hook_free)},    // msvcrt.free
         { 0x79796D6E, 0x6DBBA55C, resourceTracker->CreateFileA      },
         { 0x0370C4B8, 0x76254EF3, resourceTracker->CreateFileW      },
         { 0x629ADDFA, 0x749D1CC9, resourceTracker->FindFirstFileA   },
