@@ -66,8 +66,9 @@ typedef struct {
     uint32 PageSize; // memory page size
     HANDLE hMutex;   // protect data
     
-    // mark the tracked heap block
-    uint heapMark;
+    // tracke heap block
+    uint HeapMark;
+    uint NumHeaps;
 
     // store memory regions
     List Regions;
@@ -85,7 +86,7 @@ typedef struct {
     byte HeapsIV [CRYPTO_IV_SIZE];
 
     // store heap blocks
-    List Blocks;
+    List Blocks;   // TODO delete ?
     byte BlocksKey[CRYPTO_KEY_SIZE];
     byte BlocksIV[CRYPTO_IV_SIZE];
 } MemoryTracker;
@@ -342,7 +343,7 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     }
     tracker->hMutex = hMutex;
     // generate the random heap mark
-    tracker->heapMark = RandUint((uint64)hMutex);
+    tracker->HeapMark = RandUint((uint64)hMutex);
     // initialize memory region and page list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -1017,7 +1018,9 @@ LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
         }
         // write heap block mark
         uint* tail = (uint*)((uintptr)address + dwBytes);
-        *tail = calcHeapMark(tracker->heapMark, (uintptr)address);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        // update counter
+        tracker->NumHeaps++;
         success = true;
         break;
     }
@@ -1040,13 +1043,80 @@ static uint calcHeapMark(uint mark, uintptr addr)
 __declspec(noinline)
 LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
 {
-    return NULL;
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+    LPVOID address;
+
+    bool success = false;
+    for (;;)
+    {
+        address = tracker->HeapReAlloc(hHeap, dwFlags, lpMem, dwBytes + sizeof(uint));
+        if (address == NULL)
+        {
+            break;
+        }
+        // write heap block mark
+        uint* tail = (uint*)((uintptr)address + dwBytes);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        // update counter
+        if (lpMem == NULL)
+        {
+            tracker->NumHeaps++;
+        }
+        success = true;
+        break;
+    }
+
+    dbg_log("[memory]", "HeapReAlloc: 0x%zX, 0x%zX", address, dwBytes);
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+    return address;
 }
 
 __declspec(noinline)
 BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 {
-    return true;
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return false;
+    }
+
+    errno lastErr = NO_ERROR;
+    bool  success = false;
+    for (;;)
+    {
+        if (!tracker->HeapFree(hHeap, dwFlags, lpMem))
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        if (lpMem != NULL)
+        {
+            tracker->NumHeaps--;
+        }
+        success = true;
+        break;
+    }
+
+    dbg_log("[memory]", "HeapFree: 0x%zX", lpMem);
+
+    if (!MT_Unlock())
+    {
+        return false;
+    }
+
+    SetLastErrno(lastErr);
+    return success;
 }
 
 // replacePageProtect is used to make sure all the page are readable.
