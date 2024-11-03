@@ -105,15 +105,15 @@ LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes);
 LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes);
 BOOL   MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem);
 
-void* MT_msvcrt_malloc(uint size);
-void* MT_msvcrt_calloc(uint num, uint size);
-void* MT_msvcrt_realloc(void* ptr, uint size);
-void  MT_msvcrt_free(void* ptr);
+void* __cdecl MT_msvcrt_malloc(uint size);
+void* __cdecl MT_msvcrt_calloc(uint num, uint size);
+void* __cdecl MT_msvcrt_realloc(void* ptr, uint size);
+void  __cdecl MT_msvcrt_free(void* ptr);
 
-void* MT_ucrtbase_malloc(uint size);
-void* MT_ucrtbase_calloc(uint num, uint size);
-void* MT_ucrtbase_realloc(void* ptr, uint size);
-void  MT_ucrtbase_free(void* ptr);
+void* __cdecl MT_ucrtbase_malloc(uint size);
+void* __cdecl MT_ucrtbase_calloc(uint num, uint size);
+void* __cdecl MT_ucrtbase_realloc(void* ptr, uint size);
+void  __cdecl MT_ucrtbase_free(void* ptr);
 
 // methods for runtime and hooks about msvcrt.dll
 void* MT_MemAlloc(uint size);
@@ -1145,7 +1145,7 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 // 0x9235925D, 0x6A110995 // free
 
 __declspec(noinline) 
-void* MT_msvcrt_malloc(uint size)
+void* __cdecl MT_msvcrt_malloc(uint size)
 {
     MemoryTracker* tracker = getTrackerPointer();
 
@@ -1164,7 +1164,7 @@ void* MT_msvcrt_malloc(uint size)
         return NULL;
     }
 
-    void* address = NULL;
+    void* address;
 
     errno lastErr = NO_ERROR;
     bool  success = false;
@@ -1185,55 +1185,55 @@ void* MT_msvcrt_malloc(uint size)
         break;
     }
 
+    dbg_log("[memory]", "msvcrt malloc: 0x%zX, %zu", address, size);
+
     if (!MT_Unlock())
     {
         return NULL;
     }
-
-    dbg_log("[memory]", "msvcrt malloc: 0x%zX, %zu", address, size);
 
     SetLastErrno(lastErr);
     return address;
 }
 
 __declspec(noinline)
-void* MT_msvcrt_calloc(uint num, uint size)
+void* __cdecl MT_msvcrt_calloc(uint num, uint size)
 {
     dbg_log("[memory]", "calloc num: %zu, size: %zu", num, size);
 }
 
 __declspec(noinline)
-void* MT_msvcrt_realloc(void* ptr, uint size)
+void* __cdecl MT_msvcrt_realloc(void* ptr, uint size)
 {
     dbg_log("[memory]", "realloc ptr: 0x%zX, size: %zu", ptr, size);
 }
 
 __declspec(noinline)
-void MT_msvcrt_free(void* ptr)
+void __cdecl MT_msvcrt_free(void* ptr)
 {
     dbg_log("[memory]", "free ptr: 0x%zX", ptr);
 }
 
 __declspec(noinline)
-void* MT_ucrtbase_malloc(uint size)
+void* __cdecl MT_ucrtbase_malloc(uint size)
 {
 
 }
 
 __declspec(noinline)
-void* MT_ucrtbase_calloc(uint num, uint size)
+void* __cdecl MT_ucrtbase_calloc(uint num, uint size)
 {
 
 }
 
 __declspec(noinline)
-void* MT_ucrtbase_realloc(void* ptr, uint size)
+void* __cdecl MT_ucrtbase_realloc(void* ptr, uint size)
 {
 
 }
 
 __declspec(noinline)
-void MT_ucrtbase_free(void* ptr)
+void __cdecl MT_ucrtbase_free(void* ptr)
 {
 
 }
