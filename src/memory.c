@@ -1144,22 +1144,22 @@ void* __cdecl MT_msvcrt_malloc(uint size)
         return NULL;
     }
 
-#ifdef _WIN64
-    msvcrt_malloc_t malloc = FindAPI(0xFD7DFE823F8533B7, 0xBEC6D4C78D168493);
-#elif _WIN32
-    msvcrt_malloc_t malloc = FindAPI(0x60E86880, 0xC8186851);
-#endif
-    if (malloc == NULL)
-    {
-        return NULL;
-    }
-
-    void* address;
-
+    void* address = NULL;
     errno lastErr = NO_ERROR;
     bool  success = false;
     for (;;)
     {
+        msvcrt_malloc_t malloc;
+    #ifdef _WIN64
+        malloc = FindAPI(0xFD7DFE823F8533B7, 0xBEC6D4C78D168493);
+    #elif _WIN32
+        malloc = FindAPI(0x60E86880, 0xC8186851);
+    #endif
+        if (malloc == NULL)
+        {
+            lastErr = ERR_MEMORY_API_NOT_FOUND;
+            break;
+        }
         if (size == 0)
         {
             address = malloc(size);
@@ -1203,22 +1203,22 @@ void* __cdecl MT_msvcrt_calloc(uint num, uint size)
         return NULL;
     }
 
-#ifdef _WIN64
-    msvcrt_calloc_t calloc = FindAPI(0x286555ECFD620100, 0x58661E2CD9AFD903);
-#elif _WIN32
-    msvcrt_calloc_t calloc = FindAPI(0x5F5752CD, 0x9FEEAFA7);
-#endif
-    if (calloc == NULL)
-    {
-        return NULL;
-    }
-
-    void* address;
-
+    void* address = NULL;
     errno lastErr = NO_ERROR;
     bool  success = false;
     for (;;)
     {
+        msvcrt_calloc_t calloc;
+    #ifdef _WIN64
+        calloc = FindAPI(0x286555ECFD620100, 0x58661E2CD9AFD903);
+    #elif _WIN32
+        calloc = FindAPI(0x5F5752CD, 0x9FEEAFA7);
+    #endif
+        if (calloc == NULL)
+        {
+            lastErr = ERR_MEMORY_API_NOT_FOUND;
+            break;
+        }
         if (size == 0)
         {
             address = calloc(num, size);
@@ -1262,22 +1262,22 @@ void* __cdecl MT_msvcrt_realloc(void* ptr, uint size)
         return NULL;
     }
 
-#ifdef _WIN64
-    msvcrt_realloc_t realloc = FindAPI(0x73C74D96B0628E11, 0x6B60E812280A1A13);
-#elif _WIN32
-    msvcrt_realloc_t realloc = FindAPI(0x02ECACC6, 0x7CEA5567);
-#endif
-    if (realloc == NULL)
-    {
-        return NULL;
-    }
-
-    void* address;
-
+    void* address = NULL;
     errno lastErr = NO_ERROR;
     bool  success = false;
     for (;;)
     {
+        msvcrt_realloc_t realloc;
+    #ifdef _WIN64
+        realloc = FindAPI(0x73C74D96B0628E11, 0x6B60E812280A1A13);
+    #elif _WIN32
+        realloc = FindAPI(0x02ECACC6, 0x7CEA5567);
+    #endif
+        if (realloc == NULL)
+        {
+            lastErr = ERR_MEMORY_API_NOT_FOUND;
+            break;
+        }
         if (size == 0)
         {
             address = realloc(ptr, size);
@@ -1321,19 +1321,20 @@ void __cdecl MT_msvcrt_free(void* ptr)
         return;
     }
 
-#ifdef _WIN64
-    msvcrt_free_t free = FindAPI(0xDBBA3D4DD22EE2C3, 0xF050775619325CB5);
-#elif _WIN32
-    msvcrt_free_t free = FindAPI(0x9235925D, 0x6A110995);
-#endif
-    if (free == NULL)
-    {
-        return;
-    }
-
     errno lastErr = NO_ERROR;
     for (;;)
     {
+        msvcrt_free_t free;
+    #ifdef _WIN64
+        free = FindAPI(0xDBBA3D4DD22EE2C3, 0xF050775619325CB5);
+    #elif _WIN32
+        free = FindAPI(0x9235925D, 0x6A110995);
+    #endif
+        if (free == NULL)
+        {
+            lastErr = ERR_MEMORY_API_NOT_FOUND;
+            break;
+        }
         free(ptr);
         lastErr = GetLastErrno();
         if (ptr == NULL)
@@ -1351,6 +1352,7 @@ void __cdecl MT_msvcrt_free(void* ptr)
     {
         return;
     }
+
     SetLastErrno(lastErr);
 }
 
