@@ -1446,10 +1446,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
     hook hooks[] =
 #ifdef _WIN64
     {
-        { 0x4D084BEDB72AB139, 0x0C3B997786E5B372, memoryTracker->msvcrt_malloc}, // msvcrt.malloc
-        // { 0x608A1F623962E67B, 0xABB120953420F49C, GetFuncAddr(&RT_Hook_calloc)},  // msvcrt.calloc
-        // { 0xCDE1ED75FE80407B, 0xC64B380372D117F2, GetFuncAddr(&RT_Hook_realloc)}, // msvcrt.realloc
-        // { 0xECC6F0177F0CCDE2, 0x43C1FCC7169E67D3, GetFuncAddr(&RT_Hook_free)},    // msvcrt.free
+        { 0x4D084BEDB72AB139, 0x0C3B997786E5B372, memoryTracker->msvcrt_malloc      },
+        { 0x608A1F623962E67B, 0xABB120953420F49C, memoryTracker->msvcrt_calloc      },
+        { 0xCDE1ED75FE80407B, 0xC64B380372D117F2, memoryTracker->msvcrt_realloc     },
+        { 0xECC6F0177F0CCDE2, 0x43C1FCC7169E67D3, memoryTracker->msvcrt_free        },
         { 0x94DAFAE03484102D, 0x300F881516DC2FF5, resourceTracker->CreateFileA      },
         { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, resourceTracker->CreateFileW      },
         { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, resourceTracker->FindFirstFileA   },
@@ -1463,10 +1463,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
     };
 #elif _WIN32
     {
-        { 0xD15ACBB7, 0x2881CB25, memoryTracker->msvcrt_malloc }, // msvcrt.malloc
-        // { 0xD34DACA0, 0xD69C094E, GetFuncAddr(&RT_Hook_calloc)},  // msvcrt.calloc
-        // { 0x644CBC49, 0x332496CD, GetFuncAddr(&RT_Hook_realloc)}, // msvcrt.realloc
-        // { 0xDFACD52A, 0xE56FB206, GetFuncAddr(&RT_Hook_free)},    // msvcrt.free
+        { 0xD15ACBB7, 0x2881CB25, memoryTracker->msvcrt_malloc      },
+        { 0xD34DACA0, 0xD69C094E, memoryTracker->msvcrt_calloc      },
+        { 0x644CBC49, 0x332496CD, memoryTracker->msvcrt_realloc     },
+        { 0xDFACD52A, 0xE56FB206, memoryTracker->msvcrt_free        },
         { 0x79796D6E, 0x6DBBA55C, resourceTracker->CreateFileA      },
         { 0x0370C4B8, 0x76254EF3, resourceTracker->CreateFileW      },
         { 0x629ADDFA, 0x749D1CC9, resourceTracker->FindFirstFileA   },
@@ -2234,6 +2234,7 @@ errno RT_Exit()
     return err;
 }
 
+// TODO replace to xorshift
 __declspec(noinline)
 static void eraseMemory(uintptr address, uintptr size)
 {
