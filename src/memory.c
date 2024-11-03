@@ -1134,16 +1134,6 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
     return success;
 }
 
-// 0xFD7DFE823F8533B7, 0xBEC6D4C78D168493 // malloc
-// 0x286555ECFD620100, 0x58661E2CD9AFD903 // calloc
-// 0x73C74D96B0628E11, 0x6B60E812280A1A13 // realloc
-// 0xDBBA3D4DD22EE2C3, 0xF050775619325CB5 // free
-// 
-// 0x60E86880, 0xC8186851 // malloc
-// 0x5F5752CD, 0x9FEEAFA7 // calloc
-// 0x02ECACC6, 0x7CEA5567 // realloc
-// 0x9235925D, 0x6A110995 // free
-
 __declspec(noinline) 
 void* __cdecl MT_msvcrt_malloc(uint size)
 {
@@ -1173,6 +1163,7 @@ void* __cdecl MT_msvcrt_malloc(uint size)
         if (size == 0)
         {
             address = malloc(size);
+            lastErr = GetLastErrno();
             success = true;
             break;
         }
@@ -1231,6 +1222,7 @@ void* __cdecl MT_msvcrt_calloc(uint num, uint size)
         if (size == 0)
         {
             address = calloc(num, size);
+            lastErr = GetLastErrno();
             success = true;
             break;
         }
@@ -1249,7 +1241,7 @@ void* __cdecl MT_msvcrt_calloc(uint num, uint size)
         break;
     }
 
-    dbg_log("[memory]", "msvcrt calloc: 0x%zX, num: %zu, size: %zu", num, size);
+    dbg_log("[memory]", "msvcrt calloc: 0x%zX, num: %zu size: %zu", num, size);
 
     if (!MT_Unlock())
     {
@@ -1263,31 +1255,121 @@ void* __cdecl MT_msvcrt_calloc(uint num, uint size)
 __declspec(noinline)
 void* __cdecl MT_msvcrt_realloc(void* ptr, uint size)
 {
-    dbg_log("[memory]", "msvcrt realloc ptr: 0x%zX, size: %zu", ptr, size);
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+#ifdef _WIN64
+    msvcrt_realloc_t realloc = FindAPI(0x73C74D96B0628E11, 0x6B60E812280A1A13);
+#elif _WIN32
+    msvcrt_realloc_t realloc = FindAPI(0x02ECACC6, 0x7CEA5567);
+#endif
+    if (realloc == NULL)
+    {
+        return NULL;
+    }
+
+    void* address;
+
+    errno lastErr = NO_ERROR;
+    bool  success = false;
+    for (;;)
+    {
+        if (size == 0)
+        {
+            address = realloc(ptr, size);
+            lastErr = GetLastErrno();
+            success = true;
+            break;
+        }
+        address = realloc(ptr, size + sizeof(uint));
+        if (address == NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        // write heap block mark
+        uint* tail = (uint*)((uintptr)address + size);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        // update counter
+        tracker->NumHeaps++;
+        success = true;
+        break;
+    }
+
+    dbg_log("[memory]", "msvcrt realloc: 0x%zX, ptr: 0x%zX size: %zu", address, ptr, size);
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+
+    SetLastErrno(lastErr);
+    return address;
 }
 
 __declspec(noinline)
 void __cdecl MT_msvcrt_free(void* ptr)
 {
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return;
+    }
+
+#ifdef _WIN64
+    msvcrt_free_t free = FindAPI(0xDBBA3D4DD22EE2C3, 0xF050775619325CB5);
+#elif _WIN32
+    msvcrt_free_t free = FindAPI(0x9235925D, 0x6A110995);
+#endif
+    if (free == NULL)
+    {
+        return;
+    }
+
+    errno lastErr = NO_ERROR;
+    for (;;)
+    {
+        free(ptr);
+        lastErr = GetLastErrno();
+        if (ptr == NULL)
+        {
+            break;
+        }
+        // update counter
+        tracker->NumHeaps--;
+        break;
+    }
+
     dbg_log("[memory]", "msvcrt free ptr: 0x%zX", ptr);
+
+    if (!MT_Unlock())
+    {
+        return;
+    }
+    SetLastErrno(lastErr);
 }
 
 __declspec(noinline)
 void* __cdecl MT_ucrtbase_malloc(uint size)
 {
-
+    return NULL;
 }
 
 __declspec(noinline)
 void* __cdecl MT_ucrtbase_calloc(uint num, uint size)
 {
-
+    return NULL;
 }
 
 __declspec(noinline)
 void* __cdecl MT_ucrtbase_realloc(void* ptr, uint size)
 {
-
+    return NULL;
 }
 
 __declspec(noinline)
