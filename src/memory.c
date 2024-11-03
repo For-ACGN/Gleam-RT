@@ -1170,13 +1170,19 @@ void* __cdecl MT_msvcrt_malloc(uint size)
     bool  success = false;
     for (;;)
     {
+        if (size == 0)
+        {
+            address = malloc(size);
+            success = true;
+            break;
+        }
         address = malloc(size + sizeof(uint));
         if (address == NULL)
         {
             lastErr = GetLastErrno();
             break;
         }
-        // // write heap block mark
+        // write heap block mark
         uint* tail = (uint*)((uintptr)address + size);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
@@ -1185,7 +1191,7 @@ void* __cdecl MT_msvcrt_malloc(uint size)
         break;
     }
 
-    dbg_log("[memory]", "msvcrt malloc: 0x%zX, %zu", address, size);
+    dbg_log("[memory]", "msvcrt malloc: 0x%zX, size: %zu", address, size);
 
     if (!MT_Unlock())
     {
@@ -1199,19 +1205,71 @@ void* __cdecl MT_msvcrt_malloc(uint size)
 __declspec(noinline)
 void* __cdecl MT_msvcrt_calloc(uint num, uint size)
 {
-    dbg_log("[memory]", "calloc num: %zu, size: %zu", num, size);
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+#ifdef _WIN64
+    msvcrt_calloc_t calloc = FindAPI(0x286555ECFD620100, 0x58661E2CD9AFD903);
+#elif _WIN32
+    msvcrt_calloc_t calloc = FindAPI(0x5F5752CD, 0x9FEEAFA7);
+#endif
+    if (calloc == NULL)
+    {
+        return NULL;
+    }
+
+    void* address;
+
+    errno lastErr = NO_ERROR;
+    bool  success = false;
+    for (;;)
+    {
+        if (size == 0)
+        {
+            address = calloc(num, size);
+            success = true;
+            break;
+        }
+        address = calloc(num + sizeof(uint), size);
+        if (address == NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        // write heap block mark
+        uint* tail = (uint*)((uintptr)address + num * size);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        // update counter
+        tracker->NumHeaps++;
+        success = true;
+        break;
+    }
+
+    dbg_log("[memory]", "msvcrt calloc: 0x%zX, num: %zu, size: %zu", num, size);
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+
+    SetLastErrno(lastErr);
+    return address;
 }
 
 __declspec(noinline)
 void* __cdecl MT_msvcrt_realloc(void* ptr, uint size)
 {
-    dbg_log("[memory]", "realloc ptr: 0x%zX, size: %zu", ptr, size);
+    dbg_log("[memory]", "msvcrt realloc ptr: 0x%zX, size: %zu", ptr, size);
 }
 
 __declspec(noinline)
 void __cdecl MT_msvcrt_free(void* ptr)
 {
-    dbg_log("[memory]", "free ptr: 0x%zX", ptr);
+    dbg_log("[memory]", "msvcrt free ptr: 0x%zX", ptr);
 }
 
 __declspec(noinline)
