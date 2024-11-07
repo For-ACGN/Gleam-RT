@@ -49,8 +49,7 @@ static bool TestWinFile_ReadFileA()
 {
     LPSTR path = "test.vcxproj";
 
-    byte* data;
-    uint  size;
+    byte* data; uint size;
     errno errno = runtime->WinFile.ReadFileA(path, &data, &size);
     if (errno != NO_ERROR)
     {
@@ -105,8 +104,7 @@ static bool TestWinFile_ReadFileW()
 {
     LPWSTR path = L"test.vcxproj.filters";
 
-    byte* data;
-    uint  size;
+    byte* data; uint size;
     errno errno = runtime->WinFile.ReadFileW(path, &data, &size);
     if (errno != NO_ERROR)
     {
@@ -174,8 +172,7 @@ static bool TestWinFile_WriteFileA()
         return false;
     }
 
-    byte* buf  = NULL;
-    uint  size = 0;
+    byte* buf; uint size;
     errno = runtime->WinFile.ReadFileA(path, &buf, &size);
     if (errno != NO_ERROR)
     {
@@ -215,8 +212,7 @@ static bool TestWinFile_WriteFileW()
         return false;
     }
 
-    byte* buf  = NULL;
-    uint  size = 0;
+    byte* buf; uint size;
     errno = runtime->WinFile.ReadFileW(path, &buf, &size);
     if (errno != NO_ERROR)
     {
