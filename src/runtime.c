@@ -108,10 +108,6 @@ void* RT_GetProcAddressByName(HMODULE hModule, LPCSTR lpProcName, bool hook);
 void* RT_GetProcAddressByHash(uint hash, uint key, bool hook);
 void* RT_GetProcAddressOriginal(HMODULE hModule, LPCSTR lpProcName);
 
-void* RT_Hook_malloc(uint size);
-void* RT_Hook_calloc(uint num, uint size);
-void* RT_Hook_realloc(void* ptr, uint size);
-void  RT_Hook_free(void* ptr);
 BOOL  RT_SetCurrentDirectoryA(LPSTR lpPathName);
 BOOL  RT_SetCurrentDirectoryW(LPWSTR lpPathName);
 void  RT_Sleep(DWORD dwMilliseconds);
@@ -1450,6 +1446,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
         { 0x608A1F623962E67B, 0xABB120953420F49C, memoryTracker->msvcrt_calloc      },
         { 0xCDE1ED75FE80407B, 0xC64B380372D117F2, memoryTracker->msvcrt_realloc     },
         { 0xECC6F0177F0CCDE2, 0x43C1FCC7169E67D3, memoryTracker->msvcrt_free        },
+        { 0x53E4A1AC095BE0F6, 0xD152CAB732698100, memoryTracker->ucrtbase_malloc    },
+        { 0x78B916AE84F7B39A, 0x32CF4F009411A2FB, memoryTracker->ucrtbase_calloc    },
+        { 0x732F61E2A8E95DFC, 0x4A40B46C41B074F5, memoryTracker->ucrtbase_realloc   },
+        { 0x8C9673E7033C926C, 0x0BED866A2B82FABD, memoryTracker->ucrtbase_free      },
         { 0x94DAFAE03484102D, 0x300F881516DC2FF5, resourceTracker->CreateFileA      },
         { 0xC3D28B35396A90DA, 0x8BA6316E5F5DC86E, resourceTracker->CreateFileW      },
         { 0x4015A18370E27D65, 0xA5B47007B7B8DD26, resourceTracker->FindFirstFileA   },
@@ -1467,6 +1467,10 @@ static void* getLazyAPIHook(Runtime* runtime, void* proc)
         { 0xD34DACA0, 0xD69C094E, memoryTracker->msvcrt_calloc      },
         { 0x644CBC49, 0x332496CD, memoryTracker->msvcrt_realloc     },
         { 0xDFACD52A, 0xE56FB206, memoryTracker->msvcrt_free        },
+        { 0xD475868A, 0x9A240ADB, memoryTracker->ucrtbase_malloc    },
+        { 0xC407B737, 0xBBA2D057, memoryTracker->ucrtbase_calloc    },
+        { 0xE8B6449C, 0x1AABE77E, memoryTracker->ucrtbase_realloc   },
+        { 0xCBF17F60, 0x205DDE4D, memoryTracker->ucrtbase_free      },
         { 0x79796D6E, 0x6DBBA55C, resourceTracker->CreateFileA      },
         { 0x0370C4B8, 0x76254EF3, resourceTracker->CreateFileW      },
         { 0x629ADDFA, 0x749D1CC9, resourceTracker->FindFirstFileA   },
@@ -1504,36 +1508,11 @@ static void* replaceToIATHook(Runtime* runtime, void* proc)
 }
 
 __declspec(noinline)
-void* RT_Hook_malloc(uint size)
-{
-    Runtime* runtime = getRuntimePointer();
-
-    HeapAlloc_t HeapAlloc = runtime->MemoryTracker->HeapAlloc;
-    return HeapAlloc(runtime->hHeap, 0, size);
-}
-
-__declspec(noinline)
-void* RT_Hook_calloc(uint num, uint size)
-{
-    Runtime* runtime = getRuntimePointer();
-}
-
-__declspec(noinline)
-void* RT_Hook_realloc(void* ptr, uint size)
-{
-    Runtime* runtime = getRuntimePointer();
-}
-
-__declspec(noinline)
-void RT_Hook_free(void* ptr)
-{
-    Runtime* runtime = getRuntimePointer();
-}
-
-__declspec(noinline)
 BOOL RT_SetCurrentDirectoryA(LPSTR lpPathName)
 {
     Runtime* runtime = getRuntimePointer();
+
+    dbg_log("[runtime]", "SetCurrentDirectoryA: %s", lpPathName);
 
     if (lpPathName == NULL)
     {
@@ -1550,6 +1529,8 @@ __declspec(noinline)
 BOOL RT_SetCurrentDirectoryW(LPWSTR lpPathName)
 {
     Runtime* runtime = getRuntimePointer();
+
+    dbg_log("[runtime]", "SetCurrentDirectoryA: %ls", lpPathName);
 
     if (lpPathName == NULL)
     {
