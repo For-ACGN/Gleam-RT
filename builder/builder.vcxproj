@@ -117,6 +117,7 @@
     <ClInclude Include="build.h" />
     <ClInclude Include="..\include\c_types.h" />
     <ClInclude Include="..\include\windows_t.h" />
+	<ClInclude Include="..\include\msvcrt_t.h" />
     <ClInclude Include="..\include\lib_memory.h" />
     <ClInclude Include="..\include\lib_string.h" />
     <ClInclude Include="..\include\rel_addr.h" />
@@ -134,7 +135,7 @@
     <ClInclude Include="..\include\thread.h" />
     <ClInclude Include="..\include\resource.h" />
     <ClInclude Include="..\include\argument.h" />
-	<ClInclude Include="..\include\win_base.h" />
+    <ClInclude Include="..\include\win_base.h" />
     <ClInclude Include="..\include\win_file.h" />
     <ClInclude Include="..\include\win_http.h" />
     <ClInclude Include="..\include\runtime.h" />
@@ -160,7 +161,7 @@
     <ClCompile Include="..\src\thread.c" />
     <ClCompile Include="..\src\resource.c" />
     <ClCompile Include="..\src\argument.c" />
-	<ClCompile Include="..\src\win_base.c" />
+    <ClCompile Include="..\src\win_base.c" />
     <ClCompile Include="..\src\win_file.c" />
     <ClCompile Include="..\src\win_http.c" />
     <ClCompile Include="..\src\shield.c" />

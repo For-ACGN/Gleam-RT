@@ -163,6 +163,9 @@
     <ClInclude Include="..\include\win_base.h">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\msvcrt_t.h">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="..\asm\args_stub.asm">
