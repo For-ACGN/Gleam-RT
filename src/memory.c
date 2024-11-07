@@ -1,6 +1,7 @@
 #include "c_types.h"
 #include "windows_t.h"
 #include "msvcrt_t.h"
+#include "ucrtbase_t.h"
 #include "rel_addr.h"
 #include "lib_memory.h"
 #include "hash_api.h"
@@ -223,10 +224,16 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->HeapAlloc      = GetFuncAddr(&MT_HeapAlloc);
     module->HeapReAlloc    = GetFuncAddr(&MT_HeapReAlloc);
     module->HeapFree       = GetFuncAddr(&MT_HeapFree);
+    // hooks for msvcrt.dll
     module->msvcrt_malloc  = GetFuncAddr(&MT_msvcrt_malloc);
     module->msvcrt_calloc  = GetFuncAddr(&MT_msvcrt_calloc);
     module->msvcrt_realloc = GetFuncAddr(&MT_msvcrt_realloc);
     module->msvcrt_free    = GetFuncAddr(&MT_msvcrt_free);
+    // hooks for ucrtbase.dll
+    module->ucrtbase_malloc  = GetFuncAddr(&MT_ucrtbase_malloc);
+    module->ucrtbase_calloc  = GetFuncAddr(&MT_ucrtbase_calloc);
+    module->ucrtbase_realloc = GetFuncAddr(&MT_ucrtbase_realloc);
+    module->ucrtbase_free    = GetFuncAddr(&MT_ucrtbase_free);
     // methods for runtime
     module->Alloc   = GetFuncAddr(&MT_MemAlloc);
     module->Calloc  = GetFuncAddr(&MT_MemCalloc);
@@ -1356,28 +1363,226 @@ void __cdecl MT_msvcrt_free(void* ptr)
     SetLastErrno(lastErr);
 }
 
-__declspec(noinline)
+__declspec(noinline) 
 void* __cdecl MT_ucrtbase_malloc(uint size)
 {
-    return NULL;
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+    void* address = NULL;
+    errno lastErr = NO_ERROR;
+    bool  success = false;
+    for (;;)
+    {
+        ucrtbase_malloc_t malloc;
+    #ifdef _WIN64
+        malloc = FindAPI(0x7789A1909ED9CCBF, 0x99717C0C8D37C14A);
+    #elif _WIN32
+        malloc = FindAPI(0x83F874FD, 0x1CA89591);
+    #endif
+        if (malloc == NULL)
+        {
+            lastErr = ERR_MEMORY_API_NOT_FOUND;
+            break;
+        }
+        if (size == 0)
+        {
+            address = malloc(size);
+            lastErr = GetLastErrno();
+            success = true;
+            break;
+        }
+        address = malloc(size + sizeof(uint));
+        if (address == NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        // write heap block mark
+        uint* tail = (uint*)((uintptr)address + size);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        // update counter
+        tracker->NumHeaps++;
+        success = true;
+        break;
+    }
+
+    dbg_log("[memory]", "ucrtbase malloc: 0x%zX, size: %zu", address, size);
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+
+    SetLastErrno(lastErr);
+    return address;
 }
 
 __declspec(noinline)
 void* __cdecl MT_ucrtbase_calloc(uint num, uint size)
 {
-    return NULL;
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+    void* address = NULL;
+    errno lastErr = NO_ERROR;
+    bool  success = false;
+    for (;;)
+    {
+        ucrtbase_calloc_t calloc;
+    #ifdef _WIN64
+        calloc = FindAPI(0x70F10113639CEB83, 0xD2316AE480BF91B3);
+    #elif _WIN32
+        calloc = FindAPI(0x389EA34B, 0x69D8846F);
+    #endif
+        if (calloc == NULL)
+        {
+            lastErr = ERR_MEMORY_API_NOT_FOUND;
+            break;
+        }
+        if (size == 0)
+        {
+            address = calloc(num, size);
+            lastErr = GetLastErrno();
+            success = true;
+            break;
+        }
+        address = calloc(num + sizeof(uint), size);
+        if (address == NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        // write heap block mark
+        uint* tail = (uint*)((uintptr)address + num * size);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        // update counter
+        tracker->NumHeaps++;
+        success = true;
+        break;
+    }
+
+    dbg_log("[memory]", "ucrtbase calloc: 0x%zX, num: %zu size: %zu", num, size);
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+
+    SetLastErrno(lastErr);
+    return address;
 }
 
 __declspec(noinline)
 void* __cdecl MT_ucrtbase_realloc(void* ptr, uint size)
 {
-    return NULL;
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+    void* address = NULL;
+    errno lastErr = NO_ERROR;
+    bool  success = false;
+    for (;;)
+    {
+        ucrtbase_realloc_t realloc;
+    #ifdef _WIN64
+        realloc = FindAPI(0x63C81F2280566B03, 0x9F039B24B1B12251);
+    #elif _WIN32
+        realloc = FindAPI(0x275557CD, 0x663EE38E);
+    #endif
+        if (realloc == NULL)
+        {
+            lastErr = ERR_MEMORY_API_NOT_FOUND;
+            break;
+        }
+        if (size == 0)
+        {
+            address = realloc(ptr, size);
+            lastErr = GetLastErrno();
+            success = true;
+            break;
+        }
+        address = realloc(ptr, size + sizeof(uint));
+        if (address == NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        // write heap block mark
+        uint* tail = (uint*)((uintptr)address + size);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        // update counter
+        tracker->NumHeaps++;
+        success = true;
+        break;
+    }
+
+    dbg_log("[memory]", "ucrtbase realloc: 0x%zX, ptr: 0x%zX size: %zu", address, ptr, size);
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+
+    SetLastErrno(lastErr);
+    return address;
 }
 
 __declspec(noinline)
 void __cdecl MT_ucrtbase_free(void* ptr)
 {
+    MemoryTracker* tracker = getTrackerPointer();
 
+    if (!MT_Lock())
+    {
+        return;
+    }
+
+    errno lastErr = NO_ERROR;
+    for (;;)
+    {
+        ucrtbase_free_t free;
+    #ifdef _WIN64
+        free = FindAPI(0x7D91AA1B038C76C5, 0x3059081C8654A25C);
+    #elif _WIN32
+        free = FindAPI(0x3E4E46A9, 0x4E12F93E);
+    #endif
+        if (free == NULL)
+        {
+            lastErr = ERR_MEMORY_API_NOT_FOUND;
+            break;
+        }
+        free(ptr);
+        lastErr = GetLastErrno();
+        if (ptr == NULL)
+        {
+            break;
+        }
+        // update counter
+        tracker->NumHeaps--;
+        break;
+    }
+
+    dbg_log("[memory]", "ucrtbase free ptr: 0x%zX", ptr);
+
+    if (!MT_Unlock())
+    {
+        return;
+    }
+
+    SetLastErrno(lastErr);
 }
 
 // replacePageProtect is used to make sure all the page are readable.
