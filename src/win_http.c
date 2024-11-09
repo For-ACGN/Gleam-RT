@@ -62,10 +62,12 @@ typedef struct {
 errno WH_Get(UTF16 url, HTTP_Opts* opts, HTTP_Resp* resp);
 errno WH_Post(UTF16 url, HTTP_Body* body, HTTP_Opts* opts, HTTP_Resp* resp);
 errno WH_Do(UTF16 url, UTF16 method, HTTP_Opts* opts, HTTP_Resp* resp);
+errno WH_Free();
 
 // methods for runtime
 bool  WH_Lock();
 bool  WH_Unlock();
+errno WH_Clean();
 errno WH_Uninstall();
 
 // hard encoded address in getModulePointer for replacement
@@ -87,6 +89,7 @@ static void eraseModuleMethods(Context* context);
 
 static bool initWinHTTPEnv();
 static bool findWinHTTPAPI();
+static bool tryToFreeLibrary();
 static bool increaseCounter();
 static bool decreaseCounter();
 static void setDefaultOption(HTTP_Opts* opts);
@@ -128,13 +131,16 @@ WinHTTP_M* InitWinHTTP(Context* context)
         SetLastErrno(errno);
         return NULL;
     }
-    // create method set
+    // methods for user
     WinHTTP_M* method = (WinHTTP_M*)methodAddr;
-    method->Get       = GetFuncAddr(&WH_Get);
-    method->Post      = GetFuncAddr(&WH_Post);
-    method->Do        = GetFuncAddr(&WH_Do);
+    method->Get  = GetFuncAddr(&WH_Get);
+    method->Post = GetFuncAddr(&WH_Post);
+    method->Do   = GetFuncAddr(&WH_Do);
+    method->Free = GetFuncAddr(&WH_Free);
+    // methods for runtime
     method->Lock      = GetFuncAddr(&WH_Lock);
     method->Unlock    = GetFuncAddr(&WH_Unlock);
+    method->Clean     = GetFuncAddr(&WH_Clean);
     method->Uninstall = GetFuncAddr(&WH_Uninstall);
     return method;
 }
@@ -308,6 +314,7 @@ static bool initWinHTTPEnv()
         // prepare API address
         if (!findWinHTTPAPI())
         {
+            SetLastErrno(ERR_WIN_HTTP_API_NOT_FOUND);
             module->FreeLibrary(hModule);
             break;
         }
@@ -387,6 +394,34 @@ static bool findWinHTTPAPI()
     module->WinHttpReadData            = list[0x0B].proc;
     module->WinHttpCloseHandle         = list[0x0C].proc;     
     return true;
+}
+
+static bool tryToFreeLibrary()
+{
+    WinHTTP* module = getModulePointer();
+
+    bool success = false;
+    for (;;)
+    {
+        if (module->hModule == NULL)
+        {
+            success = true;
+            break;
+        }
+        if (module->counter > 0)
+        {
+            SetLastErrno(ERR_WIN_HTTP_MODULE_BUSY);
+            break;
+        }
+        if (!module->FreeLibrary(module->hModule))
+        {
+            break;
+        }
+        module->hModule = NULL;
+        success = true;
+        break;
+    }
+    return success;
 }
 
 static bool increaseCounter()
@@ -695,6 +730,29 @@ exit_loop:
 }
 
 __declspec(noinline)
+errno WH_Free()
+{
+    if (!wh_lock())
+    {
+        return GetLastErrno();
+    }
+
+    errno lastErr = NO_ERROR;
+    if (!tryToFreeLibrary())
+    {
+        lastErr = GetLastErrno();
+    }
+
+    if (!wh_unlock())
+    {
+        return GetLastErrno();
+    }
+
+    SetLastErrno(lastErr);
+    return lastErr;
+}
+
+__declspec(noinline)
 bool WH_Lock()
 {
     WinHTTP* module = getModulePointer();
@@ -730,6 +788,16 @@ __declspec(noinline)
 bool WH_Unlock()
 {
     return wh_unlock();
+}
+
+__declspec(noinline)
+errno WH_Clean()
+{
+    if (!tryToFreeLibrary())
+    {
+        return GetLastErrno();
+    }
+    return NO_ERROR;
 }
 
 __declspec(noinline)
