@@ -11,10 +11,10 @@ typedef uint (*entryPoint_t)();
 #pragma comment(linker, "/ENTRY:EntryPoint")
 uint EntryPoint()
 {
-    CreateFileA_t   CreateFileA   = FindAPI_A("kernel32.dll", "CreateFileA");
-    GetFileSizeEx_t GetFileSizeEx = FindAPI_A("kernel32.dll", "GetFileSizeEx");
     VirtualAlloc_t  VirtualAlloc  = FindAPI_A("kernel32.dll", "VirtualAlloc");
     VirtualFree_t   VirtualFree   = FindAPI_A("kernel32.dll", "VirtualFree");
+    CreateFileA_t   CreateFileA   = FindAPI_A("kernel32.dll", "CreateFileA");
+    GetFileSizeEx_t GetFileSizeEx = FindAPI_A("kernel32.dll", "GetFileSizeEx");
     ReadFile_t      ReadFile      = FindAPI_A("kernel32.dll", "ReadFile");
     CloseHandle_t   CloseHandle   = FindAPI_A("kernel32.dll", "CloseHandle");
 
