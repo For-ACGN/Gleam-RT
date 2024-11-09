@@ -12,7 +12,7 @@
 #ifdef RELEASE_MODE
     #define CHUNK_SIZE 4096
 #else
-    #define CHUNK_SIZE 4
+    #define CHUNK_SIZE 64
 #endif
 
 typedef struct {

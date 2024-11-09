@@ -763,6 +763,8 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
 #endif
     if (WSAStartup == NULL)
     {
+        // TODO maybe deadlock 
+        // TODO add errno number
         return WSASYSNOTREADY;
     }
 
@@ -798,6 +800,8 @@ int RT_WSACleanup()
 #endif
     if (WSACleanup == NULL)
     {
+        // TODO maybe deadlock
+        // TODO add errno number
         return WSAEINPROGRESS;
     }
 
