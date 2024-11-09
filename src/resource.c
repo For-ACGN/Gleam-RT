@@ -11,18 +11,18 @@
 #include "resource.h"
 #include "debug.h"
 
-// handle types about release functions
+// function types about release handle
 #define TYPE_CLOSE_HANDLE 0x0100
 #define TYPE_FIND_CLOSE   0x0200
 
 // handles created by functions
-#define SRC_CREATE_FILE_A (0x0001|TYPE_CLOSE_HANDLE)
-#define SRC_CREATE_FILE_W (0x0002|TYPE_CLOSE_HANDLE)
+#define SRC_CREATE_FILE_A (TYPE_CLOSE_HANDLE|0x01)
+#define SRC_CREATE_FILE_W (TYPE_CLOSE_HANDLE|0x02)
 
-#define SRC_FIND_FIRST_FILE_A    (0x0001|TYPE_FIND_CLOSE)
-#define SRC_FIND_FIRST_FILE_W    (0x0002|TYPE_FIND_CLOSE)
-#define SRC_FIND_FIRST_FILE_EX_A (0x0003|TYPE_FIND_CLOSE)
-#define SRC_FIND_FIRST_FILE_EX_W (0x0004|TYPE_FIND_CLOSE)
+#define SRC_FIND_FIRST_FILE_A    (TYPE_FIND_CLOSE|0x01)
+#define SRC_FIND_FIRST_FILE_W    (TYPE_FIND_CLOSE|0x02)
+#define SRC_FIND_FIRST_FILE_EX_A (TYPE_FIND_CLOSE|0x03)
+#define SRC_FIND_FIRST_FILE_EX_W (TYPE_FIND_CLOSE|0x04)
 
 // resource counters index
 #define CTR_WSA_STARTUP 0x0000
@@ -756,22 +756,29 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
         return WSASYSNOTREADY;
     }
 
-#ifdef _WIN64
-    WSAStartup_t WSAStartup = FindAPI(0x21A84954D72D9F93, 0xD549133F33DA137E);
-#elif _WIN32
-    WSAStartup_t WSAStartup = FindAPI(0x8CD788B9, 0xA349D8A2);
-#endif
-    if (WSAStartup == NULL)
-    {
-        // TODO maybe deadlock 
-        // TODO add errno number
-        return WSASYSNOTREADY;
-    }
+    int ret = WSASYSNOTREADY;
 
-    int ret = WSAStartup(wVersionRequired, lpWSAData);
-    if (ret == 0)
+    errno lastErr = NO_ERROR;
+    for (;;)
     {
-        tracker->Counters[CTR_WSA_STARTUP]++;
+        WSAStartup_t WSAStartup;
+    #ifdef _WIN64
+        WSAStartup = FindAPI(0x21A84954D72D9F93, 0xD549133F33DA137E);
+    #elif _WIN32
+        WSAStartup = FindAPI(0x8CD788B9, 0xA349D8A2);
+    #endif
+        if (WSAStartup == NULL)
+        {
+            lastErr = ERR_RESOURCE_API_NOT_FOUND;
+            break;
+        }
+        ret = WSAStartup(wVersionRequired, lpWSAData);
+        if (ret == 0)
+        {
+            tracker->Counters[CTR_WSA_STARTUP]++;
+        }
+        lastErr = GetLastErrno();
+        break;
     }
 
     dbg_log("[resource]", "WSAStartup is called");
@@ -780,6 +787,8 @@ int RT_WSAStartup(WORD wVersionRequired, POINTER lpWSAData)
     {
         return WSASYSNOTREADY;
     }
+
+    SetLastErrno(lastErr);
     return ret;
 }
 
@@ -793,22 +802,29 @@ int RT_WSACleanup()
         return WSAEINPROGRESS;
     }
 
-#ifdef _WIN64
-    WSACleanup_t WSACleanup = FindAPI(0x324EEA09CB7B262C, 0xE64CBAD3BBD4F522);
-#elif _WIN32
-    WSACleanup_t WSACleanup = FindAPI(0xBD997AF1, 0x88F10695);
-#endif
-    if (WSACleanup == NULL)
-    {
-        // TODO maybe deadlock
-        // TODO add errno number
-        return WSAEINPROGRESS;
-    }
+    int ret = WSASYSNOTREADY;
 
-    int ret = WSACleanup();
-    if (ret == 0)
+    errno lastErr = NO_ERROR;
+    for (;;)
     {
-        tracker->Counters[CTR_WSA_STARTUP]--;
+        WSACleanup_t WSACleanup;
+    #ifdef _WIN64
+        WSACleanup = FindAPI(0x324EEA09CB7B262C, 0xE64CBAD3BBD4F522);
+    #elif _WIN32
+        WSACleanup = FindAPI(0xBD997AF1, 0x88F10695);
+    #endif
+        if (WSACleanup == NULL)
+        {
+            lastErr = ERR_RESOURCE_API_NOT_FOUND;
+            break;
+        }
+        ret = WSACleanup();
+        if (ret == 0)
+        {
+            tracker->Counters[CTR_WSA_STARTUP]--;
+        }
+        lastErr = GetLastErrno();
+        break;
     }
 
     dbg_log("[resource]", "WSACleanup is called");
@@ -817,6 +833,8 @@ int RT_WSACleanup()
     {
         return WSAEINPROGRESS;
     }
+
+    SetLastErrno(lastErr);
     return ret;
 }
 
