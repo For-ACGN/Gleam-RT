@@ -10,6 +10,7 @@
 
 static bool TestWinHTTP_Get();
 static bool TestWinHTTP_Post();
+static bool TestWinHTTP_Free();
 
 bool TestRuntime_WinHTTP()
 {
@@ -17,6 +18,7 @@ bool TestRuntime_WinHTTP()
     {
         { TestWinHTTP_Get  },
         { TestWinHTTP_Post },
+        { TestWinHTTP_Free },
     };
     for (int i = 0; i < arrlen(tests); i++)
     {
@@ -90,5 +92,18 @@ static bool TestWinHTTP_Post()
     printf_s("response body: %s\n", (byte*)resp.Body.Buf);
 
     printf_s("test Post passed\n");
+    return true;
+}
+
+static bool TestWinHTTP_Free()
+{
+    errno err = runtime->WinHTTP.Free();
+    if (err != NO_ERROR)
+    {
+        printf_s("failed to free: 0x%X\n", err);
+        return false;
+    }
+
+    printf_s("test Free passed\n");
     return true;
 }
