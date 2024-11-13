@@ -34,15 +34,6 @@ typedef struct {
 } heapObject;
 
 typedef struct {
-    uintptr address;
-    uint    size;
-    HANDLE  hHeap;
-
-    byte key[CRYPTO_KEY_SIZE];
-    byte iv [CRYPTO_IV_SIZE];
-} heapBlock;
-
-typedef struct {
     // store options
     bool NotEraseInstruction;
 
@@ -86,11 +77,6 @@ typedef struct {
     List Heaps;
     byte HeapsKey[CRYPTO_KEY_SIZE];
     byte HeapsIV [CRYPTO_IV_SIZE];
-
-    // store heap blocks
-    List Blocks;   // TODO delete ?
-    byte BlocksKey[CRYPTO_KEY_SIZE];
-    byte BlocksIV[CRYPTO_IV_SIZE];
 } MemoryTracker;
 
 // methods for IAT hooks
@@ -375,7 +361,6 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     List_Init(&tracker->Regions, &ctx, sizeof(memRegion));
     List_Init(&tracker->Pages,   &ctx, sizeof(memPage));
     List_Init(&tracker->Heaps,   &ctx, sizeof(heapObject));
-    List_Init(&tracker->Blocks,  &ctx, sizeof(heapBlock));
     // set crypto context data
     RandBuffer(tracker->RegionsKey, CRYPTO_KEY_SIZE);
     RandBuffer(tracker->RegionsIV,  CRYPTO_IV_SIZE);
@@ -383,8 +368,6 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     RandBuffer(tracker->PagesIV,    CRYPTO_IV_SIZE);
     RandBuffer(tracker->HeapsKey,   CRYPTO_KEY_SIZE);
     RandBuffer(tracker->HeapsIV,    CRYPTO_IV_SIZE);
-    RandBuffer(tracker->BlocksKey,  CRYPTO_KEY_SIZE);
-    RandBuffer(tracker->BlocksIV,   CRYPTO_IV_SIZE);
     // copy runtime context data
     tracker->PageSize = context->PageSize;
     return true;
@@ -413,7 +396,6 @@ static void cleanTracker(MemoryTracker* tracker)
     List_Free(&tracker->Regions);
     List_Free(&tracker->Pages);
     List_Free(&tracker->Heaps);
-    List_Free(&tracker->Blocks);
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.
@@ -1805,6 +1787,7 @@ errno MT_Encrypt()
 {
     MemoryTracker* tracker = getTrackerPointer();
 
+    // encrypt memory pages
     List* pages = &tracker->Pages;
     uint  index = 0;
     for (uint num = 0; num < pages->Len; index++)
@@ -1821,7 +1804,7 @@ errno MT_Encrypt()
         num++;
     }
 
-    // encrypt region and page list
+    // encrypt lists
     List* list = &tracker->Regions;
     byte* key  = tracker->RegionsKey;
     byte* iv   = tracker->RegionsIV;
@@ -1832,6 +1815,13 @@ errno MT_Encrypt()
     list = &tracker->Pages;
     key  = tracker->PagesKey;
     iv   = tracker->PagesIV;
+    RandBuffer(key, CRYPTO_KEY_SIZE);
+    RandBuffer(iv, CRYPTO_IV_SIZE);
+    EncryptBuf(list->Data, List_Size(list), key, iv);
+
+    list = &tracker->Heaps;
+    key  = tracker->HeapsKey;
+    iv   = tracker->HeapsIV;
     RandBuffer(key, CRYPTO_KEY_SIZE);
     RandBuffer(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
@@ -1862,7 +1852,7 @@ errno MT_Decrypt()
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    // decrypt region and page list
+    // decrypt lists
     List* list = &tracker->Regions;
     byte* key  = tracker->RegionsKey;
     byte* iv   = tracker->RegionsIV;
@@ -1871,6 +1861,11 @@ errno MT_Decrypt()
     list = &tracker->Pages;
     key  = tracker->PagesKey;
     iv   = tracker->PagesIV;
+    DecryptBuf(list->Data, List_Size(list), key, iv);
+
+    list = &tracker->Heaps;
+    key  = tracker->HeapsKey;
+    iv   = tracker->HeapsIV;
     DecryptBuf(list->Data, List_Size(list), key, iv);
 
     // reverse order traversal is used to deal with the problem
@@ -1893,6 +1888,7 @@ errno MT_Decrypt()
     }
     dbg_log("[memory]", "regions: %zu", tracker->Regions.Len);
     dbg_log("[memory]", "pages:   %zu", tracker->Pages.Len);
+    dbg_log("[memory]", "heaps:   %zu", tracker->Heaps.Len);
     return NO_ERROR;
 }
 
@@ -1944,16 +1940,17 @@ errno MT_FreeAll()
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    List* pages   = &tracker->Pages;
     List* regions = &tracker->Regions;
+    List* pages   = &tracker->Pages;
+    List* heaps   = &tracker->Heaps;
     errno errno   = NO_ERROR;
 
     // cover memory page data
-    uint len   = pages->Len;
-    uint index = 0;
-    for (uint num = 0; num < len; index++)
+    uint len = pages->Len;
+    uint idx = 0;
+    for (uint num = 0; num < len; idx++)
     {
-        memPage* page = List_Get(pages, index);
+        memPage* page = List_Get(pages, idx);
         if (page->address == 0)
         {
             continue;
@@ -1973,10 +1970,10 @@ errno MT_FreeAll()
     }
 
     // decommit memory pages
-    index = 0;
-    for (uint num = 0; num < len; index++)
+    idx = 0;
+    for (uint num = 0; num < len; idx++)
     {
-        memPage* page = List_Get(pages, index);
+        memPage* page = List_Get(pages, idx);
         if (page->address == 0)
         {
             continue;
@@ -1992,7 +1989,7 @@ errno MT_FreeAll()
         {
             errno = ERR_MEMORY_CLEAN_PAGE;
         }
-        if (!List_Delete(pages, index))
+        if (!List_Delete(pages, idx))
         {
             errno = ERR_MEMORY_DELETE_PAGE;
         }
@@ -2000,11 +1997,11 @@ errno MT_FreeAll()
     }
 
     // release reserved memory region
-    len   = regions->Len;
-    index = 0;
-    for (uint num = 0; num < len; index++)
+    len = regions->Len;
+    idx = 0;
+    for (uint num = 0; num < len; idx++)
     {
-        memRegion* region = List_Get(regions, index);
+        memRegion* region = List_Get(regions, idx);
         if (region->address == 0)
         {
             continue;
@@ -2020,12 +2017,37 @@ errno MT_FreeAll()
         {
             errno = ERR_MEMORY_CLEAN_REGION;
         }
-        if (!List_Delete(regions, index))
+        if (!List_Delete(regions, idx))
         {
             errno = ERR_MEMORY_DELETE_REGION;
         }
         num++;
     }
+
+    // release private heaps
+    len = heaps->Len;
+    idx = 0;
+    for (uint num = 0; num < len; idx++)
+    {
+        heapObject* heap = List_Get(heaps, idx);
+        if (heap->hHeap == NULL)
+        {
+            continue;
+        }
+        if (!tracker->HeapDestroy(heap->hHeap))
+        {
+            errno = ERR_MEMORY_CLEAN_HEAP;
+        }
+        if (!List_Delete(heaps, idx))
+        {
+            errno = ERR_MEMORY_DELETE_HEAP;
+        }
+        num++;
+    }
+
+    dbg_log("[memory]", "regions: %zu", tracker->Regions.Len);
+    dbg_log("[memory]", "pages:   %zu", tracker->Pages.Len);
+    dbg_log("[memory]", "heaps:   %zu", tracker->Heaps.Len);
     return errno;
 }
 
@@ -2034,15 +2056,16 @@ errno MT_Clean()
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    List* pages   = &tracker->Pages;
     List* regions = &tracker->Regions;
+    List* pages   = &tracker->Pages;
+    List* heaps   = &tracker->Heaps;
     errno errno   = NO_ERROR;
 
     // cover memory page data
-    uint index = 0;
-    for (uint num = 0; num < pages->Len; index++)
+    uint idx = 0;
+    for (uint num = 0; num < pages->Len; idx++)
     {
-        memPage* page = List_Get(pages, index);
+        memPage* page = List_Get(pages, idx);
         if (page->address == 0)
         {
             continue;
@@ -2056,10 +2079,10 @@ errno MT_Clean()
     }
 
     // decommit memory pages
-    index = 0;
-    for (uint num = 0; num < pages->Len; index++)
+    idx = 0;
+    for (uint num = 0; num < pages->Len; idx++)
     {
-        memPage* page = List_Get(pages, index);
+        memPage* page = List_Get(pages, idx);
         if (page->address == 0)
         {
             continue;
@@ -2072,10 +2095,10 @@ errno MT_Clean()
     }
 
     // release reserved memory region
-    index = 0;
-    for (uint num = 0; num < regions->Len; index++)
+    idx = 0;
+    for (uint num = 0; num < regions->Len; idx++)
     {
-        memRegion* region = List_Get(regions, index);
+        memRegion* region = List_Get(regions, idx);
         if (region->address == 0)
         {
             continue;
@@ -2090,9 +2113,29 @@ errno MT_Clean()
         num++;
     }
 
+    // release private heaps
+    idx = 0;
+    for (uint num = 0; num < heaps->Len; idx++)
+    {
+        heapObject* heap = List_Get(heaps, idx);
+        if (heap->hHeap == NULL)
+        {
+            continue;
+        }
+        if (!tracker->HeapDestroy(heap->hHeap))
+        {
+            if (errno == NO_ERROR)
+            {
+                errno = ERR_MEMORY_CLEAN_HEAP;
+            }
+        }
+        num++;
+    }
+
     // clean memory region and page list
     RandBuffer(regions->Data, List_Size(regions));
     RandBuffer(pages->Data, List_Size(pages));
+    RandBuffer(heaps->Data, List_Size(heaps));
     if (!List_Free(regions) && errno == NO_ERROR)
     {
         errno = ERR_MEMORY_FREE_PAGE_LIST;
@@ -2100,6 +2143,10 @@ errno MT_Clean()
     if (!List_Free(pages) && errno == NO_ERROR)
     {
         errno = ERR_MEMORY_FREE_REGION_LIST;
+    }
+    if (!List_Free(heaps) && errno == NO_ERROR)
+    {
+        errno = ERR_MEMORY_FREE_HEAP_LIST;
     }
 
     // close mutex
@@ -2116,6 +2163,10 @@ errno MT_Clean()
             errno = ERR_MEMORY_RECOVER_INST;
         }
     }
+
+    dbg_log("[memory]", "regions: %zu", tracker->Regions.Len);
+    dbg_log("[memory]", "pages:   %zu", tracker->Pages.Len);
+    dbg_log("[memory]", "heaps:   %zu", tracker->Heaps.Len);
     return errno;
 }
 
