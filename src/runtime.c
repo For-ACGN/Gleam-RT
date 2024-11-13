@@ -332,6 +332,7 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->WinHTTP.Get  = runtime->WinHTTP->Get;
     module->WinHTTP.Post = runtime->WinHTTP->Post;
     module->WinHTTP.Do   = runtime->WinHTTP->Do;
+    module->WinHTTP.Free = runtime->WinHTTP->Free;
     // random module
     module->Random.Buffer  = GetFuncAddr(&RandBuffer);
     module->Random.Bool    = GetFuncAddr(&RandBool);
@@ -1913,6 +1914,11 @@ static errno hide(Runtime* runtime)
     for (;;)
     {
         errno = runtime->ThreadTracker->Suspend();
+        if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
+        {
+            break;
+        }
+        errno = runtime->WinHTTP->Clean();
         if (errno != NO_ERROR && (errno & ERR_FLAG_CAN_IGNORE) == 0)
         {
             break;
