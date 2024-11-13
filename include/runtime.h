@@ -76,6 +76,7 @@ typedef struct {
 typedef errno (*HTTPGet_t)(UTF16 url, HTTP_Opts* opts, HTTP_Resp* resp);
 typedef errno (*HTTPPost_t)(UTF16 url, HTTP_Body* body, HTTP_Opts* opts, HTTP_Resp* resp);
 typedef errno (*HTTPDo_t)(UTF16 url, UTF16 method, HTTP_Opts* opts, HTTP_Resp* resp);
+typedef errno (*HTTPFree_t)();
 
 // about random module
 typedef void   (*RandBuffer_t)(byte* buf, int64 size);
@@ -181,6 +182,7 @@ typedef struct {
         HTTPGet_t  Get;
         HTTPPost_t Post;
         HTTPDo_t   Do;
+        HTTPFree_t Free;
     } WinHTTP;
 
     struct {
