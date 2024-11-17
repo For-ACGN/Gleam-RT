@@ -18,6 +18,7 @@ typedef bool BOOL;
 typedef uint SIZE_T;
 
 typedef void* POINTER;
+typedef void* PVOID;
 typedef void* HMODULE;
 typedef void* HANDLE;
 typedef void* FARPROC;
@@ -44,6 +45,26 @@ typedef struct {
     WORD    ProcessorLevel;
     WORD    ProcessorRevision;
 } SYSTEM_INFO;
+
+typedef struct {
+    PVOID lpData;
+    DWORD cbData;
+    BYTE  cbOverhead;
+    BYTE  iRegionIndex;
+    WORD  wFlags;
+    union {
+        struct {
+            HANDLE hMem;
+            DWORD  dwReserved[3];
+        } Block;
+        struct {
+            DWORD  dwCommittedSize;
+            DWORD  dwUnCommittedSize;
+            LPVOID lpFirstBlock;
+            LPVOID lpLastBlock;
+        } Region;
+    } DUMMYUNIONNAME;
+} HEAP_ENTRY;
 
 #ifdef _WIN64
 typedef struct __declspec(align(16)) {
@@ -166,6 +187,8 @@ typedef struct {
 #define CURRENT_PROCESS ((HANDLE)(-1))
 #define CURRENT_THREAD  ((HANDLE)(-2))
 
+#define ERROR_NO_MORE_ITEMS 259
+
 #define MEM_COMMIT   0x00001000
 #define MEM_RESERVE  0x00002000
 #define MEM_DECOMMIT 0x00004000
@@ -179,6 +202,10 @@ typedef struct {
 #define PAGE_EXECUTE_READ      0x00000020
 #define PAGE_EXECUTE_READWRITE 0x00000040
 #define PAGE_EXECUTE_WRITECOPY 0x00000080
+
+#define PROCESS_HEAP_REGION            0x0001
+#define PROCESS_HEAP_UNCOMMITTED_RANGE 0x0002
+#define PROCESS_HEAP_ENTRY_BUSY        0x0004
 
 #define CREATE_SUSPENDED 0x00000004
 
@@ -327,6 +354,11 @@ typedef BOOL (*VirtualUnlock_t)
 
 typedef HANDLE (*GetProcessHeap_t)();
 
+typedef DWORD (*GetProcessHeaps_t)
+(
+    DWORD NumberOfHeaps, HANDLE* ProcessHeaps
+);
+
 typedef HANDLE (*HeapCreate_t)
 (
     DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize
@@ -350,6 +382,11 @@ typedef LPVOID (*HeapReAlloc_t)
 typedef BOOL (*HeapFree_t)
 (
     HANDLE hHeap, DWORD dwFlags, LPVOID lpMem
+);
+
+typedef BOOL (*HeapWalk_t)
+(
+    HANDLE hHeap, HEAP_ENTRY* lpEntry
 );
 
 typedef HANDLE (*CreateThread_t)
