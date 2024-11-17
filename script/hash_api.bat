@@ -58,11 +58,13 @@ hash_api -fmt 64 -conc -func VirtualQuery
 hash_api -fmt 64 -conc -func VirtualLock
 hash_api -fmt 64 -conc -func VirtualUnlock
 hash_api -fmt 64 -conc -func GetProcessHeap
+hash_api -fmt 64 -conc -func GetProcessHeaps
 hash_api -fmt 64 -conc -func HeapCreate
 hash_api -fmt 64 -conc -func HeapDestroy
 hash_api -fmt 64 -conc -func HeapAlloc
 hash_api -fmt 64 -conc -func HeapReAlloc
 hash_api -fmt 64 -conc -func HeapFree
+hash_api -fmt 64 -conc -func HeapWalk
 hash_api -fmt 64 -conc -mod "msvcrt.dll" -func malloc
 hash_api -fmt 64 -conc -mod "msvcrt.dll" -func calloc
 hash_api -fmt 64 -conc -mod "msvcrt.dll" -func realloc
@@ -181,11 +183,13 @@ hash_api -fmt 32 -conc -func VirtualQuery
 hash_api -fmt 32 -conc -func VirtualLock
 hash_api -fmt 32 -conc -func VirtualUnlock
 hash_api -fmt 32 -conc -func GetProcessHeap
+hash_api -fmt 32 -conc -func GetProcessHeaps
 hash_api -fmt 32 -conc -func HeapCreate
 hash_api -fmt 32 -conc -func HeapDestroy
 hash_api -fmt 32 -conc -func HeapAlloc
 hash_api -fmt 32 -conc -func HeapReAlloc
 hash_api -fmt 32 -conc -func HeapFree
+hash_api -fmt 32 -conc -func HeapWalk
 hash_api -fmt 32 -conc -mod "msvcrt.dll" -func malloc
 hash_api -fmt 32 -conc -mod "msvcrt.dll" -func calloc
 hash_api -fmt 32 -conc -mod "msvcrt.dll" -func realloc
