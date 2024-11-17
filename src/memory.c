@@ -45,15 +45,23 @@ typedef struct {
     VirtualLock_t           VirtualLock;
     VirtualUnlock_t         VirtualUnlock;
     GetProcessHeap_t        GetProcessHeap;
+    GetProcessHeaps_t       GetProcessHeaps;
     HeapCreate_t            HeapCreate;
     HeapDestroy_t           HeapDestroy;
     HeapAlloc_t             HeapAlloc;
     HeapReAlloc_t           HeapReAlloc;
     HeapFree_t              HeapFree;
+    HeapWalk_t              HeapWalk;
     ReleaseMutex_t          ReleaseMutex;
     WaitForSingleObject_t   WaitForSingleObject;
     FlushInstructionCache_t FlushInstructionCache;
     CloseHandle_t           CloseHandle;
+
+    // runtime methods
+    malloc_t  RT_malloc;
+    calloc_t  RT_calloc;
+    realloc_t RT_realloc;
+    free_t    RT_free;
 
     // runtime data
     uint32 PageSize; // memory page size
@@ -61,7 +69,7 @@ typedef struct {
     
     // tracke heap block
     uint HeapMark;
-    uint NumHeaps;
+    uint NumBlocks;
 
     // store memory regions
     List Regions;
@@ -151,6 +159,8 @@ static bool   recoverPageProtect(MemoryTracker* tracker, memPage* page);
 
 static bool encryptPage(MemoryTracker* tracker, memPage* page);
 static bool decryptPage(MemoryTracker* tracker, memPage* page);
+static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap);
+static bool decryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap);
 static bool isEmptyPage(MemoryTracker* tracker, memPage* page);
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
 static bool cleanPage(MemoryTracker* tracker, memPage* page);
@@ -248,11 +258,13 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
         { 0x24AB671FD240FDCB, 0x40A8B468E734C166 }, // VirtualLock
         { 0x5BE15B295B21235B, 0x5E6AFF64FB431502 }, // VirtualUnlock
         { 0xA9CA8BFA460B3D0E, 0x30FECC3CA9988F6A }, // GetProcessHeap
+        { 0x075A8238EE27E826, 0xE930AB7A27AD9691 }, // GetProcessHeaps
         { 0x3CF9F7C4C1B8FD43, 0x34B7FC51484FB2A3 }, // HeapCreate
         { 0xEBA36FC951FD2B34, 0x59504100D9684B0E }, // HeapDestroy
         { 0x8D604A3248B6EAFE, 0x496C489A6E3B8ECD }, // HeapAlloc
         { 0xE04E489AFF9C386C, 0x1A2E6AE0D610549B }, // HeapReAlloc
         { 0x76F81CD39D7A292A, 0x82332A8834C25FA2 }, // HeapFree
+        { 0x3E8966B69D68089B, 0x37E3CCE68E00C464 }, // HeapWalk
     };
 #elif _WIN32
     {
@@ -260,11 +272,13 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
         { 0x2149FD08, 0x6537772D }, // VirtualLock
         { 0xCE162EEC, 0x5D903E73 }, // VirtualUnlock
         { 0x758C3172, 0x23E44CDB }, // GetProcessHeap
+        { 0xD9EDA55E, 0x77F2EC35 }, // GetProcessHeaps
         { 0x857D374F, 0x7DC1A133 }, // HeapCreate
         { 0x87A7067F, 0x5B6BA0B9 }, // HeapDestroy
         { 0x6E86E11A, 0x692C7E92 }, // HeapAlloc
         { 0x0E0168E2, 0xFBFF0866 }, // HeapReAlloc
         { 0x94D5662A, 0x266763A1 }, // HeapFree
+        { 0x252C4D47, 0x1CE53ADF }, // HeapWalk
     };
 #endif
     for (int i = 0; i < arrlen(list); i++)
@@ -276,15 +290,17 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
         }
         list[i].proc = proc;
     }
-    tracker->VirtualQuery   = list[0].proc;
-    tracker->VirtualLock    = list[1].proc;
-    tracker->VirtualUnlock  = list[2].proc;
-    tracker->GetProcessHeap = list[3].proc;
-    tracker->HeapCreate     = list[4].proc;
-    tracker->HeapDestroy    = list[5].proc;
-    tracker->HeapAlloc      = list[6].proc;
-    tracker->HeapReAlloc    = list[7].proc;
-    tracker->HeapFree       = list[8].proc;
+    tracker->VirtualQuery    = list[0x00].proc;
+    tracker->VirtualLock     = list[0x01].proc;
+    tracker->VirtualUnlock   = list[0x02].proc;
+    tracker->GetProcessHeap  = list[0x03].proc;
+    tracker->GetProcessHeaps = list[0x04].proc;
+    tracker->HeapCreate      = list[0x05].proc;
+    tracker->HeapDestroy     = list[0x06].proc;
+    tracker->HeapAlloc       = list[0x07].proc;
+    tracker->HeapReAlloc     = list[0x08].proc;
+    tracker->HeapFree        = list[0x09].proc;
+    tracker->HeapWalk        = list[0x0A].proc;
 
     tracker->VirtualAlloc          = context->VirtualAlloc;
     tracker->VirtualFree           = context->VirtualFree;
@@ -368,6 +384,11 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     RandBuffer(tracker->PagesIV,    CRYPTO_IV_SIZE);
     RandBuffer(tracker->HeapsKey,   CRYPTO_KEY_SIZE);
     RandBuffer(tracker->HeapsIV,    CRYPTO_IV_SIZE);
+    // copy runtime methods
+    tracker->RT_malloc  = context->malloc;
+    tracker->RT_calloc  = context->calloc;
+    tracker->RT_realloc = context->realloc;
+    tracker->RT_free    = context->free;
     // copy runtime context data
     tracker->PageSize = context->PageSize;
     return true;
@@ -1024,7 +1045,7 @@ LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
         uint* tail = (uint*)((uintptr)address + dwBytes);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
-        tracker->NumHeaps++;
+        tracker->NumBlocks++;
         success = true;
         break;
     }
@@ -1070,7 +1091,7 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
         // update counter
         if (lpMem == NULL)
         {
-            tracker->NumHeaps++;
+            tracker->NumBlocks++;
         }
         success = true;
         break;
@@ -1106,7 +1127,7 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
         }
         if (lpMem != NULL)
         {
-            tracker->NumHeaps--;
+            tracker->NumBlocks--;
         }
         success = true;
         break;
@@ -1166,7 +1187,7 @@ void* __cdecl MT_msvcrt_malloc(uint size)
         uint* tail = (uint*)((uintptr)address + size);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
-        tracker->NumHeaps++;
+        tracker->NumBlocks++;
         success = true;
         break;
     }
@@ -1225,7 +1246,7 @@ void* __cdecl MT_msvcrt_calloc(uint num, uint size)
         uint* tail = (uint*)((uintptr)address + num * size);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
-        tracker->NumHeaps++;
+        tracker->NumBlocks++;
         success = true;
         break;
     }
@@ -1284,7 +1305,7 @@ void* __cdecl MT_msvcrt_realloc(void* ptr, uint size)
         uint* tail = (uint*)((uintptr)address + size);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
-        tracker->NumHeaps++;
+        tracker->NumBlocks++;
         success = true;
         break;
     }
@@ -1331,7 +1352,7 @@ void __cdecl MT_msvcrt_free(void* ptr)
             break;
         }
         // update counter
-        tracker->NumHeaps--;
+        tracker->NumBlocks--;
         break;
     }
 
@@ -1388,7 +1409,7 @@ void* __cdecl MT_ucrtbase_malloc(uint size)
         uint* tail = (uint*)((uintptr)address + size);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
-        tracker->NumHeaps++;
+        tracker->NumBlocks++;
         success = true;
         break;
     }
@@ -1447,7 +1468,7 @@ void* __cdecl MT_ucrtbase_calloc(uint num, uint size)
         uint* tail = (uint*)((uintptr)address + num * size);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
-        tracker->NumHeaps++;
+        tracker->NumBlocks++;
         success = true;
         break;
     }
@@ -1506,7 +1527,7 @@ void* __cdecl MT_ucrtbase_realloc(void* ptr, uint size)
         uint* tail = (uint*)((uintptr)address + size);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
-        tracker->NumHeaps++;
+        tracker->NumBlocks++;
         success = true;
         break;
     }
@@ -1553,7 +1574,7 @@ void __cdecl MT_ucrtbase_free(void* ptr)
             break;
         }
         // update counter
-        tracker->NumHeaps--;
+        tracker->NumBlocks--;
         break;
     }
 
@@ -1787,6 +1808,25 @@ errno MT_Encrypt()
 {
     MemoryTracker* tracker = getTrackerPointer();
 
+    // get the number of heaps
+    HANDLE padding;
+    DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
+    HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
+    if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
+    {
+        HANDLE* hHeap = hHeaps;
+        // walk and encrypt heap blocks
+        for (uint32 i = 0; i < numHeaps; i++)
+        {
+            if (!encryptHeapBlocks(tracker, *hHeap))
+            {
+                // return ERR_MEMORY_ENCRYPT_HEAP_BLOCK;
+            }
+            hHeap++;
+        }
+    }
+    tracker->RT_free(hHeaps);
+
     // encrypt memory pages
     List* pages = &tracker->Pages;
     uint  index = 0;
@@ -1845,6 +1885,42 @@ static bool encryptPage(MemoryTracker* tracker, memPage* page)
     deriveKey(tracker, page, key);
     EncryptBuf((byte*)(page->address), tracker->PageSize, key, page->iv);
     return true;
+}
+
+static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
+{
+    HEAP_ENTRY entry = {
+        .lpData = NULL,
+    };
+
+    uint numFound = 0;
+    for (;;)
+    {
+        if (!tracker->HeapWalk(hHeap, &entry))
+        {
+            break;
+        }
+        // skip too small block that not contain mark
+        if (entry.cbData <= sizeof(uint))
+        {
+            continue;
+        }
+        // skip block that not used
+        if ((entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) == 0)
+        {
+            continue;
+        }
+        // calculate mark address
+        uintptr block = (uintptr)(entry.lpData);
+        uint mark = *(uint*)(block + entry.cbData - sizeof(uint));
+        if (calcHeapMark(tracker->HeapMark, block) != mark)
+        {
+            continue;
+        }
+        numFound++;
+    }
+    dbg_log("[memory]", "heap block: %zu/%zu", numFound, tracker->NumBlocks);
+    return GetLastErrno() == ERROR_NO_MORE_ITEMS;
 }
 
 __declspec(noinline)
@@ -2048,6 +2124,27 @@ errno MT_FreeAll()
     dbg_log("[memory]", "regions: %zu", tracker->Regions.Len);
     dbg_log("[memory]", "pages:   %zu", tracker->Pages.Len);
     dbg_log("[memory]", "heaps:   %zu", tracker->Heaps.Len);
+    dbg_log("[memory]", "blocks:  %zu", tracker->NumBlocks);
+
+
+
+
+    HANDLE padding;
+    DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
+    HANDLE* hHeaps = MT_MemCalloc(numHeaps, sizeof(HANDLE));
+    if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
+    {
+        // walk and encrypt heap blocks
+        for (uint32 i = 0; i < numHeaps; i++)
+        {
+            HANDLE hHeap = *hHeaps;
+            if (!encryptHeapBlocks(tracker, hHeap))
+            {
+                // return ERR_MEMORY_ENCRYPT_HEAP_BLOCK;
+            }
+            hHeaps++;
+        }
+    }
     return errno;
 }
 
@@ -2167,6 +2264,7 @@ errno MT_Clean()
     dbg_log("[memory]", "regions: %zu", tracker->Regions.Len);
     dbg_log("[memory]", "pages:   %zu", tracker->Pages.Len);
     dbg_log("[memory]", "heaps:   %zu", tracker->Heaps.Len);
+    dbg_log("[memory]", "blocks:  %zu", tracker->NumBlocks);
     return errno;
 }
 
