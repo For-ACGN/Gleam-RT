@@ -64,7 +64,15 @@ hash_api -fmt 64 -conc -func HeapDestroy
 hash_api -fmt 64 -conc -func HeapAlloc
 hash_api -fmt 64 -conc -func HeapReAlloc
 hash_api -fmt 64 -conc -func HeapFree
-hash_api -fmt 64 -conc -func HeapWalk
+hash_api -fmt 64 -conc -func GlobalAlloc
+hash_api -fmt 64 -conc -func GlobalReAlloc
+hash_api -fmt 64 -conc -func GlobalFree
+hash_api -fmt 64 -conc -func LocalAlloc
+hash_api -fmt 64 -conc -func LocalReAlloc
+hash_api -fmt 64 -conc -func LocalFree
+hash_api -fmt 64 -conc -mod "ntdll.dll" -func RtlAllocateHeap
+hash_api -fmt 64 -conc -mod "ntdll.dll" -func RtlReAllocateHeap
+hash_api -fmt 64 -conc -mod "ntdll.dll" -func RtlFreeHeap
 hash_api -fmt 64 -conc -mod "msvcrt.dll" -func malloc
 hash_api -fmt 64 -conc -mod "msvcrt.dll" -func calloc
 hash_api -fmt 64 -conc -mod "msvcrt.dll" -func realloc
@@ -190,6 +198,15 @@ hash_api -fmt 32 -conc -func HeapAlloc
 hash_api -fmt 32 -conc -func HeapReAlloc
 hash_api -fmt 32 -conc -func HeapFree
 hash_api -fmt 32 -conc -func HeapWalk
+hash_api -fmt 32 -conc -func GlobalAlloc
+hash_api -fmt 32 -conc -func GlobalReAlloc
+hash_api -fmt 32 -conc -func GlobalFree
+hash_api -fmt 32 -conc -func LocalAlloc
+hash_api -fmt 32 -conc -func LocalReAlloc
+hash_api -fmt 32 -conc -func LocalFree
+hash_api -fmt 32 -conc -mod "ntdll.dll" -func RtlAllocateHeap
+hash_api -fmt 32 -conc -mod "ntdll.dll" -func RtlReAllocateHeap
+hash_api -fmt 32 -conc -mod "ntdll.dll" -func RtlFreeHeap
 hash_api -fmt 32 -conc -mod "msvcrt.dll" -func malloc
 hash_api -fmt 32 -conc -mod "msvcrt.dll" -func calloc
 hash_api -fmt 32 -conc -mod "msvcrt.dll" -func realloc
