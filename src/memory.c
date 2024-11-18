@@ -1808,25 +1808,6 @@ errno MT_Encrypt()
 {
     MemoryTracker* tracker = getTrackerPointer();
 
-    // get the number of heaps
-    HANDLE padding;
-    DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
-    HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
-    if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
-    {
-        HANDLE* hHeap = hHeaps;
-        // walk and encrypt heap blocks
-        for (uint32 i = 0; i < numHeaps; i++)
-        {
-            if (!encryptHeapBlocks(tracker, *hHeap))
-            {
-                // return ERR_MEMORY_ENCRYPT_HEAP_BLOCK;
-            }
-            hHeap++;
-        }
-    }
-    tracker->RT_free(hHeaps);
-
     // encrypt memory pages
     List* pages = &tracker->Pages;
     uint  index = 0;
@@ -1842,6 +1823,30 @@ errno MT_Encrypt()
             return ERR_MEMORY_ENCRYPT_PAGE;
         }
         num++;
+    }
+
+    // encrypt heap blocks
+    if (tracker->NumBlocks != 0)
+    {
+        // get the number of heaps
+        HANDLE padding;
+        DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
+        HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
+        // get heap handles
+        if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
+        {
+            HANDLE* hHeap = hHeaps;
+            // walk and encrypt heap blocks
+            for (uint32 i = 0; i < numHeaps; i++)
+            {
+                if (!encryptHeapBlocks(tracker, *hHeap))
+                {
+                    return ERR_MEMORY_ENCRYPT_BLOCK;
+                }
+                hHeap++;
+            }
+        }
+        tracker->RT_free(hHeaps);
     }
 
     // encrypt lists
@@ -1919,7 +1924,6 @@ static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
         }
         numFound++;
     }
-    dbg_log("[memory]", "heap block: %zu/%zu", numFound, tracker->NumBlocks);
     return GetLastErrno() == ERROR_NO_MORE_ITEMS;
 }
 
@@ -1962,6 +1966,31 @@ errno MT_Decrypt()
         }
         num++;
     }
+
+    // decrypt heap blocks
+    if (tracker->NumBlocks != 0)
+    {
+        // get the number of heaps
+        HANDLE padding;
+        DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
+        HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
+        // get heap handles
+        if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
+        {
+            HANDLE* hHeap = hHeaps;
+            // walk and encrypt heap blocks
+            for (uint32 i = 0; i < numHeaps; i++)
+            {
+                if (!decryptHeapBlocks(tracker, *hHeap))
+                {
+                    return ERR_MEMORY_DECRYPT_BLOCK;
+                }
+                hHeap++;
+            }
+        }
+        tracker->RT_free(hHeaps);
+    }
+
     dbg_log("[memory]", "regions: %zu", tracker->Regions.Len);
     dbg_log("[memory]", "pages:   %zu", tracker->Pages.Len);
     dbg_log("[memory]", "heaps:   %zu", tracker->Heaps.Len);
@@ -1982,6 +2011,43 @@ static bool decryptPage(MemoryTracker* tracker, memPage* page)
         return false;
     }
     return true;
+}
+
+static bool decryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
+{
+    HEAP_ENTRY entry = {
+        .lpData = NULL,
+    };
+
+    uint numFound = 0;
+    for (;;)
+    {
+        if (!tracker->HeapWalk(hHeap, &entry))
+        {
+            break;
+        }
+        // skip too small block that not contain mark
+        if (entry.cbData <= sizeof(uint))
+        {
+            continue;
+        }
+        // skip block that not used
+        if ((entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) == 0)
+        {
+            continue;
+        }
+        // calculate mark address
+        uintptr block = (uintptr)(entry.lpData);
+        uint mark = *(uint*)(block + entry.cbData - sizeof(uint));
+        if (calcHeapMark(tracker->HeapMark, block) != mark)
+        {
+            continue;
+        }
+
+        numFound++;
+    }
+    dbg_log("[memory]", "heap block: %zu/%zu", numFound, tracker->NumBlocks);
+    return GetLastErrno() == ERROR_NO_MORE_ITEMS;
 }
 
 static bool isEmptyPage(MemoryTracker* tracker, memPage* page)
@@ -2128,7 +2194,7 @@ errno MT_FreeAll()
 
 
 
-
+    // TODO scan and free
     HANDLE padding;
     DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
     HANDLE* hHeaps = MT_MemCalloc(numHeaps, sizeof(HANDLE));
@@ -2209,6 +2275,8 @@ errno MT_Clean()
         }
         num++;
     }
+
+    // TODO scan and free
 
     // release private heaps
     idx = 0;
