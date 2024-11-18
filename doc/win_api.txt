@@ -21,6 +21,12 @@ https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapalloc
 https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heaprealloc
 https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapfree
 https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapwalk
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-globalalloc
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-globalrealloc
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-globalfree
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-localalloc
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-localrealloc
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-localfree
 https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createthread
 https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitthread
 https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-suspendthread
