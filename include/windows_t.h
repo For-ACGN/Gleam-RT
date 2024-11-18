@@ -19,10 +19,8 @@ typedef uint SIZE_T;
 
 typedef void* POINTER;
 typedef void* PVOID;
-typedef void* HMODULE;
 typedef void* HANDLE;
 typedef void* FARPROC;
-typedef void* HINTERNET;
 
 typedef void*   LPVOID;
 typedef uint8*  LPSTR;
@@ -32,6 +30,11 @@ typedef HANDLE* LPHANDLE;
 typedef const void*   LPCVOID;
 typedef const uint8*  LPCSTR;
 typedef const uint16* LPCWSTR;
+
+typedef void* HMODULE;
+typedef void* HGLOBAL;
+typedef void* HLOCAL;
+typedef void* HINTERNET;
 
 typedef struct {
     DWORD   OEMID;
@@ -387,6 +390,36 @@ typedef BOOL (*HeapFree_t)
 typedef BOOL (*HeapWalk_t)
 (
     HANDLE hHeap, HEAP_ENTRY* lpEntry
+);
+
+typedef HGLOBAL (*GlobalAlloc_t)
+(
+    UINT uFlags, SIZE_T dwBytes
+);
+
+typedef HGLOBAL (*GlobalReAlloc_t)
+(
+    HGLOBAL hMem, SIZE_T dwBytes, UINT uFlags
+);
+
+typedef HGLOBAL (*GlobalFree_t)
+(
+    HGLOBAL lpMem
+);
+
+typedef HLOCAL (*LocalAlloc_t)
+(
+    UINT uFlags, SIZE_T dwBytes
+);
+
+typedef HLOCAL (*LocalReAlloc_t)
+(
+    HLOCAL hMem, SIZE_T dwBytes, UINT uFlags
+);
+
+typedef HLOCAL (*LocalFree_t)
+(
+    HLOCAL lpMem
 );
 
 typedef HANDLE (*CreateThread_t)
