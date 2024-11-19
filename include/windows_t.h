@@ -210,6 +210,18 @@ typedef struct {
 #define PROCESS_HEAP_UNCOMMITTED_RANGE 0x0002
 #define PROCESS_HEAP_ENTRY_BUSY        0x0004
 
+#define GMEM_FIXED    0x0000
+#define GMEM_MOVEABLE 0x0002
+#define GMEM_ZEROINIT 0x0040
+#define GPTR          0x0040
+#define GHND          0x0042
+
+#define LMEM_FIXED    0x0000
+#define LMEM_MOVEABLE 0x0002
+#define LMEM_ZEROINIT 0x0040
+#define LPTR          0x0040
+#define LHND          0x0042
+
 #define CREATE_SUSPENDED 0x00000004
 
 #define CONTEXT_AMD64 0x00100000
