@@ -1203,7 +1203,7 @@ HGLOBAL MT_GlobalAlloc(UINT uFlags, SIZE_T dwBytes)
             lastErr = GetLastErrno();
             break;
         }
-        if (uFlags & LMEM_MOVEABLE != 0)
+        if ((uFlags & GMEM_MOVEABLE) != 0)
         {
             break;
         }
@@ -1229,31 +1229,217 @@ HGLOBAL MT_GlobalAlloc(UINT uFlags, SIZE_T dwBytes)
 __declspec(noinline)
 HGLOBAL MT_GlobalReAlloc(HGLOBAL hMem, SIZE_T dwBytes, UINT uFlags)
 {
+    MemoryTracker* tracker = getTrackerPointer();
 
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+    HGLOBAL hGlobal;
+
+    errno lastErr = NO_ERROR;
+    for (;;)
+    {
+        hGlobal = tracker->GlobalReAlloc(hMem, dwBytes + sizeof(uint), uFlags);
+        if (hGlobal == NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        if ((uFlags & GMEM_MOVEABLE) != 0)
+        {
+            break;
+        }
+        // write heap block mark
+        uint* tail = (uint*)((uintptr)hGlobal + dwBytes);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)hGlobal);
+        // update counter
+        if (hMem == NULL)
+        {
+            tracker->NumBlocks++;
+        }
+        break;
+    }
+
+    dbg_log("[memory]", "GlobalReAlloc: 0x%zX, 0x%zX", hGlobal, dwBytes);
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+
+    SetLastErrno(lastErr);
+    return hGlobal;
 }
 
 __declspec(noinline)
 HGLOBAL MT_GlobalFree(HGLOBAL lpMem)
 {
+    MemoryTracker* tracker = getTrackerPointer();
 
+    if (!MT_Lock())
+    {
+        return false;
+    }
+
+    HGLOBAL hGlobal;
+
+    errno lastErr = NO_ERROR;
+    for (;;)
+    {
+        hGlobal = tracker->GlobalFree(lpMem);
+        if (hGlobal != NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        if (lpMem != NULL)
+        {
+            tracker->NumBlocks--;
+        }
+        break;
+    }
+
+    dbg_log("[memory]", "GlobalFree: 0x%zX", lpMem);
+
+    if (!MT_Unlock())
+    {
+        return false;
+    }
+
+    SetLastErrno(lastErr);
+    return hGlobal;
 }
 
 __declspec(noinline)
 HLOCAL MT_LocalAlloc(UINT uFlags, SIZE_T dwBytes)
 {
+    MemoryTracker* tracker = getTrackerPointer();
 
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+    HLOCAL hLocal;
+
+    errno lastErr = NO_ERROR;
+    for (;;)
+    {
+        hLocal = tracker->LocalAlloc(uFlags, dwBytes + sizeof(uint));
+        if (hLocal == NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        if ((uFlags & LMEM_MOVEABLE) != 0)
+        {
+            break;
+        }
+        // write heap block mark
+        uint* tail = (uint*)((uintptr)hLocal + dwBytes);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)hLocal);
+        // update counter
+        tracker->NumBlocks++;
+        break;
+    }
+
+    dbg_log("[memory]", "LocalAlloc: 0x%zX, 0x%zX", hLocal, dwBytes);
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+
+    SetLastErrno(lastErr);
+    return hLocal;
 }
 
 __declspec(noinline)
 HLOCAL MT_LocalReAlloc(HLOCAL hMem, SIZE_T dwBytes, UINT uFlags)
 {
+    MemoryTracker* tracker = getTrackerPointer();
 
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+    HLOCAL hLocal;
+
+    errno lastErr = NO_ERROR;
+    for (;;)
+    {
+        hLocal = tracker->LocalReAlloc(hMem, dwBytes + sizeof(uint), uFlags);
+        if (hLocal == NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        if ((uFlags & LMEM_MOVEABLE) != 0)
+        {
+            break;
+        }
+        // write heap block mark
+        uint* tail = (uint*)((uintptr)hLocal + dwBytes);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)hLocal);
+        // update counter
+        if (hMem == NULL)
+        {
+            tracker->NumBlocks++;
+        }
+        break;
+    }
+
+    dbg_log("[memory]", "LocalReAlloc: 0x%zX, 0x%zX", hLocal, dwBytes);
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+
+    SetLastErrno(lastErr);
+    return hLocal;
 }
 
 __declspec(noinline)
 HLOCAL MT_LocalFree(HLOCAL lpMem)
 {
+    MemoryTracker* tracker = getTrackerPointer();
 
+    if (!MT_Lock())
+    {
+        return false;
+    }
+
+    HLOCAL hLocal;
+
+    errno lastErr = NO_ERROR;
+    for (;;)
+    {
+        hLocal = tracker->LocalFree(lpMem);
+        if (hLocal != NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        if (lpMem != NULL)
+        {
+            tracker->NumBlocks--;
+        }
+        break;
+    }
+
+    dbg_log("[memory]", "LocalFree: 0x%zX", lpMem);
+
+    if (!MT_Unlock())
+    {
+        return false;
+    }
+
+    SetLastErrno(lastErr);
+    return hLocal;
 }
 
 __declspec(noinline) 
@@ -2034,8 +2220,11 @@ static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
         {
             continue;
         }
+
+
         numFound++;
     }
+    dbg_log("[memory]", "encrypt heap block: %zu/%zu", numFound, tracker->NumBlocks);
     return GetLastErrno() == ERROR_NO_MORE_ITEMS;
 }
 
@@ -2156,9 +2345,10 @@ static bool decryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
             continue;
         }
 
+
         numFound++;
     }
-    dbg_log("[memory]", "heap block: %zu/%zu", numFound, tracker->NumBlocks);
+    dbg_log("[memory]", "decrypt heap block: %zu/%zu", numFound, tracker->NumBlocks);
     return GetLastErrno() == ERROR_NO_MORE_ITEMS;
 }
 
