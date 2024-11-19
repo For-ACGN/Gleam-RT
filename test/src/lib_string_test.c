@@ -10,6 +10,10 @@ static bool TestStrcmp_a();
 static bool TestStrcmp_w();
 static bool TestStrncmp_a();
 static bool TestStrncmp_w();
+static bool TestStricmp_a();
+static bool TestStricmp_w();
+static bool TestStrnicmp_a();
+static bool TestStrnicmp_w();
 static bool TestStrcpy_a();
 static bool TestStrcpy_w();
 static bool TestStrncpy_a();
@@ -19,16 +23,20 @@ bool TestLibString()
 {
     test_t tests[] = 
     {
-        { TestStrlen_a  },
-        { TestStrlen_w  },
-        { TestStrcmp_a  },
-        { TestStrcmp_w  },
-        { TestStrncmp_a },
-        { TestStrncmp_w },
-        { TestStrcpy_a  },
-        { TestStrcpy_w  },
-        { TestStrncpy_a },
-        { TestStrncpy_w },
+        { TestStrlen_a   },
+        { TestStrlen_w   },
+        { TestStrcmp_a   },
+        { TestStrcmp_w   },
+        { TestStrncmp_a  },
+        { TestStrncmp_w  },
+        { TestStricmp_a  },
+        { TestStricmp_w  },
+        { TestStrnicmp_a },
+        { TestStrnicmp_w },
+        { TestStrcpy_a   },
+        { TestStrcpy_w   },
+        { TestStrncpy_a  },
+        { TestStrncpy_w  },
     };
     for (int i = 0; i < arrlen(tests); i++)
     {
@@ -205,6 +213,130 @@ static bool TestStrncmp_w()
         return false;
     }
     printf_s("test strncmp_w with s0<s1 passed\n");
+    return true;
+}
+
+bool TestStricmp_a()
+{
+    ANSI s0 = "aBc";
+    ANSI s1 = "AbC";
+    if (stricmp_a(s0, s1) != 0)
+    {
+        printf_s("stricmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test stricmp_a with s0=s1 passed\n");
+
+    s0 = "aCc";
+    s1 = "abc";
+    if (stricmp_a(s0, s1) != 1)
+    {
+        printf_s("stricmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test stricmp_a with s0>s1 passed\n");
+
+    s0 = "aac";
+    s1 = "aBc";
+    if (stricmp_a(s0, s1) != -1)
+    {
+        printf_s("stricmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test stricmp_a with s0<s1 passed\n");
+    return true;
+}
+
+bool TestStricmp_w()
+{
+    UTF16 s0 = L"aBc";
+    UTF16 s1 = L"AbC";
+    if (stricmp_w(s0, s1) != 0)
+    {
+        printf_s("stricmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test stricmp_w with s0=s1 passed\n");
+
+    s0 = L"aCc";
+    s1 = L"abc";
+    if (stricmp_w(s0, s1) != 1)
+    {
+        printf_s("stricmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test stricmp_w with s0>s1 passed\n");
+
+    s0 = L"aac";
+    s1 = L"aBc";
+    if (stricmp_w(s0, s1) != -1)
+    {
+        printf_s("stricmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test stricmp_w with s0<s1 passed\n");
+    return true;
+}
+
+static bool TestStrnicmp_a()
+{
+    ANSI s0 = "aBc";
+    ANSI s1 = "AbC";
+    if (strnicmp_a(s0, s1, 2) != 0)
+    {
+        printf_s("strnicmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test strnicmp_a with s0=s1 passed\n");
+
+    s0 = "aCc";
+    s1 = "abc";
+    if (strnicmp_a(s0, s1, 2) != 1)
+    {
+        printf_s("strnicmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test strnicmp_a with s0>s1 passed\n");
+
+    s0 = "aac";
+    s1 = "aBc";
+    if (strnicmp_a(s0, s1, 2) != -1)
+    {
+        printf_s("strnicmp_a return incorrect value\n");
+        return false;
+    }
+    printf_s("test strnicmp_a with s0<s1 passed\n");
+    return true;
+}
+
+static bool TestStrnicmp_w()
+{
+    UTF16 s0 = L"aBc";
+    UTF16 s1 = L"AbC";
+    if (strnicmp_w(s0, s1, 2) != 0)
+    {
+        printf_s("strnicmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test strnicmp_w with s0=s1 passed\n");
+
+    s0 = L"aCc";
+    s1 = L"abc";
+    if (strnicmp_w(s0, s1, 2) != 1)
+    {
+        printf_s("strnicmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test strnicmp_w with s0>s1 passed\n");
+
+    s0 = L"aac";
+    s1 = L"aBc";
+    if (strnicmp_w(s0, s1, 2) != -1)
+    {
+        printf_s("strnicmp_w return incorrect value\n");
+        return false;
+    }
+    printf_s("test strnicmp_w with s0<s1 passed\n");
     return true;
 }
 
