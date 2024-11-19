@@ -52,6 +52,12 @@ typedef struct {
     HeapReAlloc_t           HeapReAlloc;
     HeapFree_t              HeapFree;
     HeapWalk_t              HeapWalk;
+    GlobalAlloc_t           GlobalAlloc;
+    GlobalReAlloc_t         GlobalReAlloc;
+    GlobalFree_t            GlobalFree;
+    LocalAlloc_t            LocalAlloc;
+    LocalReAlloc_t          LocalReAlloc;
+    LocalFree_t             LocalFree;
     ReleaseMutex_t          ReleaseMutex;
     WaitForSingleObject_t   WaitForSingleObject;
     FlushInstructionCache_t FlushInstructionCache;
@@ -94,11 +100,19 @@ BOOL   MT_VirtualProtect(LPVOID address, SIZE_T size, DWORD new, DWORD* old);
 SIZE_T MT_VirtualQuery(LPCVOID address, POINTER buffer, SIZE_T length);
 BOOL   MT_VirtualLock(LPVOID address, SIZE_T size);
 BOOL   MT_VirtualUnlock(LPVOID address, SIZE_T size);
+
 HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize);
 BOOL   MT_HeapDestroy(HANDLE hHeap);
 LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes);
 LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes);
 BOOL   MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem);
+
+HGLOBAL MT_GlobalAlloc(UINT uFlags, SIZE_T dwBytes);
+HGLOBAL MT_GlobalReAlloc(HGLOBAL hMem, SIZE_T dwBytes, UINT uFlags);
+HGLOBAL MT_GlobalFree(HGLOBAL lpMem);
+HLOCAL  MT_LocalAlloc(UINT uFlags, SIZE_T dwBytes);
+HLOCAL  MT_LocalReAlloc(HLOCAL hMem, SIZE_T dwBytes, UINT uFlags);
+HLOCAL  MT_LocalFree(HLOCAL lpMem);
 
 void* __cdecl MT_msvcrt_malloc(uint size);
 void* __cdecl MT_msvcrt_calloc(uint num, uint size);
@@ -220,6 +234,12 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->HeapAlloc      = GetFuncAddr(&MT_HeapAlloc);
     module->HeapReAlloc    = GetFuncAddr(&MT_HeapReAlloc);
     module->HeapFree       = GetFuncAddr(&MT_HeapFree);
+    module->GlobalAlloc    = GetFuncAddr(&MT_GlobalAlloc);
+    module->GlobalReAlloc  = GetFuncAddr(&MT_GlobalReAlloc);
+    module->GlobalFree     = GetFuncAddr(&MT_GlobalFree);
+    module->LocalAlloc     = GetFuncAddr(&MT_LocalAlloc);
+    module->LocalReAlloc   = GetFuncAddr(&MT_LocalReAlloc);
+    module->LocalFree      = GetFuncAddr(&MT_LocalFree);
     // hooks for msvcrt.dll
     module->msvcrt_malloc  = GetFuncAddr(&MT_msvcrt_malloc);
     module->msvcrt_calloc  = GetFuncAddr(&MT_msvcrt_calloc);
@@ -265,6 +285,12 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
         { 0xE04E489AFF9C386C, 0x1A2E6AE0D610549B }, // HeapReAlloc
         { 0x76F81CD39D7A292A, 0x82332A8834C25FA2 }, // HeapFree
         { 0x3E8966B69D68089B, 0x37E3CCE68E00C464 }, // HeapWalk
+        { 0x6D12139E758D2222, 0x65801FD39795C655 }, // GlobalAlloc
+        { 0x71850DBF6F0606DF, 0x9606F2F813AA08B8 }, // GlobalReAlloc
+        { 0x93FC79448E2B42C0, 0x1585336F8D91CF6C }, // GlobalFree
+        { 0xE26929AC886F3D5A, 0xCA1B7E486FE85707 }, // LocalAlloc
+        { 0x06AB6D6AE82D629A, 0x6E607E20E105F7BB }, // LocalReAlloc
+        { 0xB58311891BC88BE4, 0x6735D6D1569CD50C }, // LocalFree
     };
 #elif _WIN32
     {
@@ -279,6 +305,12 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
         { 0x0E0168E2, 0xFBFF0866 }, // HeapReAlloc
         { 0x94D5662A, 0x266763A1 }, // HeapFree
         { 0x252C4D47, 0x1CE53ADF }, // HeapWalk
+        { 0x9FB2283F, 0x47937CF8 }, // GlobalAlloc
+        { 0x79D908FC, 0xDC71CC28 }, // GlobalReAlloc
+        { 0xC173C03A, 0xA7963759 }, // GlobalFree
+        { 0xFC9A5703, 0x272EDBFF }, // LocalAlloc
+        { 0xC0D9E88A, 0x35443CE7 }, // LocalReAlloc
+        { 0x396C4DF0, 0xBDFA6D7B }, // LocalFree
     };
 #endif
     for (int i = 0; i < arrlen(list); i++)
@@ -301,6 +333,12 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
     tracker->HeapReAlloc     = list[0x08].proc;
     tracker->HeapFree        = list[0x09].proc;
     tracker->HeapWalk        = list[0x0A].proc;
+    tracker->GlobalAlloc     = list[0x0B].proc;
+    tracker->GlobalReAlloc   = list[0x0C].proc;
+    tracker->GlobalFree      = list[0x0D].proc;
+    tracker->LocalAlloc      = list[0x0E].proc;
+    tracker->LocalReAlloc    = list[0x0F].proc;
+    tracker->LocalFree       = list[0x10].proc;
 
     tracker->VirtualAlloc          = context->VirtualAlloc;
     tracker->VirtualFree           = context->VirtualFree;
@@ -1142,6 +1180,80 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
 
     SetLastErrno(lastErr);
     return success;
+}
+
+__declspec(noinline)
+HGLOBAL MT_GlobalAlloc(UINT uFlags, SIZE_T dwBytes)
+{
+    MemoryTracker* tracker = getTrackerPointer();
+
+    if (!MT_Lock())
+    {
+        return NULL;
+    }
+
+    HGLOBAL hGlobal;
+
+    errno lastErr = NO_ERROR;
+    for (;;)
+    {
+        hGlobal = tracker->GlobalAlloc(uFlags, dwBytes + sizeof(uint));
+        if (hGlobal == NULL)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        if (uFlags & LMEM_MOVEABLE != 0)
+        {
+            break;
+        }
+        // write heap block mark
+        uint* tail = (uint*)((uintptr)hGlobal + dwBytes);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)hGlobal);
+        // update counter
+        tracker->NumBlocks++;
+        break;
+    }
+
+    dbg_log("[memory]", "GlobalAlloc: 0x%zX, 0x%zX", hGlobal, dwBytes);
+
+    if (!MT_Unlock())
+    {
+        return NULL;
+    }
+
+    SetLastErrno(lastErr);
+    return hGlobal;
+}
+
+__declspec(noinline)
+HGLOBAL MT_GlobalReAlloc(HGLOBAL hMem, SIZE_T dwBytes, UINT uFlags)
+{
+
+}
+
+__declspec(noinline)
+HGLOBAL MT_GlobalFree(HGLOBAL lpMem)
+{
+
+}
+
+__declspec(noinline)
+HLOCAL MT_LocalAlloc(UINT uFlags, SIZE_T dwBytes)
+{
+
+}
+
+__declspec(noinline)
+HLOCAL MT_LocalReAlloc(HLOCAL hMem, SIZE_T dwBytes, UINT uFlags)
+{
+
+}
+
+__declspec(noinline)
+HLOCAL MT_LocalFree(HLOCAL lpMem)
+{
+
 }
 
 __declspec(noinline) 
