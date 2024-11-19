@@ -72,7 +72,7 @@ HMODULE GetModuleHandle(LPWSTR lpFilename)
         {
             break;
         }
-        if (strcmp_w((LPWSTR)modName, lpFilename) != 0)
+        if (stricmp_w((LPWSTR)modName, lpFilename) != 0)
         {
             continue;
         }
