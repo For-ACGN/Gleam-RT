@@ -36,6 +36,31 @@ int strncmp_a(ANSI a, ANSI b, int64 n);
 // if a < b, return -1
 int strncmp_w(UTF16 a, UTF16 b, int64 n);
 
+// stricmp_a is used to compare two ANSI strings, it is case-insensitive.
+// 
+// if a = b, return 0
+// if a > b, return 1
+// if a < b, return -1
+int stricmp_a(ANSI a, ANSI b);
+
+// stricmp_w is used to compare two Unicode strings, it is case-insensitive.
+// if a = b, return 0
+// if a > b, return 1
+// if a < b, return -1
+int stricmp_w(UTF16 a, UTF16 b);
+
+// strnicmp_a is used to compare two ANSI strings with length, it is case-insensitive.
+// if a = b, return 0
+// if a > b, return 1
+// if a < b, return -1
+int strnicmp_a(ANSI a, ANSI b, int64 n);
+
+// strnicmp_w is used to compare two Unicode strings with length, it is case-insensitive.
+// if a = b, return 0
+// if a > b, return 1
+// if a < b, return -1
+int strnicmp_w(UTF16 a, UTF16 b, int64 n);
+
 // strcpy_a is used to copy source ANSI string to destination.
 uint strcpy_a(ANSI dst, ANSI src);
 
