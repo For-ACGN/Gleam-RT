@@ -33,6 +33,12 @@ typedef struct {
     HeapAlloc_t      HeapAlloc;
     HeapReAlloc_t    HeapReAlloc;
     HeapFree_t       HeapFree;
+    GlobalAlloc_t    GlobalAlloc;
+    GlobalReAlloc_t  GlobalReAlloc;
+    GlobalFree_t     GlobalFree;
+    LocalAlloc_t     LocalAlloc;
+    LocalReAlloc_t   LocalReAlloc;
+    LocalFree_t      LocalFree;
 
     msvcrt_malloc_t  msvcrt_malloc;
     msvcrt_calloc_t  msvcrt_calloc;
