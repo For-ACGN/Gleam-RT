@@ -75,7 +75,9 @@ typedef struct {
     
     // tracke heap block
     uint HeapMark;
-    uint NumBlocks;
+    int  NumBlocks;
+    byte BlocksKey[CRYPTO_KEY_SIZE];
+    byte BlocksIV [CRYPTO_IV_SIZE];
 
     // store memory regions
     List Regions;
@@ -406,6 +408,8 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     tracker->hMutex = hMutex;
     // generate the random heap mark
     tracker->HeapMark = RandUint((uint64)hMutex);
+    RandBuffer(tracker->BlocksKey, CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->BlocksIV,  CRYPTO_IV_SIZE);
     // initialize memory region and page list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -2220,11 +2224,15 @@ static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
         {
             continue;
         }
-
-
+        // encrypt heap block
+        byte* buf  = (byte*)(entry.lpData);
+        uint  size = entry.cbData - sizeof(uint);
+        byte* key  = tracker->BlocksKey;
+        byte* iv   = tracker->BlocksIV;
+        EncryptBuf(buf, size, key, iv);
         numFound++;
     }
-    dbg_log("[memory]", "encrypt heap block: %zu/%zu", numFound, tracker->NumBlocks);
+    dbg_log("[memory]", "encrypt heap block: %zu/%d", numFound, tracker->NumBlocks);
     return GetLastErrno() == ERROR_NO_MORE_ITEMS;
 }
 
@@ -2279,7 +2287,7 @@ errno MT_Decrypt()
         if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
         {
             HANDLE* hHeap = hHeaps;
-            // walk and encrypt heap blocks
+            // walk and decrypt heap blocks
             for (uint32 i = 0; i < numHeaps; i++)
             {
                 if (!decryptHeapBlocks(tracker, *hHeap))
@@ -2344,11 +2352,15 @@ static bool decryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
         {
             continue;
         }
-
-
+        // decrypt heap block
+        byte* buf  = (byte*)(entry.lpData);
+        uint  size = entry.cbData - sizeof(uint);
+        byte* key  = tracker->BlocksKey;
+        byte* iv   = tracker->BlocksIV;
+        DecryptBuf(buf, size, key, iv);
         numFound++;
     }
-    dbg_log("[memory]", "decrypt heap block: %zu/%zu", numFound, tracker->NumBlocks);
+    dbg_log("[memory]", "decrypt heap block: %zu/%d", numFound, tracker->NumBlocks);
     return GetLastErrno() == ERROR_NO_MORE_ITEMS;
 }
 
@@ -2468,6 +2480,24 @@ errno MT_FreeAll()
         num++;
     }
 
+    // TODO scan and free
+    HANDLE padding;
+    DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
+    HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
+    if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
+    {
+        // walk and encrypt heap blocks
+        for (uint32 i = 0; i < numHeaps; i++)
+        {
+            HANDLE hHeap = *hHeaps;
+            if (!encryptHeapBlocks(tracker, hHeap))
+            {
+                // return ERR_MEMORY_ENCRYPT_HEAP_BLOCK;
+            }
+            hHeaps++;
+        }
+    }
+
     // release private heaps
     len = heaps->Len;
     idx = 0;
@@ -2493,26 +2523,6 @@ errno MT_FreeAll()
     dbg_log("[memory]", "pages:   %zu", tracker->Pages.Len);
     dbg_log("[memory]", "heaps:   %zu", tracker->Heaps.Len);
     dbg_log("[memory]", "blocks:  %zu", tracker->NumBlocks);
-
-
-
-    // TODO scan and free
-    HANDLE padding;
-    DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
-    HANDLE* hHeaps = MT_MemCalloc(numHeaps, sizeof(HANDLE));
-    if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
-    {
-        // walk and encrypt heap blocks
-        for (uint32 i = 0; i < numHeaps; i++)
-        {
-            HANDLE hHeap = *hHeaps;
-            if (!encryptHeapBlocks(tracker, hHeap))
-            {
-                // return ERR_MEMORY_ENCRYPT_HEAP_BLOCK;
-            }
-            hHeaps++;
-        }
-    }
     return errno;
 }
 
