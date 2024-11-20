@@ -51,6 +51,9 @@ typedef struct {
     HeapAlloc_t             HeapAlloc;
     HeapReAlloc_t           HeapReAlloc;
     HeapFree_t              HeapFree;
+    HeapSize_t              HeapSize;
+    HeapLock_t              HeapLock;
+    HeapUnlock_t            HeapUnlock;
     HeapWalk_t              HeapWalk;
     GlobalAlloc_t           GlobalAlloc;
     GlobalReAlloc_t         GlobalReAlloc;
@@ -175,10 +178,11 @@ static bool   recoverPageProtect(MemoryTracker* tracker, memPage* page);
 
 static bool encryptPage(MemoryTracker* tracker, memPage* page);
 static bool decryptPage(MemoryTracker* tracker, memPage* page);
-static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap);
-static bool decryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap);
 static bool isEmptyPage(MemoryTracker* tracker, memPage* page);
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
+static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap);
+static bool decryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap);
+static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, bool encrypt);
 static bool cleanPage(MemoryTracker* tracker, memPage* page);
 
 static void eraseTrackerMethods(Context* context);
@@ -286,6 +290,9 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
         { 0x8D604A3248B6EAFE, 0x496C489A6E3B8ECD }, // HeapAlloc
         { 0xE04E489AFF9C386C, 0x1A2E6AE0D610549B }, // HeapReAlloc
         { 0x76F81CD39D7A292A, 0x82332A8834C25FA2 }, // HeapFree
+        { 0xCBF3B50C5860708F, 0xED694821DB8B2EEC }, // HeapSize
+        { 0x867B4ED0812B2DC2, 0xAA9EAFD21F21E1AD }, // HeapLock
+        { 0x5ED7EC7D0E4BE01C, 0xCD72A9C05C1231B3 }, // HeapUnlock
         { 0x3E8966B69D68089B, 0x37E3CCE68E00C464 }, // HeapWalk
         { 0x6D12139E758D2222, 0x65801FD39795C655 }, // GlobalAlloc
         { 0x71850DBF6F0606DF, 0x9606F2F813AA08B8 }, // GlobalReAlloc
@@ -306,6 +313,9 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
         { 0x6E86E11A, 0x692C7E92 }, // HeapAlloc
         { 0x0E0168E2, 0xFBFF0866 }, // HeapReAlloc
         { 0x94D5662A, 0x266763A1 }, // HeapFree
+        { 0xB9E185DC, 0xEDE5B461 }, // HeapSize
+        { 0x0EF3433F, 0x9391D7F0 }, // HeapLock
+        { 0xF848F9C5, 0x7742CCD1 }, // HeapUnlock
         { 0x252C4D47, 0x1CE53ADF }, // HeapWalk
         { 0x9FB2283F, 0x47937CF8 }, // GlobalAlloc
         { 0x79D908FC, 0xDC71CC28 }, // GlobalReAlloc
@@ -334,13 +344,16 @@ static bool initTrackerAPI(MemoryTracker* tracker, Context* context)
     tracker->HeapAlloc       = list[0x07].proc;
     tracker->HeapReAlloc     = list[0x08].proc;
     tracker->HeapFree        = list[0x09].proc;
-    tracker->HeapWalk        = list[0x0A].proc;
-    tracker->GlobalAlloc     = list[0x0B].proc;
-    tracker->GlobalReAlloc   = list[0x0C].proc;
-    tracker->GlobalFree      = list[0x0D].proc;
-    tracker->LocalAlloc      = list[0x0E].proc;
-    tracker->LocalReAlloc    = list[0x0F].proc;
-    tracker->LocalFree       = list[0x10].proc;
+    tracker->HeapSize        = list[0x0A].proc;
+    tracker->HeapLock        = list[0x0B].proc;
+    tracker->HeapUnlock      = list[0x0C].proc;
+    tracker->HeapWalk        = list[0x0D].proc;
+    tracker->GlobalAlloc     = list[0x0E].proc;
+    tracker->GlobalReAlloc   = list[0x0F].proc;
+    tracker->GlobalFree      = list[0x10].proc;
+    tracker->LocalAlloc      = list[0x11].proc;
+    tracker->LocalReAlloc    = list[0x12].proc;
+    tracker->LocalFree       = list[0x13].proc;
 
     tracker->VirtualAlloc          = context->VirtualAlloc;
     tracker->VirtualFree           = context->VirtualFree;
@@ -2132,9 +2145,9 @@ errno MT_Encrypt()
     {
         // get the number of heaps
         HANDLE padding;
-        DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
-        HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
+        DWORD  numHeaps = tracker->GetProcessHeaps(0, &padding);
         // get heap handles
+        HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
         if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
         {
             HANDLE* hHeap = hHeaps;
@@ -2173,67 +2186,6 @@ errno MT_Encrypt()
     RandBuffer(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
     return NO_ERROR;
-}
-
-static bool encryptPage(MemoryTracker* tracker, memPage* page)
-{
-    if (isEmptyPage(tracker, page))
-    {
-        return true;
-    }
-    if (!adjustPageProtect(tracker, page))
-    {
-        return false;
-    }
-    // generate new key and IV
-    RandBuffer(page->key, CRYPTO_KEY_SIZE);
-    RandBuffer(page->iv, CRYPTO_IV_SIZE);
-    byte key[CRYPTO_KEY_SIZE];
-    deriveKey(tracker, page, key);
-    EncryptBuf((byte*)(page->address), tracker->PageSize, key, page->iv);
-    return true;
-}
-
-static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
-{
-    HEAP_ENTRY entry = {
-        .lpData = NULL,
-    };
-
-    uint numFound = 0;
-    for (;;)
-    {
-        if (!tracker->HeapWalk(hHeap, &entry))
-        {
-            break;
-        }
-        // skip too small block that not contain mark
-        if (entry.cbData <= sizeof(uint))
-        {
-            continue;
-        }
-        // skip block that not used
-        if ((entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) == 0)
-        {
-            continue;
-        }
-        // calculate mark address
-        uintptr block = (uintptr)(entry.lpData);
-        uint mark = *(uint*)(block + entry.cbData - sizeof(uint));
-        if (calcHeapMark(tracker->HeapMark, block) != mark)
-        {
-            continue;
-        }
-        // encrypt heap block
-        byte* buf  = (byte*)(entry.lpData);
-        uint  size = entry.cbData - sizeof(uint);
-        byte* key  = tracker->BlocksKey;
-        byte* iv   = tracker->BlocksIV;
-        EncryptBuf(buf, size, key, iv);
-        numFound++;
-    }
-    dbg_log("[memory]", "encrypt heap block: %zu/%d", numFound, tracker->NumBlocks);
-    return GetLastErrno() == ERROR_NO_MORE_ITEMS;
 }
 
 __declspec(noinline)
@@ -2281,9 +2233,9 @@ errno MT_Decrypt()
     {
         // get the number of heaps
         HANDLE padding;
-        DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
-        HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
+        DWORD  numHeaps = tracker->GetProcessHeaps(0, &padding);
         // get heap handles
+        HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
         if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
         {
             HANDLE* hHeap = hHeaps;
@@ -2306,6 +2258,25 @@ errno MT_Decrypt()
     return NO_ERROR;
 }
 
+static bool encryptPage(MemoryTracker* tracker, memPage* page)
+{
+    if (isEmptyPage(tracker, page))
+    {
+        return true;
+    }
+    if (!adjustPageProtect(tracker, page))
+    {
+        return false;
+    }
+    // generate new key and IV
+    RandBuffer(page->key, CRYPTO_KEY_SIZE);
+    RandBuffer(page->iv, CRYPTO_IV_SIZE);
+    byte key[CRYPTO_KEY_SIZE];
+    deriveKey(tracker, page, key);
+    EncryptBuf((byte*)(page->address), tracker->PageSize, key, page->iv);
+    return true;
+}
+
 static bool decryptPage(MemoryTracker* tracker, memPage* page)
 {
     if (isEmptyPage(tracker, page))
@@ -2320,48 +2291,6 @@ static bool decryptPage(MemoryTracker* tracker, memPage* page)
         return false;
     }
     return true;
-}
-
-static bool decryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
-{
-    HEAP_ENTRY entry = {
-        .lpData = NULL,
-    };
-
-    uint numFound = 0;
-    for (;;)
-    {
-        if (!tracker->HeapWalk(hHeap, &entry))
-        {
-            break;
-        }
-        // skip too small block that not contain mark
-        if (entry.cbData <= sizeof(uint))
-        {
-            continue;
-        }
-        // skip block that not used
-        if ((entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) == 0)
-        {
-            continue;
-        }
-        // calculate mark address
-        uintptr block = (uintptr)(entry.lpData);
-        uint mark = *(uint*)(block + entry.cbData - sizeof(uint));
-        if (calcHeapMark(tracker->HeapMark, block) != mark)
-        {
-            continue;
-        }
-        // decrypt heap block
-        byte* buf  = (byte*)(entry.lpData);
-        uint  size = entry.cbData - sizeof(uint);
-        byte* key  = tracker->BlocksKey;
-        byte* iv   = tracker->BlocksIV;
-        DecryptBuf(buf, size, key, iv);
-        numFound++;
-    }
-    dbg_log("[memory]", "decrypt heap block: %zu/%d", numFound, tracker->NumBlocks);
-    return GetLastErrno() == ERROR_NO_MORE_ITEMS;
 }
 
 static bool isEmptyPage(MemoryTracker* tracker, memPage* page)
@@ -2389,6 +2318,81 @@ static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key)
     addr += ((uintptr)tracker->VirtualAlloc) >> 4;
     addr += ((uintptr)tracker->VirtualFree)  >> 6;
     mem_copy(key+4, &addr, sizeof(uintptr));
+}
+
+static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
+{
+    return walkHeapBlocks(tracker, hHeap, true);
+}
+
+static bool decryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
+{
+    return walkHeapBlocks(tracker, hHeap, false);
+}
+
+static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, bool encrypt)
+{
+    if (!tracker->HeapLock(hHeap))
+    {
+        return false;
+    }
+
+    HEAP_ENTRY entry = {
+        .lpData = NULL,
+    };
+    uint numFound = 0;
+    for (;;)
+    {
+        if (!tracker->HeapWalk(hHeap, &entry))
+        {
+            break;
+        }
+        // skip too small block that not contain mark
+        if (entry.cbData <= sizeof(uint))
+        {
+            continue;
+        }
+        // skip block that not used
+        if ((entry.wFlags & PROCESS_HEAP_ENTRY_BUSY) == 0)
+        {
+            continue;
+        }
+        // calculate mark address
+        uintptr block = (uintptr)(entry.lpData);
+        uint mark = *(uint*)(block + entry.cbData - sizeof(uint));
+        if (calcHeapMark(tracker->HeapMark, block) != mark)
+        {
+            continue;
+        }
+        // encrypt/decrypt heap block
+        byte* buf  = (byte*)(entry.lpData);
+        uint  size = entry.cbData - sizeof(uint);
+        byte* key  = tracker->BlocksKey;
+        byte* iv   = tracker->BlocksIV;
+        // skip empty block
+        if (mem_is_zero(buf, size))
+        {
+            continue;
+        }
+        if (encrypt)
+        {
+            EncryptBuf(buf, size, key, iv);
+        } else {
+            DecryptBuf(buf, size, key, iv);
+        }
+        numFound++;
+    }
+    errno lastErr = GetLastErrno();
+    
+    dbg_log("[memory]", "heap block: %zu/%d", numFound, tracker->NumBlocks);
+
+    if (!tracker->HeapUnlock(hHeap))
+    {
+        return false;
+    }
+
+    SetLastErrno(lastErr);
+    return lastErr == ERROR_NO_MORE_ITEMS;
 }
 
 __declspec(noinline)
