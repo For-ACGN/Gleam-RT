@@ -20,6 +20,9 @@ https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapdestr
 https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapalloc
 https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heaprealloc
 https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapfree
+https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapsize
+https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heaplock
+https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapunlock
 https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapwalk
 https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-globalalloc
 https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-globalrealloc
