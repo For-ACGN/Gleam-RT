@@ -64,6 +64,10 @@ hash_api -fmt 64 -conc -func HeapDestroy
 hash_api -fmt 64 -conc -func HeapAlloc
 hash_api -fmt 64 -conc -func HeapReAlloc
 hash_api -fmt 64 -conc -func HeapFree
+hash_api -fmt 64 -conc -func HeapSize
+hash_api -fmt 64 -conc -func HeapLock
+hash_api -fmt 64 -conc -func HeapUnlock
+hash_api -fmt 64 -conc -func HeapWalk
 hash_api -fmt 64 -conc -func GlobalAlloc
 hash_api -fmt 64 -conc -func GlobalReAlloc
 hash_api -fmt 64 -conc -func GlobalFree
@@ -197,6 +201,9 @@ hash_api -fmt 32 -conc -func HeapDestroy
 hash_api -fmt 32 -conc -func HeapAlloc
 hash_api -fmt 32 -conc -func HeapReAlloc
 hash_api -fmt 32 -conc -func HeapFree
+hash_api -fmt 32 -conc -func HeapSize
+hash_api -fmt 32 -conc -func HeapLock
+hash_api -fmt 32 -conc -func HeapUnlock
 hash_api -fmt 32 -conc -func HeapWalk
 hash_api -fmt 32 -conc -func GlobalAlloc
 hash_api -fmt 32 -conc -func GlobalReAlloc
