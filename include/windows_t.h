@@ -399,6 +399,21 @@ typedef BOOL (*HeapFree_t)
     HANDLE hHeap, DWORD dwFlags, LPVOID lpMem
 );
 
+typedef SIZE_T (*HeapSize_t)
+(
+    HANDLE hHeap, DWORD dwFlags, LPCVOID lpMem
+);
+
+typedef BOOL (*HeapLock_t)
+(
+    HANDLE hHeap
+);
+
+typedef BOOL (*HeapUnlock_t)
+(
+    HANDLE hHeap
+);
+
 typedef BOOL (*HeapWalk_t)
 (
     HANDLE hHeap, HEAP_ENTRY* lpEntry
