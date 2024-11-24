@@ -13,6 +13,8 @@
 #include "memory.h"
 #include "debug.h"
 
+#define BLOCK_MARK_SIZE sizeof(uint)
+
 typedef struct {
     uintptr address;
     uint    size;
@@ -966,15 +968,9 @@ HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize
         return NULL;
     }
 
-    dbg_log(
-        "[memory]", "HeapCreate: 0x%X, 0x%zX, 0x%zX",
-        flOptions, dwInitialSize, dwMaximumSize
-    );
-
     HANDLE hHeap;
 
     errno lastErr = NO_ERROR;
-    bool  success = false;
     for (;;)
     {
         hHeap = tracker->HeapCreate(flOptions, dwInitialSize, dwMaximumSize);
@@ -987,9 +983,13 @@ HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize
         {
             break;
         }
-        success = true;
         break;
     }
+
+    dbg_log(
+        "[memory]", "HeapCreate: 0x%X, 0x%zX, 0x%zX",
+        flOptions, dwInitialSize, dwMaximumSize
+    );
 
     if (!MT_Unlock())
     {
@@ -1024,8 +1024,6 @@ BOOL MT_HeapDestroy(HANDLE hHeap)
         return false;
     }
 
-    dbg_log("[memory]", "HeapDestroy: 0x%X", hHeap);
-
     errno lastErr = NO_ERROR;
     bool  success = false;
     for (;;)
@@ -1042,6 +1040,8 @@ BOOL MT_HeapDestroy(HANDLE hHeap)
         success = true;
         break;
     }
+
+    dbg_log("[memory]", "HeapDestroy: 0x%X", hHeap);
 
     if (!MT_Unlock())
     {
@@ -1087,12 +1087,14 @@ LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
     }
 
     LPVOID address;
-
-    bool success = false;
     for (;;)
     {
-        address = tracker->HeapAlloc(hHeap, dwFlags, dwBytes+sizeof(uint));
+        address = tracker->HeapAlloc(hHeap, dwFlags, dwBytes + BLOCK_MARK_SIZE);
         if (address == NULL)
+        {
+            break;
+        }
+        if (dwBytes == 0)
         {
             break;
         }
@@ -1101,7 +1103,6 @@ LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
         tracker->NumBlocks++;
-        success = true;
         break;
     }
 
@@ -1130,14 +1131,38 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
         return NULL;
     }
 
-    LPVOID address;
-
-    bool success = false;
+    LPVOID address = NULL;
     for (;;)
     {
-        address = tracker->HeapReAlloc(hHeap, dwFlags, lpMem, dwBytes + sizeof(uint));
+        // erase old mark before realloc
+        if (lpMem != NULL)
+        {
+            SIZE_T size = tracker->HeapSize(hHeap, dwFlags, lpMem);
+            if (size == (SIZE_T)(-1))
+            {
+                break;
+            }
+            if (size > BLOCK_MARK_SIZE)
+            {
+                uintptr block = (uintptr)lpMem;
+                uint* mark = (uint*)(block + size - BLOCK_MARK_SIZE);
+                if (calcHeapMark(tracker->HeapMark, block) == *mark)
+                {
+                    mem_init(mark, BLOCK_MARK_SIZE);
+                }
+            }
+        }
+        address = tracker->HeapReAlloc(hHeap, dwFlags, lpMem, dwBytes + BLOCK_MARK_SIZE);
         if (address == NULL)
         {
+            break;
+        }
+        if (dwBytes == 0)
+        {
+            if (lpMem != NULL)
+            {
+                tracker->NumBlocks--;
+            }
             break;
         }
         // write heap block mark
@@ -1148,7 +1173,6 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
         {
             tracker->NumBlocks++;
         }
-        success = true;
         break;
     }
 
@@ -1175,12 +1199,39 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
     bool  success = false;
     for (;;)
     {
+        // special case
+        if (lpMem == NULL)
+        {
+            success = tracker->HeapFree(hHeap, dwFlags, lpMem);
+            lastErr = GetLastErrno();
+            break;
+        }
+        // erase block mark before free
+        SIZE_T size = tracker->HeapSize(hHeap, dwFlags, lpMem);
+        if (size == (SIZE_T)(-1))
+        {
+            break;
+        }
+        bool tracked = false;
+        if (size > BLOCK_MARK_SIZE)
+        {
+            uintptr block = (uintptr)lpMem;
+            uint* mark = (uint*)(block + size - BLOCK_MARK_SIZE);
+            if (calcHeapMark(tracker->HeapMark, block) == *mark)
+            {
+                mem_init(mark, BLOCK_MARK_SIZE);
+            }
+            tracked = true;
+        }
+        // erase heap block before free
+
+
         if (!tracker->HeapFree(hHeap, dwFlags, lpMem))
         {
             lastErr = GetLastErrno();
             break;
         }
-        if (lpMem != NULL)
+        if (tracked)
         {
             tracker->NumBlocks--;
         }
@@ -1842,7 +1893,10 @@ void* __cdecl MT_ucrtbase_realloc(void* ptr, uint size)
         uint* tail = (uint*)((uintptr)address + size);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
-        tracker->NumBlocks++;
+        if (ptr == NULL)
+        {
+            tracker->NumBlocks++;
+        }
         success = true;
         break;
     }
@@ -2357,6 +2411,11 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, bool encrypt)
         {
             continue;
         }
+        // skip empty block
+        if (mem_is_zero(entry.lpData, entry.cbData))
+        {
+            continue;
+        }
         // calculate mark address
         uintptr block = (uintptr)(entry.lpData);
         uint mark = *(uint*)(block + entry.cbData - sizeof(uint));
@@ -2369,11 +2428,6 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, bool encrypt)
         uint  size = entry.cbData - sizeof(uint);
         byte* key  = tracker->BlocksKey;
         byte* iv   = tracker->BlocksIV;
-        // skip empty block
-        if (mem_is_zero(buf, size))
-        {
-            continue;
-        }
         if (encrypt)
         {
             EncryptBuf(buf, size, key, iv);
