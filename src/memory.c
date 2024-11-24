@@ -1134,7 +1134,6 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
     LPVOID address = NULL;
     for (;;)
     {
-        // erase old mark before realloc
         if (lpMem != NULL)
         {
             SIZE_T size = tracker->HeapSize(hHeap, dwFlags, lpMem);
@@ -1142,6 +1141,7 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
             {
                 break;
             }
+            // erase old mark before realloc
             if (size > BLOCK_MARK_SIZE)
             {
                 uintptr block = (uintptr)lpMem;
@@ -1149,7 +1149,16 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
                 if (calcHeapMark(tracker->HeapMark, block) == *mark)
                 {
                     mem_init(mark, BLOCK_MARK_SIZE);
+                    size -= BLOCK_MARK_SIZE;
                 }
+            }
+            // erase old block data before realloc
+            if (dwBytes > size)
+            {
+                mem_init(lpMem, size);
+            } else {
+                uintptr addr = (uintptr)lpMem + dwBytes;
+                mem_init((void*)addr, size - dwBytes);
             }
         }
         address = tracker->HeapReAlloc(hHeap, dwFlags, lpMem, dwBytes + BLOCK_MARK_SIZE);
@@ -1206,32 +1215,30 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
             lastErr = GetLastErrno();
             break;
         }
-        // erase block mark before free
+        // check has block mark before free
         SIZE_T size = tracker->HeapSize(hHeap, dwFlags, lpMem);
         if (size == (SIZE_T)(-1))
         {
             break;
         }
-        bool tracked = false;
+        bool marked = false;
         if (size > BLOCK_MARK_SIZE)
         {
             uintptr block = (uintptr)lpMem;
             uint* mark = (uint*)(block + size - BLOCK_MARK_SIZE);
             if (calcHeapMark(tracker->HeapMark, block) == *mark)
             {
-                mem_init(mark, BLOCK_MARK_SIZE);
+                marked = true;
             }
-            tracked = true;
         }
         // erase heap block before free
-
-
+        mem_init(lpMem, size);
         if (!tracker->HeapFree(hHeap, dwFlags, lpMem))
         {
             lastErr = GetLastErrno();
             break;
         }
-        if (tracked)
+        if (marked)
         {
             tracker->NumBlocks--;
         }
@@ -1722,7 +1729,7 @@ void __cdecl MT_msvcrt_free(void* ptr)
         break;
     }
 
-    dbg_log("[memory]", "msvcrt free ptr: 0x%zX", ptr);
+    dbg_log("[memory]", "msvcrt free, ptr: 0x%zX", ptr);
 
     if (!MT_Unlock())
     {
@@ -1947,7 +1954,7 @@ void __cdecl MT_ucrtbase_free(void* ptr)
         break;
     }
 
-    dbg_log("[memory]", "ucrtbase free ptr: 0x%zX", ptr);
+    dbg_log("[memory]", "ucrtbase free, ptr: 0x%zX", ptr);
 
     if (!MT_Unlock())
     {
