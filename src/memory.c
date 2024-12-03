@@ -15,6 +15,10 @@
 
 #define BLOCK_MARK_SIZE sizeof(uint)
 
+#define OP_WALK_HEAP_ENCRYPT 1
+#define OP_WALK_HEAP_DECRYPT 2
+#define OP_WALK_HEAP_ERASE   3
+
 typedef struct {
     uintptr address;
     uint    size;
@@ -165,9 +169,9 @@ static bool decommitPage(MemoryTracker* tracker, uintptr address, uint size);
 static bool releasePage(MemoryTracker* tracker, uintptr address, uint size);
 static bool deletePages(MemoryTracker* tracker, uintptr address, uint size);
 static void protectPage(MemoryTracker* tracker, uintptr address, uint size, uint32 protect);
-static bool lock_memory(MemoryTracker* tracker, uintptr address);
-static bool unlock_memory(MemoryTracker* tracker, uintptr address);
-static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock);
+static bool lockPages(MemoryTracker* tracker, uintptr address);
+static bool unlockPages(MemoryTracker* tracker, uintptr address);
+static bool setPagesLocker(MemoryTracker* tracker, uintptr address, bool lock);
 static bool addHeapObject(MemoryTracker* tracker, HANDLE hHeap, uint32 options);
 static bool delHeapObject(MemoryTracker* tracker, HANDLE hHeap);
 static uint calcHeapMark(uint mark, uintptr addr);
@@ -184,7 +188,8 @@ static bool isEmptyPage(MemoryTracker* tracker, memPage* page);
 static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key);
 static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap);
 static bool decryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap);
-static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, bool encrypt);
+static bool eraseHeapBlocks(MemoryTracker* tracker, HANDLE hHeap);
+static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation);
 static bool cleanPage(MemoryTracker* tracker, memPage* page);
 
 static void eraseTrackerMethods(Context* context);
@@ -846,7 +851,7 @@ BOOL MT_VirtualLock(LPVOID address, SIZE_T size)
     BOOL success;
     if (size == 0)
     {
-        success = lock_memory(tracker, (uintptr)address);
+        success = lockPages(tracker, (uintptr)address);
     } else {
         success = tracker->VirtualLock(address, size);
     }
@@ -875,7 +880,7 @@ BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
     BOOL success;
     if (size == 0)
     {
-        success = unlock_memory(tracker, (uintptr)address);
+        success = unlockPages(tracker, (uintptr)address);
     } else {
         success = tracker->VirtualUnlock(address, size);
     }
@@ -887,18 +892,18 @@ BOOL MT_VirtualUnlock(LPVOID address, SIZE_T size)
     return success;
 }
 
-static bool lock_memory(MemoryTracker* tracker, uintptr address)
+static bool lockPages(MemoryTracker* tracker, uintptr address)
 {
-    return set_memory_locker(tracker, address, true);
+    return setPagesLocker(tracker, address, true);
 }
 
-static bool unlock_memory(MemoryTracker* tracker, uintptr address)
+static bool unlockPages(MemoryTracker* tracker, uintptr address)
 {
-    return set_memory_locker(tracker, address, false);
+    return setPagesLocker(tracker, address, false);
 }
 
 #pragma optimize("t", on)
-static bool set_memory_locker(MemoryTracker* tracker, uintptr address, bool lock)
+static bool setPagesLocker(MemoryTracker* tracker, uintptr address, bool lock)
 {
     // search memory regions list
     register List* regions = &tracker->Regions;
@@ -1025,7 +1030,7 @@ BOOL MT_HeapDestroy(HANDLE hHeap)
     }
 
     errno lastErr = NO_ERROR;
-    bool  success = false;
+    BOOL  success = false;
     for (;;)
     {
         if (!tracker->HeapDestroy(hHeap))
@@ -1205,7 +1210,7 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
     }
 
     errno lastErr = NO_ERROR;
-    bool  success = false;
+    BOOL  success = false;
     for (;;)
     {
         // special case
@@ -2383,15 +2388,20 @@ static void deriveKey(MemoryTracker* tracker, memPage* page, byte* key)
 
 static bool encryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
 {
-    return walkHeapBlocks(tracker, hHeap, true);
+    return walkHeapBlocks(tracker, hHeap, OP_WALK_HEAP_ENCRYPT);
 }
 
 static bool decryptHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
 {
-    return walkHeapBlocks(tracker, hHeap, false);
+    return walkHeapBlocks(tracker, hHeap, OP_WALK_HEAP_DECRYPT);
 }
 
-static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, bool encrypt)
+static bool eraseHeapBlocks(MemoryTracker* tracker, HANDLE hHeap)
+{
+    return walkHeapBlocks(tracker, hHeap, OP_WALK_HEAP_ERASE);
+}
+
+static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation)
 {
     if (!tracker->HeapLock(hHeap))
     {
@@ -2435,11 +2445,23 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, bool encrypt)
         uint  size = entry.cbData - sizeof(uint);
         byte* key  = tracker->BlocksKey;
         byte* iv   = tracker->BlocksIV;
-        if (encrypt)
+        switch (operation)
         {
+        case OP_WALK_HEAP_ENCRYPT:
             EncryptBuf(buf, size, key, iv);
-        } else {
+            break;
+        case OP_WALK_HEAP_DECRYPT:
             DecryptBuf(buf, size, key, iv);
+            break;
+        case OP_WALK_HEAP_ERASE:
+            mem_init(buf, entry.cbData);
+            if (!tracker->HeapFree(hHeap, HEAP_NO_SERIALIZE, buf))
+            {
+                continue;
+            }
+            break;
+        default:
+            panic(PANIC_UNREACHABLE_CODE);
         }
         numFound++;
     }
@@ -2545,22 +2567,28 @@ errno MT_FreeAll()
         num++;
     }
 
-    // TODO scan and free
-    HANDLE padding;
-    DWORD numHeaps = tracker->GetProcessHeaps(0, &padding);
-    HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
-    if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
+    // erase heap blocks
+    if (tracker->NumBlocks != 0)
     {
-        // walk and encrypt heap blocks
-        for (uint32 i = 0; i < numHeaps; i++)
+        // get the number of heaps
+        HANDLE padding;
+        DWORD  numHeaps = tracker->GetProcessHeaps(0, &padding);
+        // get heap handles
+        HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
+        if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
         {
-            HANDLE hHeap = *hHeaps;
-            if (!encryptHeapBlocks(tracker, hHeap))
+            HANDLE* hHeap = hHeaps;
+            // walk and encrypt heap blocks
+            for (uint32 i = 0; i < numHeaps; i++)
             {
-                // return ERR_MEMORY_ENCRYPT_HEAP_BLOCK;
+                if (!eraseHeapBlocks(tracker, *hHeap))
+                {
+                    errno = ERR_MEMORY_ERASE_BLOCK;
+                }
+                hHeap++;
             }
-            hHeaps++;
         }
+        tracker->RT_free(hHeaps);
     }
 
     // release private heaps
@@ -2653,7 +2681,32 @@ errno MT_Clean()
         num++;
     }
 
-    // TODO scan and free
+    // erase heap blocks
+    if (tracker->NumBlocks != 0)
+    {
+        // get the number of heaps
+        HANDLE padding;
+        DWORD  numHeaps = tracker->GetProcessHeaps(0, &padding);
+        // get heap handles
+        HANDLE* hHeaps = tracker->RT_calloc(numHeaps, sizeof(HANDLE));
+        if (tracker->GetProcessHeaps(numHeaps, hHeaps) != 0)
+        {
+            HANDLE* hHeap = hHeaps;
+            // walk and encrypt heap blocks
+            for (uint32 i = 0; i < numHeaps; i++)
+            {
+                if (!eraseHeapBlocks(tracker, *hHeap))
+                {
+                    if (errno == NO_ERROR)
+                    {
+                        errno = ERR_MEMORY_ERASE_BLOCK;
+                    }
+                }
+                hHeap++;
+            }
+        }
+        tracker->RT_free(hHeaps);
+    }
 
     // release private heaps
     idx = 0;
