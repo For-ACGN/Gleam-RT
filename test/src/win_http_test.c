@@ -57,6 +57,8 @@ static bool TestWinHTTP_Get()
     printf_s("response size: %zu\n", resp.Body.Size);
     printf_s("response body: %s\n", (byte*)resp.Body.Buf);
 
+    runtime->Memory.Free(resp.Body.Buf);
+
     printf_s("test Get passed\n");
     return true;
 }
@@ -90,6 +92,8 @@ static bool TestWinHTTP_Post()
     }
     printf_s("response size: %zu\n", resp.Body.Size);
     printf_s("response body: %s\n", (byte*)resp.Body.Buf);
+
+    runtime->Memory.Free(resp.Body.Buf);
 
     printf_s("test Post passed\n");
     return true;
