@@ -82,11 +82,15 @@ typedef struct {
     uint32 PageSize; // memory page size
     HANDLE hMutex;   // protect data
     
-    // tracke heap block
+    // tracked heap block
     uint HeapMark;
     int  NumBlocks;
     byte BlocksKey[CRYPTO_KEY_SIZE];
     byte BlocksIV [CRYPTO_IV_SIZE];
+
+    // count global/local heap block
+    int32 NumGlobals;
+    int32 NumLocals;
 
     // store memory regions
     List Regions;
@@ -1209,8 +1213,8 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
         return false;
     }
 
-    errno lastErr = NO_ERROR;
     BOOL  success = false;
+    errno lastErr = NO_ERROR;
     for (;;)
     {
         // special case
@@ -1273,25 +1277,20 @@ HGLOBAL MT_GlobalAlloc(UINT uFlags, SIZE_T dwBytes)
     }
 
     HGLOBAL hGlobal;
-
     errno lastErr = NO_ERROR;
     for (;;)
     {
-        hGlobal = tracker->GlobalAlloc(uFlags, dwBytes + sizeof(uint));
+        hGlobal = tracker->GlobalAlloc(uFlags, dwBytes);
         if (hGlobal == NULL)
         {
             lastErr = GetLastErrno();
             break;
         }
-        if ((uFlags & GMEM_MOVEABLE) != 0)
-        {
-            break;
-        }
-        // write heap block mark
-        uint* tail = (uint*)((uintptr)hGlobal + dwBytes);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)hGlobal);
         // update counter
-        tracker->NumBlocks++;
+        if (dwBytes != 0)
+        {
+            tracker->NumGlobals++;
+        }
         break;
     }
 
@@ -1317,7 +1316,6 @@ HGLOBAL MT_GlobalReAlloc(HGLOBAL hMem, SIZE_T dwBytes, UINT uFlags)
     }
 
     HGLOBAL hGlobal;
-
     errno lastErr = NO_ERROR;
     for (;;)
     {
@@ -1327,17 +1325,14 @@ HGLOBAL MT_GlobalReAlloc(HGLOBAL hMem, SIZE_T dwBytes, UINT uFlags)
             lastErr = GetLastErrno();
             break;
         }
-        if ((uFlags & GMEM_MOVEABLE) != 0)
-        {
-            break;
-        }
-        // write heap block mark
-        uint* tail = (uint*)((uintptr)hGlobal + dwBytes);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)hGlobal);
         // update counter
         if (hMem == NULL)
         {
-            tracker->NumBlocks++;
+            tracker->NumGlobals++;
+        }
+        if (dwBytes == 0)
+        {
+            tracker->NumGlobals--;
         }
         break;
     }
@@ -1364,7 +1359,6 @@ HGLOBAL MT_GlobalFree(HGLOBAL lpMem)
     }
 
     HGLOBAL hGlobal;
-
     errno lastErr = NO_ERROR;
     for (;;)
     {
@@ -1376,7 +1370,7 @@ HGLOBAL MT_GlobalFree(HGLOBAL lpMem)
         }
         if (lpMem != NULL)
         {
-            tracker->NumBlocks--;
+            tracker->NumGlobals--;
         }
         break;
     }
@@ -1403,25 +1397,20 @@ HLOCAL MT_LocalAlloc(UINT uFlags, SIZE_T dwBytes)
     }
 
     HLOCAL hLocal;
-
     errno lastErr = NO_ERROR;
     for (;;)
     {
-        hLocal = tracker->LocalAlloc(uFlags, dwBytes + sizeof(uint));
+        hLocal = tracker->LocalAlloc(uFlags, dwBytes);
         if (hLocal == NULL)
         {
             lastErr = GetLastErrno();
             break;
         }
-        if ((uFlags & LMEM_MOVEABLE) != 0)
-        {
-            break;
-        }
-        // write heap block mark
-        uint* tail = (uint*)((uintptr)hLocal + dwBytes);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)hLocal);
         // update counter
-        tracker->NumBlocks++;
+        if (dwBytes != 0)
+        {
+            tracker->NumLocals++;
+        }
         break;
     }
 
@@ -1447,7 +1436,6 @@ HLOCAL MT_LocalReAlloc(HLOCAL hMem, SIZE_T dwBytes, UINT uFlags)
     }
 
     HLOCAL hLocal;
-
     errno lastErr = NO_ERROR;
     for (;;)
     {
@@ -1457,17 +1445,14 @@ HLOCAL MT_LocalReAlloc(HLOCAL hMem, SIZE_T dwBytes, UINT uFlags)
             lastErr = GetLastErrno();
             break;
         }
-        if ((uFlags & LMEM_MOVEABLE) != 0)
-        {
-            break;
-        }
-        // write heap block mark
-        uint* tail = (uint*)((uintptr)hLocal + dwBytes);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)hLocal);
         // update counter
         if (hMem == NULL)
         {
-            tracker->NumBlocks++;
+            tracker->NumLocals++;
+        }
+        if (dwBytes == 0)
+        {
+            tracker->NumLocals--;
         }
         break;
     }
@@ -1494,7 +1479,6 @@ HLOCAL MT_LocalFree(HLOCAL lpMem)
     }
 
     HLOCAL hLocal;
-
     errno lastErr = NO_ERROR;
     for (;;)
     {
@@ -1506,7 +1490,7 @@ HLOCAL MT_LocalFree(HLOCAL lpMem)
         }
         if (lpMem != NULL)
         {
-            tracker->NumBlocks--;
+            tracker->NumLocals--;
         }
         break;
     }
@@ -2615,7 +2599,9 @@ errno MT_FreeAll()
     dbg_log("[memory]", "regions: %zu", tracker->Regions.Len);
     dbg_log("[memory]", "pages:   %zu", tracker->Pages.Len);
     dbg_log("[memory]", "heaps:   %zu", tracker->Heaps.Len);
-    dbg_log("[memory]", "blocks:  %zu", tracker->NumBlocks);
+    dbg_log("[memory]", "blocks:  %d",  tracker->NumBlocks);
+    dbg_log("[memory]", "globals: %d",  tracker->NumGlobals);
+    dbg_log("[memory]", "locals:  %d",  tracker->NumLocals);
     return errno;
 }
 
@@ -2762,7 +2748,9 @@ errno MT_Clean()
     dbg_log("[memory]", "regions: %zu", tracker->Regions.Len);
     dbg_log("[memory]", "pages:   %zu", tracker->Pages.Len);
     dbg_log("[memory]", "heaps:   %zu", tracker->Heaps.Len);
-    dbg_log("[memory]", "blocks:  %zu", tracker->NumBlocks);
+    dbg_log("[memory]", "blocks:  %d",  tracker->NumBlocks);
+    dbg_log("[memory]", "globals: %d",  tracker->NumGlobals);
+    dbg_log("[memory]", "locals:  %d",  tracker->NumLocals);
     return errno;
 }
 
