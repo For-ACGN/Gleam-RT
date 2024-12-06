@@ -978,7 +978,6 @@ HANDLE MT_HeapCreate(DWORD flOptions, SIZE_T dwInitialSize, SIZE_T dwMaximumSize
     }
 
     HANDLE hHeap;
-
     errno lastErr = NO_ERROR;
     for (;;)
     {
@@ -1033,8 +1032,8 @@ BOOL MT_HeapDestroy(HANDLE hHeap)
         return false;
     }
 
-    errno lastErr = NO_ERROR;
     BOOL  success = false;
+    errno lastErr = NO_ERROR;
     for (;;)
     {
         if (!tracker->HeapDestroy(hHeap))
@@ -1518,7 +1517,6 @@ void* __cdecl MT_msvcrt_malloc(uint size)
 
     void* address = NULL;
     errno lastErr = NO_ERROR;
-    bool  success = false;
     for (;;)
     {
         msvcrt_malloc_t malloc;
@@ -1532,17 +1530,14 @@ void* __cdecl MT_msvcrt_malloc(uint size)
             lastErr = ERR_MEMORY_API_NOT_FOUND;
             break;
         }
-        if (size == 0)
-        {
-            address = malloc(size);
-            lastErr = GetLastErrno();
-            success = true;
-            break;
-        }
-        address = malloc(size + sizeof(uint));
+        address = malloc(size + BLOCK_MARK_SIZE);
         if (address == NULL)
         {
             lastErr = GetLastErrno();
+            break;
+        }
+        if (size == 0)
+        {
             break;
         }
         // write heap block mark
@@ -1550,7 +1545,6 @@ void* __cdecl MT_msvcrt_malloc(uint size)
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
         tracker->NumBlocks++;
-        success = true;
         break;
     }
 
@@ -1577,7 +1571,6 @@ void* __cdecl MT_msvcrt_calloc(uint num, uint size)
 
     void* address = NULL;
     errno lastErr = NO_ERROR;
-    bool  success = false;
     for (;;)
     {
         msvcrt_calloc_t calloc;
@@ -1591,17 +1584,14 @@ void* __cdecl MT_msvcrt_calloc(uint num, uint size)
             lastErr = ERR_MEMORY_API_NOT_FOUND;
             break;
         }
-        if (size == 0)
-        {
-            address = calloc(num, size);
-            lastErr = GetLastErrno();
-            success = true;
-            break;
-        }
-        address = calloc(num + sizeof(uint), size);
+        address = calloc(num + BLOCK_MARK_SIZE, size);
         if (address == NULL)
         {
             lastErr = GetLastErrno();
+            break;
+        }
+        if (size == 0)
+        {
             break;
         }
         // write heap block mark
@@ -1609,7 +1599,6 @@ void* __cdecl MT_msvcrt_calloc(uint num, uint size)
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
         // update counter
         tracker->NumBlocks++;
-        success = true;
         break;
     }
 
@@ -2403,7 +2392,7 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation)
             break;
         }
         // skip too small block that not contain mark
-        if (entry.cbData <= sizeof(uint))
+        if (entry.cbData <= BLOCK_MARK_SIZE)
         {
             continue;
         }
@@ -2417,16 +2406,27 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation)
         {
             continue;
         }
-        // calculate mark address
+        // check is marked block
         uintptr block = (uintptr)(entry.lpData);
-        uint mark = *(uint*)(block + entry.cbData - sizeof(uint));
-        if (calcHeapMark(tracker->HeapMark, block) != mark)
+        uintptr mAddr = block + entry.cbData - BLOCK_MARK_SIZE;
+        uint mark   = calcHeapMark(tracker->HeapMark, block);
+        bool marked = false;
+        for (uintptr i = 0; i < 16; i++)
+        {
+            if (*(uint*)mAddr == mark)
+            {
+                marked = true;
+                break;
+            }
+            mAddr--;
+        }
+        if (!marked)
         {
             continue;
         }
         // encrypt/decrypt heap block
         byte* buf  = (byte*)(entry.lpData);
-        uint  size = entry.cbData - sizeof(uint);
+        uint  size = entry.cbData - BLOCK_MARK_SIZE;
         byte* key  = tracker->BlocksKey;
         byte* iv   = tracker->BlocksIV;
         switch (operation)
@@ -2451,15 +2451,21 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation)
     }
     errno lastErr = GetLastErrno();
     
-    dbg_log("[memory]", "heap block: %zu/%d", numFound, tracker->NumBlocks);
-
     if (!tracker->HeapUnlock(hHeap))
     {
         return false;
     }
 
-    SetLastErrno(lastErr);
-    return lastErr == ERROR_NO_MORE_ITEMS;
+    dbg_log("[memory]", "heap block: %zu/%d", numFound, tracker->NumBlocks);
+
+    bool success = lastErr == ERROR_NO_MORE_ITEMS;
+    if (success)
+    {
+        SetLastErrno(NO_ERROR);
+    } else {
+        SetLastErrno(lastErr);
+    }
+    return success;
 }
 
 __declspec(noinline)
