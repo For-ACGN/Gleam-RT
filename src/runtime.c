@@ -2148,17 +2148,23 @@ errno RT_Exit()
     typedef errno (*submodule_t)();
     submodule_t submodules[] = 
     {
-        // runtime submodules
+        // first kill all threads
         runtime->ThreadTracker->Clean,
-        runtime->ResourceTracker->Clean,
-        runtime->LibraryTracker->Clean,
-        runtime->MemoryTracker->Clean,
-        runtime->ArgumentStore->Clean,
 
         // high-level modules
-        runtime->WinBase->Uninstall,
-        runtime->WinFile->Uninstall,
         runtime->WinHTTP->Uninstall,
+        runtime->WinFile->Uninstall,
+        runtime->WinBase->Uninstall,
+
+        // runtime submodules
+        runtime->ArgumentStore->Clean,
+        runtime->LibraryTracker->Clean,
+
+        // maybe some librarys will use the tracked
+        // memory page or resource, so clean resource
+        // and memory page after clean library.
+        runtime->ResourceTracker->Clean,
+        runtime->MemoryTracker->Clean,
     };
     errno enmod = NO_ERROR;
     for (int i = 0; i < arrlen(submodules); i++)
