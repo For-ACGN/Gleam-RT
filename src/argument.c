@@ -56,6 +56,8 @@ static bool  updateStorePointer(ArgumentStore* store);
 static bool  recoverStorePointer(ArgumentStore* store);
 static bool  initStoreEnvironment(ArgumentStore* store, Context* context);
 static errno loadArguments(ArgumentStore* store, Context* context);
+static byte  ror(byte value, uint8 bits);
+static byte  rol(byte value, uint8 bits);
 
 static void eraseStoreMethods(Context* context);
 static void cleanStore(ArgumentStore* store);
@@ -210,20 +212,26 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     // decrypted arguments
     byte* data = (byte*)mem;
     byte* key  = (byte*)(stub + ARG_OFFSET_CRYPTO_KEY);
-    byte  last = 0xFF;
-    uint  keyIdx = 0;
+    uint32 last = *(uint32*)(key+0);
+    uint32 ctr  = *(uint32*)(key+4);
+    uint keyIdx = last % ARG_CRYPTO_KEY_SIZE;
     for (uint32 i = 0; i < size; i++)
     {
-        byte b = *data ^ last;
+        byte b = *data;
+        b = rol(b, (uint8)(last % 8));
+        b -= (byte)(ctr ^ last);
         b ^= *(key + keyIdx);
-        *data = b;  // last = *data;
-        last = b;   // *data = b;
+        b = ror(b, (uint8)(last % 8));
+        b ^= (byte)last;
+        *data = b;
         // update key index
         keyIdx++;
         if (keyIdx >= ARG_CRYPTO_KEY_SIZE)
         {
             keyIdx = 0;
         }
+        ctr++;
+        last = XORShift32(last);
         // update address
         data++;
     }
@@ -235,6 +243,16 @@ static errno loadArguments(ArgumentStore* store, Context* context)
     dbg_log("[argument]", "mem page: 0x%zX", store->Address);
     dbg_log("[argument]", "num args: %zu", store->NumArgs);
     return NO_ERROR;
+}
+
+static byte ror(byte value, uint8 bits)
+{
+    return value >> bits | value << (8 - bits);
+}
+
+static byte rol(byte value, uint8 bits)
+{
+    return value << bits | value >> (8 - bits);
 }
 
 __declspec(noinline)
