@@ -126,9 +126,9 @@ static bool TestMemory_Heap()
     HeapSize_t    HeapSize    = runtime->Library.GetProc(kernel32, "HeapSize");
 
     // test HeapAlloc
-    uint* mem = HeapAlloc(hHeap, 0, 8);
+    uint* mem = HeapAlloc(hHeap, 0, 16);
     *mem = 0x12345678;
-    if (HeapSize(hHeap, 0, mem) != (uint)(8 + sizeof(uint)))
+    if (HeapSize(hHeap, 0, mem) != (uint)(16 + sizeof(uint)))
     {
         printf_s("incorrect heap block size\n");
         return false;
@@ -156,6 +156,12 @@ static bool TestMemory_Heap()
     mem = HeapAlloc(hHeap, 0, 16);
     *mem = 0x12345678;
     mem = HeapReAlloc(hHeap, 0, mem, 8);
+    if (*mem != 0x12345678)
+    {
+        printf_s("incorrect heap block data after HeapReAlloc\n");
+        return false;
+    }
+    mem = HeapReAlloc(hHeap, 0, mem, 32);
     if (*mem != 0x12345678)
     {
         printf_s("incorrect heap block data after HeapReAlloc\n");
@@ -233,7 +239,7 @@ static bool TestMemory_GlobalHeap()
     GlobalReAlloc_t GlobalReAlloc = runtime->Library.GetProc(hModule, "GlobalReAlloc");
     GlobalFree_t    GlobalFree    = runtime->Library.GetProc(hModule, "GlobalFree");
 
-    HGLOBAL hGlobal = GlobalAlloc(GPTR, 16);
+    HGLOBAL hGlobal = GlobalAlloc(GPTR, 8);
     if (hGlobal == NULL)
     {
         printf_s("failed to alloc global heap 0x%X\n", GetLastErrno());
@@ -241,7 +247,7 @@ static bool TestMemory_GlobalHeap()
     }
     *(uint*)hGlobal = 0x1234;
 
-    hGlobal = GlobalReAlloc(hGlobal, 32, 0x40);
+    hGlobal = GlobalReAlloc(hGlobal, 32, GPTR);
     if (hGlobal == NULL)
     {
         printf_s("failed to realloc global heap 0x%X\n", GetLastErrno());
@@ -249,7 +255,7 @@ static bool TestMemory_GlobalHeap()
     }
     *(uint*)hGlobal = 0x5678;
 
-    if (!GlobalFree(hGlobal))
+    if (GlobalFree(hGlobal) != NULL)
     {
         printf_s("failed to free global heap 0x%X\n", GetLastErrno());
         return false;
@@ -271,7 +277,7 @@ static bool TestMemory_LocalHeap()
     LocalReAlloc_t LocalReAlloc = runtime->Library.GetProc(hModule, "LocalReAlloc");
     LocalFree_t    LocalFree    = runtime->Library.GetProc(hModule, "LocalFree");
 
-    HLOCAL hLocal = LocalAlloc(0, 16);
+    HLOCAL hLocal = LocalAlloc(LPTR, 8);
     if (hLocal == NULL)
     {
         printf_s("failed to alloc local heap 0x%X\n", GetLastErrno());
@@ -279,7 +285,7 @@ static bool TestMemory_LocalHeap()
     }
     *(uint*)hLocal = 0x1234;
 
-    hLocal = LocalReAlloc(hLocal, 8, 0);
+    hLocal = LocalReAlloc(hLocal, 32, LPTR);
     if (hLocal == NULL)
     {
         printf_s("failed to realloc local heap 0x%X\n", GetLastErrno());
@@ -287,7 +293,7 @@ static bool TestMemory_LocalHeap()
     }
     *(uint*)hLocal = 0x5678;
 
-    if (!LocalFree(hLocal))
+    if (LocalFree(hLocal) != NULL)
     {
         printf_s("failed to free local heap 0x%X\n", GetLastErrno());
         return false;
