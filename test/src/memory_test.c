@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "c_types.h"
+#include "windows_t.h"
 #include "msvcrt_t.h"
 #include "errno.h"
 #include "runtime.h"
@@ -7,16 +8,20 @@
 
 static bool TestMemory_Virtual();
 static bool TestMemory_Heap();
-static bool TestMemory_Msvcrt();
-static bool TestMemory_Ucrtbase();
+static bool TestMemory_GlobalHeap();
+static bool TestMemory_LocalHeap();
+static bool TestMemory_msvcrt();
+static bool TestMemory_ucrtbase();
 
 bool TestRuntime_Memory()
 {
     test_t tests[] = {
-        { TestMemory_Virtual  },
-        { TestMemory_Heap     },
-        { TestMemory_Msvcrt   },
-        { TestMemory_Ucrtbase },
+        { TestMemory_Virtual    },
+        { TestMemory_Heap       },
+        { TestMemory_GlobalHeap },
+        { TestMemory_LocalHeap  },
+        { TestMemory_msvcrt     },
+        { TestMemory_ucrtbase   },
     };
     for (int i = 0; i < arrlen(tests); i++)
     {
@@ -185,9 +190,6 @@ static bool TestMemory_Heap()
     }
     runtime->Core.Sleep(10);
 
-    // test global and local heap
-
-
     // compare the hook function address
     HMODULE ntdll = runtime->Library.LoadA("ntdll.dll");
     HeapAlloc_t   RtlAllocateHeap   = runtime->Library.GetProc(ntdll, "RtlAllocateHeap");
@@ -223,7 +225,83 @@ static bool TestMemory_Heap()
     return true;
 }
 
-static bool TestMemory_Msvcrt()
+static bool TestMemory_GlobalHeap()
+{
+    HMODULE hModule = runtime->Library.LoadA("kernel32.dll");
+
+    GlobalAlloc_t   GlobalAlloc   = runtime->Library.GetProc(hModule, "GlobalAlloc");
+    GlobalReAlloc_t GlobalReAlloc = runtime->Library.GetProc(hModule, "GlobalReAlloc");
+    GlobalFree_t    GlobalFree    = runtime->Library.GetProc(hModule, "GlobalFree");
+
+    HGLOBAL hGlobal = GlobalAlloc(GPTR, 16);
+    if (hGlobal == NULL)
+    {
+        printf_s("failed to alloc global heap 0x%X\n", GetLastErrno());
+        return false;
+    }
+    *(uint*)hGlobal = 0x1234;
+
+    hGlobal = GlobalReAlloc(hGlobal, 32, 0x40);
+    if (hGlobal == NULL)
+    {
+        printf_s("failed to realloc global heap 0x%X\n", GetLastErrno());
+        return false;
+    }
+    *(uint*)hGlobal = 0x5678;
+
+    if (!GlobalFree(hGlobal))
+    {
+        printf_s("failed to free global heap 0x%X\n", GetLastErrno());
+        return false;
+    }
+
+    if (!runtime->Library.Free(hModule))
+    {
+        printf_s("failed to free kernel32.dll: 0x%X\n", GetLastErrno());
+        return false;
+    }
+    return true;
+}
+
+static bool TestMemory_LocalHeap()
+{
+    HMODULE hModule = runtime->Library.LoadA("kernel32.dll");
+
+    LocalAlloc_t   LocalAlloc   = runtime->Library.GetProc(hModule, "LocalAlloc");
+    LocalReAlloc_t LocalReAlloc = runtime->Library.GetProc(hModule, "LocalReAlloc");
+    LocalFree_t    LocalFree    = runtime->Library.GetProc(hModule, "LocalFree");
+
+    HLOCAL hLocal = LocalAlloc(0, 16);
+    if (hLocal == NULL)
+    {
+        printf_s("failed to alloc local heap 0x%X\n", GetLastErrno());
+        return false;
+    }
+    *(uint*)hLocal = 0x1234;
+
+    hLocal = LocalReAlloc(hLocal, 8, 0);
+    if (hLocal == NULL)
+    {
+        printf_s("failed to realloc local heap 0x%X\n", GetLastErrno());
+        return false;
+    }
+    *(uint*)hLocal = 0x5678;
+
+    if (!LocalFree(hLocal))
+    {
+        printf_s("failed to free local heap 0x%X\n", GetLastErrno());
+        return false;
+    }
+
+    if (!runtime->Library.Free(hModule))
+    {
+        printf_s("failed to free kernel32.dll: 0x%X\n", GetLastErrno());
+        return false;
+    }
+    return true;
+}
+
+static bool TestMemory_msvcrt()
 {
     HMODULE hModule = runtime->Library.LoadA("msvcrt.dll");
 
@@ -258,7 +336,7 @@ static bool TestMemory_Msvcrt()
     return true;
 }
 
-static bool TestMemory_Ucrtbase()
+static bool TestMemory_ucrtbase()
 {
     return true;
 }
