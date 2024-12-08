@@ -1142,6 +1142,7 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
             break;
         }
         // erase old block mark before realloc
+        bool marked = false;
         if (size >= BLOCK_MARK_SIZE)
         {
             uintptr block = (uintptr)lpMem;
@@ -1150,6 +1151,7 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
             if (calcHeapMark(tracker->HeapMark, block, bSize) == *mark)
             {
                 mem_init(mark, BLOCK_MARK_SIZE);
+                marked = true;
             }
         }
         address = tracker->HeapReAlloc(hHeap, dwFlags, lpMem, dwBytes + BLOCK_MARK_SIZE);
@@ -1160,6 +1162,11 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
         // write new heap block mark
         uint* tail = (uint*)((uintptr)address + dwBytes);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, dwBytes);
+        // update counter
+        if (!marked)
+        {
+            tracker->NumBlocks++;
+        }
         break;
     }
 
@@ -1287,7 +1294,7 @@ HGLOBAL MT_GlobalReAlloc(HGLOBAL hMem, SIZE_T dwBytes, UINT uFlags)
     errno lastErr = NO_ERROR;
     for (;;)
     {
-        hGlobal = tracker->GlobalReAlloc(hMem, dwBytes + sizeof(uint), uFlags);
+        hGlobal = tracker->GlobalReAlloc(hMem, dwBytes, uFlags);
         if (hGlobal == NULL)
         {
             lastErr = GetLastErrno();
@@ -1366,10 +1373,7 @@ HLOCAL MT_LocalAlloc(UINT uFlags, SIZE_T dwBytes)
             break;
         }
         // update counter
-        if (dwBytes != 0)
-        {
-            tracker->NumLocals++;
-        }
+        tracker->NumLocals++;
         break;
     }
 
@@ -1398,20 +1402,11 @@ HLOCAL MT_LocalReAlloc(HLOCAL hMem, SIZE_T dwBytes, UINT uFlags)
     errno lastErr = NO_ERROR;
     for (;;)
     {
-        hLocal = tracker->LocalReAlloc(hMem, dwBytes + sizeof(uint), uFlags);
+        hLocal = tracker->LocalReAlloc(hMem, dwBytes, uFlags);
         if (hLocal == NULL)
         {
             lastErr = GetLastErrno();
             break;
-        }
-        // update counter
-        if (hMem == NULL)
-        {
-            tracker->NumLocals++;
-        }
-        if (dwBytes == 0)
-        {
-            tracker->NumLocals--;
         }
         break;
     }
