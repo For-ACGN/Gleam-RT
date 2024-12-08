@@ -178,7 +178,7 @@ static bool unlockPages(MemoryTracker* tracker, uintptr address);
 static bool setPagesLocker(MemoryTracker* tracker, uintptr address, bool lock);
 static bool addHeapObject(MemoryTracker* tracker, HANDLE hHeap, uint32 options);
 static bool delHeapObject(MemoryTracker* tracker, HANDLE hHeap);
-static uint calcHeapMark(uint mark, uintptr addr);
+static uint calcHeapMark(uint mark, uintptr addr, uint size);
 
 static uint32 replacePageProtect(uint32 protect);
 static bool   isPageTypeTrackable(uint32 type);
@@ -1108,7 +1108,7 @@ LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
         }
         // write heap block mark
         uint* tail = (uint*)((uintptr)address + dwBytes);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, dwBytes);
         // update counter
         tracker->NumBlocks++;
         break;
@@ -1123,10 +1123,11 @@ LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
     return address;
 }
 
-static uint calcHeapMark(uint mark, uintptr addr)
+static uint calcHeapMark(uint mark, uintptr addr, uint size)
 {
     mark = XORShift(mark ^ addr);
-    return XORShift(mark);
+    mark = XORShift(mark);
+    return mark + size;
 }
 
 __declspec(noinline)
@@ -1154,7 +1155,7 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
             {
                 uintptr block = (uintptr)lpMem;
                 uint* mark = (uint*)(block + size - BLOCK_MARK_SIZE);
-                if (calcHeapMark(tracker->HeapMark, block) == *mark)
+                if (calcHeapMark(tracker->HeapMark, block, size) == *mark)
                 {
                     mem_init(mark, BLOCK_MARK_SIZE);
                     size -= BLOCK_MARK_SIZE;
@@ -1184,7 +1185,7 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
         }
         // write heap block mark
         uint* tail = (uint*)((uintptr)address + dwBytes);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, dwBytes);
         // update counter
         if (lpMem == NULL)
         {
@@ -1233,8 +1234,9 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
         if (size > BLOCK_MARK_SIZE)
         {
             uintptr block = (uintptr)lpMem;
-            uint* mark = (uint*)(block + size - BLOCK_MARK_SIZE);
-            if (calcHeapMark(tracker->HeapMark, block) == *mark)
+            uint  bSize = size - BLOCK_MARK_SIZE;
+            uint* mark  = (uint*)(block + bSize);
+            if (calcHeapMark(tracker->HeapMark, block, bSize) == *mark)
             {
                 marked = true;
             }
@@ -1542,7 +1544,7 @@ void* __cdecl MT_msvcrt_malloc(uint size)
         }
         // write heap block mark
         uint* tail = (uint*)((uintptr)address + size);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, size);
         // update counter
         tracker->NumBlocks++;
         break;
@@ -1595,8 +1597,9 @@ void* __cdecl MT_msvcrt_calloc(uint num, uint size)
             break;
         }
         // write heap block mark
-        uint* tail = (uint*)((uintptr)address + num * size);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        uint total = (num + BLOCK_MARK_SIZE) * size - BLOCK_MARK_SIZE;
+        uint* tail = (uint*)((uintptr)address + total);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, total);
         // update counter
         tracker->NumBlocks++;
         break;
@@ -1654,9 +1657,12 @@ void* __cdecl MT_msvcrt_realloc(void* ptr, uint size)
         }
         // write heap block mark
         uint* tail = (uint*)((uintptr)address + size);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, size);
         // update counter
-        tracker->NumBlocks++;
+        if (ptr == NULL)
+        {
+            tracker->NumBlocks++;
+        }
         success = true;
         break;
     }
@@ -1758,7 +1764,7 @@ void* __cdecl MT_ucrtbase_malloc(uint size)
         }
         // write heap block mark
         uint* tail = (uint*)((uintptr)address + size);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, size);
         // update counter
         tracker->NumBlocks++;
         success = true;
@@ -1816,8 +1822,9 @@ void* __cdecl MT_ucrtbase_calloc(uint num, uint size)
             break;
         }
         // write heap block mark
-        uint* tail = (uint*)((uintptr)address + num * size);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        uint total = num* size;
+        uint* tail = (uint*)((uintptr)address + total);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, total);
         // update counter
         tracker->NumBlocks++;
         success = true;
@@ -1876,7 +1883,7 @@ void* __cdecl MT_ucrtbase_realloc(void* ptr, uint size)
         }
         // write heap block mark
         uint* tail = (uint*)((uintptr)address + size);
-        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address);
+        *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, size);
         // update counter
         if (ptr == NULL)
         {
@@ -2408,27 +2415,16 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation)
         }
         // check is marked block
         uintptr block = (uintptr)(entry.lpData);
-        uintptr mAddr = block + entry.cbData - BLOCK_MARK_SIZE;
-        uint mark   = calcHeapMark(tracker->HeapMark, block);
-        bool marked = false;
-        for (uintptr i = 0; i < 16; i++)
-        {
-            if (*(uint*)mAddr == mark)
-            {
-                marked = true;
-                break;
-            }
-            mAddr--;
-        }
-        if (!marked)
+        uint size = entry.cbData - BLOCK_MARK_SIZE;
+        uint mark = *(uint*)(block + size);
+        if (calcHeapMark(tracker->HeapMark, block, size) != mark)
         {
             continue;
         }
         // encrypt/decrypt heap block
-        byte* buf  = (byte*)(entry.lpData);
-        uint  size = entry.cbData - BLOCK_MARK_SIZE;
-        byte* key  = tracker->BlocksKey;
-        byte* iv   = tracker->BlocksIV;
+        byte* buf = (byte*)(entry.lpData);
+        byte* key = tracker->BlocksKey;
+        byte* iv  = tracker->BlocksIV;
         switch (operation)
         {
         case OP_WALK_HEAP_ENCRYPT:
