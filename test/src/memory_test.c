@@ -115,14 +115,15 @@ static bool TestMemory_Heap()
     GetProcessHeap_t GetProcessHeap = runtime->Library.GetProc(kernel32, "GetProcessHeap");
     HANDLE hHeap = GetProcessHeap();
 
-    // test common heap
     HeapAlloc_t   HeapAlloc   = runtime->Library.GetProc(kernel32, "HeapAlloc");
     HeapReAlloc_t HeapReAlloc = runtime->Library.GetProc(kernel32, "HeapReAlloc");
     HeapFree_t    HeapFree    = runtime->Library.GetProc(kernel32, "HeapFree");
     HeapSize_t    HeapSize    = runtime->Library.GetProc(kernel32, "HeapSize");
 
-    void* mem = HeapAlloc(hHeap, 0, 16);
-    if (HeapSize(hHeap, 0, mem) != (uint)(16 + sizeof(uint)))
+    // test HeapAlloc
+    uint* mem = HeapAlloc(hHeap, 0, 8);
+    *mem = 0x12345678;
+    if (HeapSize(hHeap, 0, mem) != (uint)(8 + sizeof(uint)))
     {
         printf_s("incorrect heap block size\n");
         return false;
@@ -132,13 +133,57 @@ static bool TestMemory_Heap()
         printf_s("failed to free heap 0x%X\n", GetLastErrno());
         return false;
     }
+    // zero size
+    mem = HeapAlloc(hHeap, 0, 0);
+    if (mem == NULL)
+    {
+        printf_s("failed to alloc heap with zero size\n");
+        return false;
+    }
+    if (!HeapFree(hHeap, 0, mem))
+    {
+        printf_s("failed to free heap with zero size 0x%X\n", GetLastErrno());
+        return false;
+    }
     runtime->Core.Sleep(10);
 
+    // test HeapReAlloc
+    mem = HeapAlloc(hHeap, 0, 16);
+    *mem = 0x12345678;
+    mem = HeapReAlloc(hHeap, 0, mem, 8);
+    if (*mem != 0x12345678)
+    {
+        printf_s("incorrect heap block data after HeapReAlloc\n");
+        return false;
+    }
+    if (!HeapFree(hHeap, 0, mem))
+    {
+        printf_s("failed to free heap 0x%X\n", GetLastErrno());
+        return false;
+    }
+    // zero size
+    mem = HeapAlloc(hHeap, 0, 16);
+    *mem = 0x12345678;
+    mem = HeapReAlloc(hHeap, 0, mem, 0);
+    if (mem == NULL)
+    {
+        printf_s("failed to realloc heap with zero size\n");
+        return false;
+    }
+    if (!HeapFree(hHeap, 0, mem))
+    {
+        printf_s("failed to free heap with zero size 0x%X\n", GetLastErrno());
+        return false;
+    }
+    runtime->Core.Sleep(10);
 
-
-
-
-
+    // test HeapFree
+    if (!HeapFree(hHeap, 0, NULL))
+    {
+        printf_s("failed to free heap with NULL0x%X\n", GetLastErrno());
+        return false;
+    }
+    runtime->Core.Sleep(10);
 
     // test global and local heap
 
