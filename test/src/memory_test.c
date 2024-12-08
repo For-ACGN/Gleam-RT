@@ -110,6 +110,71 @@ bool TestMemory_Virtual()
 
 static bool TestMemory_Heap()
 {
+    HMODULE kernel32 = runtime->Library.LoadA("kernel32.dll");
+
+    GetProcessHeap_t GetProcessHeap = runtime->Library.GetProc(kernel32, "GetProcessHeap");
+    HANDLE hHeap = GetProcessHeap();
+
+    // test common heap
+    HeapAlloc_t   HeapAlloc   = runtime->Library.GetProc(kernel32, "HeapAlloc");
+    HeapReAlloc_t HeapReAlloc = runtime->Library.GetProc(kernel32, "HeapReAlloc");
+    HeapFree_t    HeapFree    = runtime->Library.GetProc(kernel32, "HeapFree");
+    HeapSize_t    HeapSize    = runtime->Library.GetProc(kernel32, "HeapSize");
+
+    void* mem = HeapAlloc(hHeap, 0, 16);
+    if (HeapSize(hHeap, 0, mem) != (uint)(16 + sizeof(uint)))
+    {
+        printf_s("incorrect heap block size\n");
+        return false;
+    }
+    if (!HeapFree(hHeap, 0, mem))
+    {
+        printf_s("failed to free heap 0x%X\n", GetLastErrno());
+        return false;
+    }
+    runtime->Core.Sleep(10);
+
+
+
+
+
+
+
+    // test global and local heap
+
+
+    // compare the hook function address
+    HMODULE ntdll = runtime->Library.LoadA("ntdll.dll");
+    HeapAlloc_t   RtlAllocateHeap   = runtime->Library.GetProc(ntdll, "RtlAllocateHeap");
+    HeapReAlloc_t RtlReAllocateHeap = runtime->Library.GetProc(ntdll, "RtlReAllocateHeap");
+    HeapFree_t    RtlFreeHeap       = runtime->Library.GetProc(ntdll, "RtlFreeHeap");
+
+    if (RtlAllocateHeap != HeapAlloc)
+    {
+        printf_s("incorrect RtlAllocateHeap address\n");
+        return false;
+    }
+    if (RtlReAllocateHeap != HeapReAlloc)
+    {
+        printf_s("incorrect RtlReAllocateHeap address\n");
+        return false;
+    }
+    if (RtlFreeHeap != HeapFree)
+    {
+        printf_s("incorrect RtlFreeHeap address\n");
+        return false;
+    }
+    if (!runtime->Library.Free(ntdll))
+    {
+        printf_s("failed to free ntdll.dll: 0x%X\n", GetLastErrno());
+        return false;
+    }
+
+    if (!runtime->Library.Free(kernel32))
+    {
+        printf_s("failed to free kernel32.dll: 0x%X\n", GetLastErrno());
+        return false;
+    }
     return true;
 }
 
@@ -140,7 +205,12 @@ static bool TestMemory_Msvcrt()
     *test1 = 0x1234;
     runtime->Core.Sleep(10);
 
-    return runtime->Library.Free(hModule);
+    if (!runtime->Library.Free(hModule))
+    {
+        printf_s("failed to free kernel32.dll: 0x%X\n", GetLastErrno());
+        return false;
+    }
+    return true;
 }
 
 static bool TestMemory_Ucrtbase()
