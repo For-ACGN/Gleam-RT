@@ -1102,10 +1102,6 @@ LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
         {
             break;
         }
-        if (dwBytes == 0)
-        {
-            break;
-        }
         // write heap block mark
         uint* tail = (uint*)((uintptr)address + dwBytes);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, dwBytes);
@@ -1123,13 +1119,6 @@ LPVOID MT_HeapAlloc(HANDLE hHeap, DWORD dwFlags, SIZE_T dwBytes)
     return address;
 }
 
-static uint calcHeapMark(uint mark, uintptr addr, uint size)
-{
-    mark = XORShift(mark ^ addr);
-    mark = XORShift(mark);
-    return mark + size;
-}
-
 __declspec(noinline)
 LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
 {
@@ -1143,31 +1132,24 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
     LPVOID address = NULL;
     for (;;)
     {
-        if (lpMem != NULL)
+        if (lpMem == NULL)
         {
-            SIZE_T size = tracker->HeapSize(hHeap, dwFlags, lpMem);
-            if (size == (SIZE_T)(-1))
+            break;
+        }
+        SIZE_T size = tracker->HeapSize(hHeap, dwFlags, lpMem);
+        if (size == (SIZE_T)(-1))
+        {
+            break;
+        }
+        // erase old block mark before realloc
+        if (size >= BLOCK_MARK_SIZE)
+        {
+            uintptr block = (uintptr)lpMem;
+            uint  bSize = size - BLOCK_MARK_SIZE;
+            uint* mark  = (uint*)(block + bSize);
+            if (calcHeapMark(tracker->HeapMark, block, bSize) == *mark)
             {
-                break;
-            }
-            // erase old mark before realloc
-            if (size > BLOCK_MARK_SIZE)
-            {
-                uintptr block = (uintptr)lpMem;
-                uint* mark = (uint*)(block + size - BLOCK_MARK_SIZE);
-                if (calcHeapMark(tracker->HeapMark, block, size) == *mark)
-                {
-                    mem_init(mark, BLOCK_MARK_SIZE);
-                    size -= BLOCK_MARK_SIZE;
-                }
-            }
-            // erase old block data before realloc
-            if (dwBytes > size)
-            {
-                mem_init(lpMem, size);
-            } else {
-                uintptr addr = (uintptr)lpMem + dwBytes;
-                mem_init((void*)addr, size - dwBytes);
+                mem_init(mark, BLOCK_MARK_SIZE);
             }
         }
         address = tracker->HeapReAlloc(hHeap, dwFlags, lpMem, dwBytes + BLOCK_MARK_SIZE);
@@ -1175,22 +1157,9 @@ LPVOID MT_HeapReAlloc(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem, SIZE_T dwBytes)
         {
             break;
         }
-        if (dwBytes == 0)
-        {
-            if (lpMem != NULL)
-            {
-                tracker->NumBlocks--;
-            }
-            break;
-        }
-        // write heap block mark
+        // write new heap block mark
         uint* tail = (uint*)((uintptr)address + dwBytes);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, dwBytes);
-        // update counter
-        if (lpMem == NULL)
-        {
-            tracker->NumBlocks++;
-        }
         break;
     }
 
@@ -1224,14 +1193,14 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
             lastErr = GetLastErrno();
             break;
         }
-        // check has block mark before free
+        // check it is a marked block before free
         SIZE_T size = tracker->HeapSize(hHeap, dwFlags, lpMem);
         if (size == (SIZE_T)(-1))
         {
             break;
         }
         bool marked = false;
-        if (size > BLOCK_MARK_SIZE)
+        if (size >= BLOCK_MARK_SIZE)
         {
             uintptr block = (uintptr)lpMem;
             uint  bSize = size - BLOCK_MARK_SIZE;
@@ -1241,13 +1210,14 @@ BOOL MT_HeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
                 marked = true;
             }
         }
-        // erase heap block before free
+        // erase heap block data and mark before free
         mem_init(lpMem, size);
         if (!tracker->HeapFree(hHeap, dwFlags, lpMem))
         {
             lastErr = GetLastErrno();
             break;
         }
+        // update counter
         if (marked)
         {
             tracker->NumBlocks--;
@@ -1288,10 +1258,7 @@ HGLOBAL MT_GlobalAlloc(UINT uFlags, SIZE_T dwBytes)
             break;
         }
         // update counter
-        if (dwBytes != 0)
-        {
-            tracker->NumGlobals++;
-        }
+        tracker->NumGlobals++;
         break;
     }
 
@@ -1325,15 +1292,6 @@ HGLOBAL MT_GlobalReAlloc(HGLOBAL hMem, SIZE_T dwBytes, UINT uFlags)
         {
             lastErr = GetLastErrno();
             break;
-        }
-        // update counter
-        if (hMem == NULL)
-        {
-            tracker->NumGlobals++;
-        }
-        if (dwBytes == 0)
-        {
-            tracker->NumGlobals--;
         }
         break;
     }
@@ -1949,6 +1907,13 @@ void __cdecl MT_ucrtbase_free(void* ptr)
     SetLastErrno(lastErr);
 }
 
+static uint calcHeapMark(uint mark, uintptr addr, uint size)
+{
+    mark = XORShift(mark ^ addr);
+    mark = XORShift(mark);
+    return mark + size;
+}
+
 // replacePageProtect is used to make sure all the page are readable.
 // avoid inadvertently using sensitive permissions.
 static uint32 replacePageProtect(uint32 protect)
@@ -2399,7 +2364,7 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation)
             break;
         }
         // skip too small block that not contain mark
-        if (entry.cbData <= BLOCK_MARK_SIZE)
+        if (entry.cbData < BLOCK_MARK_SIZE)
         {
             continue;
         }
