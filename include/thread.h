@@ -24,6 +24,8 @@ typedef struct {
     GetThreadContext_t GetThreadContext;
     SetThreadContext_t SetThreadContext;
     TerminateThread_t  TerminateThread;
+    TlsAlloc_t         TlsAlloc;
+    TlsFree_t          TlsFree;
 
     ThdNew_t  New;
     ThdExit_t Exit;
