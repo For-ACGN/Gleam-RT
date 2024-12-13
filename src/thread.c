@@ -32,6 +32,8 @@ typedef struct {
     GetThreadID_t         GetThreadID;
     GetCurrentThreadID_t  GetCurrentThreadID;
     TerminateThread_t     TerminateThread;
+    TlsAlloc_t            TlsAlloc;
+    TlsFree_t             TlsFree;
     ReleaseMutex_t        ReleaseMutex;
     WaitForSingleObject_t WaitForSingleObject;
     DuplicateHandle_t     DuplicateHandle;
@@ -64,6 +66,8 @@ DWORD TT_ResumeThread(HANDLE hThread);
 BOOL  TT_GetThreadContext(HANDLE hThread, CONTEXT* lpContext);
 BOOL  TT_SetThreadContext(HANDLE hThread, CONTEXT* lpContext);
 BOOL  TT_TerminateThread(HANDLE hThread, DWORD dwExitCode);
+DWORD TT_TlsAlloc();
+BOOL  TT_TlsFree(DWORD dwTlsIndex);
 
 // methods for runtime
 HANDLE TT_ThdNew(void* address, void* parameter, bool track);
@@ -150,6 +154,8 @@ ThreadTracker_M* InitThreadTracker(Context* context)
     module->GetThreadContext = GetFuncAddr(&TT_GetThreadContext);
     module->SetThreadContext = GetFuncAddr(&TT_SetThreadContext);
     module->TerminateThread  = GetFuncAddr(&TT_TerminateThread);
+    module->TlsAlloc         = GetFuncAddr(&TT_TlsAlloc);
+    module->TlsFree          = GetFuncAddr(&TT_TlsFree);
     // methods for runtime
     module->New     = GetFuncAddr(&TT_ThdNew);
     module->Exit    = GetFuncAddr(&TT_ThdExit);
@@ -180,6 +186,8 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0x5133BE509803E44E, 0x20498B6AFFAED91B }, // GetThreadId
         { 0x9AF119F551D952CF, 0x5A1B9D61A26B22D7 }, // GetCurrentThreadId
         { 0xFB891A810F1ABF9A, 0x253BBD721EBD81F0 }, // TerminateThread
+        { 0x2C36E30A5F0A762C, 0xFEB91119DD47EE23 }, // TlsAlloc
+        { 0x93E44660BF1A6F09, 0x87B9005375387D3C }, // TlsFree
     };
 #elif _WIN32
     {
@@ -192,6 +200,8 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         { 0xFE77EB3E, 0x81CB68B1 }, // GetThreadId
         { 0x2884E5D9, 0xA933632C }, // GetCurrentThreadId
         { 0xBA134972, 0x295F9DD2 }, // TerminateThread
+        { 0x8749FD07, 0x783A2597 }, // TlsAlloc
+        { 0x0B8B8434, 0xAD091548 }, // TlsFree
     };
 #endif
     for (int i = 0; i < arrlen(list); i++)
@@ -203,15 +213,17 @@ static bool initTrackerAPI(ThreadTracker* tracker, Context* context)
         }
         list[i].proc = proc;
     }
-    tracker->CreateThread       = list[0].proc;
-    tracker->ExitThread         = list[1].proc;
-    tracker->SuspendThread      = list[2].proc;
-    tracker->ResumeThread       = list[3].proc;
-    tracker->GetThreadContext   = list[4].proc;
-    tracker->SetThreadContext   = list[5].proc;
-    tracker->GetThreadID        = list[6].proc;
-    tracker->GetCurrentThreadID = list[7].proc;
-    tracker->TerminateThread    = list[8].proc;
+    tracker->CreateThread       = list[0x00].proc;
+    tracker->ExitThread         = list[0x01].proc;
+    tracker->SuspendThread      = list[0x02].proc;
+    tracker->ResumeThread       = list[0x03].proc;
+    tracker->GetThreadContext   = list[0x04].proc;
+    tracker->SetThreadContext   = list[0x05].proc;
+    tracker->GetThreadID        = list[0x06].proc;
+    tracker->GetCurrentThreadID = list[0x07].proc;
+    tracker->TerminateThread    = list[0x08].proc;
+    tracker->TlsAlloc           = list[0x09].proc;
+    tracker->TlsFree            = list[0x0A].proc;
 
     tracker->ReleaseMutex        = context->ReleaseMutex;
     tracker->WaitForSingleObject = context->WaitForSingleObject;
@@ -738,6 +750,18 @@ BOOL TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
         return false;
     }
     return tracker->TerminateThread(hThread, dwExitCode);
+}
+
+__declspec(noinline)
+DWORD TT_TlsAlloc()
+{
+
+}
+
+__declspec(noinline)
+BOOL TT_TlsFree(DWORD dwTlsIndex)
+{
+
 }
 
 __declspec(noinline)
