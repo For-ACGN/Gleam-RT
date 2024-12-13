@@ -97,6 +97,8 @@ hash_api -fmt 64 -conc -func SetThreadContext
 hash_api -fmt 64 -conc -func GetThreadId
 hash_api -fmt 64 -conc -func GetCurrentThreadId
 hash_api -fmt 64 -conc -func TerminateThread
+hash_api -fmt 64 -conc -func TlsAlloc
+hash_api -fmt 64 -conc -func TlsFree
 echo.
 
 echo [Resource Tracker]
@@ -234,6 +236,8 @@ hash_api -fmt 32 -conc -func SetThreadContext
 hash_api -fmt 32 -conc -func GetThreadId
 hash_api -fmt 32 -conc -func GetCurrentThreadId
 hash_api -fmt 32 -conc -func TerminateThread
+hash_api -fmt 32 -conc -func TlsAlloc
+hash_api -fmt 32 -conc -func TlsFree
 echo.
 
 echo [Resource Tracker]
