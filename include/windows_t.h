@@ -230,12 +230,14 @@ typedef struct {
 #define CONTEXT_i386  0x00010000
 
 #ifdef _WIN64
-#define CONTEXT_CONTROL (CONTEXT_AMD64 | 0x00000001)
-#define CONTEXT_INTEGER (CONTEXT_AMD64 | 0x00000002)
+#define CONTEXT_CONTROL (CONTEXT_AMD64|0x00000001)
+#define CONTEXT_INTEGER (CONTEXT_AMD64|0x00000002)
 #elif _WIN32
-#define CONTEXT_CONTROL (CONTEXT_i386 | 0x00000001)
-#define CONTEXT_INTEGER (CONTEXT_i386 | 0x00000002)
+#define CONTEXT_CONTROL (CONTEXT_i386|0x00000001)
+#define CONTEXT_INTEGER (CONTEXT_i386|0x00000002)
 #endif
+
+#define TLS_OUT_OF_INDEXES 0xFFFFFFFF
 
 #define INFINITE       0xFFFFFFFF
 #define WAIT_ABANDONED 0x00000080
@@ -492,6 +494,13 @@ typedef DWORD (*GetCurrentThreadID_t)();
 typedef BOOL (*TerminateThread_t)
 (
     HANDLE hThread, DWORD dwExitCode
+);
+
+typedef DWORD (*TlsAlloc_t)();
+
+typedef BOOL (*TlsFree_t)
+(
+    DWORD dwTlsIndex
 );
 
 typedef BOOL (*FlushInstructionCache_t)
