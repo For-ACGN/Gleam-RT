@@ -4,7 +4,7 @@
 #include "c_types.h"
 
 // [reference]
-// https://en.wikipedia.org/wiki/Xorshift
+// https://en.wikipedia.org/wiki/xorshift
 
 // RandBuffer is used to fill random bytes to the memory.
 void RandBuffer(byte* buf, int64 size);
