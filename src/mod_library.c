@@ -8,7 +8,7 @@
 #include "random.h"
 #include "crypto.h"
 #include "errno.h"
-#include "library.h"
+#include "mod_library.h"
 #include "debug.h"
 
 typedef struct {

@@ -10,7 +10,7 @@
 #include "random.h"
 #include "crypto.h"
 #include "errno.h"
-#include "thread.h"
+#include "mod_thread.h"
 #include "debug.h"
 
 typedef struct {

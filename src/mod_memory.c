@@ -10,7 +10,7 @@
 #include "random.h"
 #include "crypto.h"
 #include "errno.h"
-#include "memory.h"
+#include "mod_memory.h"
 #include "debug.h"
 
 #define BLOCK_MARK_SIZE sizeof(uint)
@@ -2397,7 +2397,7 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation)
             mem_init(buf, entry.cbData);
             if (!tracker->HeapFree(hHeap, HEAP_NO_SERIALIZE, buf))
             {
-                continue;
+               continue;
             }
             break;
         default:

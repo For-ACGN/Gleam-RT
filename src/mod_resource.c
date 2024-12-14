@@ -8,7 +8,7 @@
 #include "random.h"
 #include "crypto.h"
 #include "errno.h"
-#include "resource.h"
+#include "mod_resource.h"
 #include "debug.h"
 
 // function types about release handle
