@@ -20,9 +20,6 @@
     <ClCompile Include="..\src\hash_api.c">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\memory.c">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\random.c">
       <Filter>Source</Filter>
     </ClCompile>
@@ -30,9 +27,6 @@
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\src\runtime.c">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\thread.c">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\src\list_md.c">
@@ -44,25 +38,16 @@
     <ClCompile Include="..\src\lib_string.c">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\library.c">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\win_api.c">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\src\shield.c">
       <Filter>Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\resource.c">
-      <Filter>Source</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\errno.c">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="builder.c">
-      <Filter>Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\argument.c">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="..\src\rel_addr.c">
@@ -83,6 +68,21 @@
     <ClCompile Include="..\src\win_base.c">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\mod_argument.c">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mod_library.c">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mod_memory.c">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mod_resource.c">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mod_thread.c">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\crypto.h">
@@ -94,9 +94,6 @@
     <ClInclude Include="..\include\hash_api.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\memory.h">
-      <Filter>Header</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\random.h">
       <Filter>Header</Filter>
     </ClInclude>
@@ -104,9 +101,6 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="..\include\runtime.h">
-      <Filter>Header</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\thread.h">
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="..\include\context.h">
@@ -124,25 +118,16 @@
     <ClInclude Include="..\include\errno.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\library.h">
-      <Filter>Header</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\win_api.h">
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="..\include\shield.h">
       <Filter>Header</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\resource.h">
-      <Filter>Header</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\debug.h">
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="build.h">
-      <Filter>Header</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\argument.h">
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="..\include\rel_addr.h">
@@ -164,6 +149,21 @@
       <Filter>Header</Filter>
     </ClInclude>
     <ClInclude Include="..\include\msvcrt_t.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\mod_argument.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\mod_library.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\mod_memory.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\mod_resource.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\mod_thread.h">
       <Filter>Header</Filter>
     </ClInclude>
   </ItemGroup>
