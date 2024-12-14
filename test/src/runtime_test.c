@@ -6,7 +6,7 @@
 #include "rel_addr.h"
 #include "hash_api.h"
 #include "errno.h"
-#include "argument.h"
+#include "mod_argument.h"
 #include "runtime.h"
 #include "test.h"
 
