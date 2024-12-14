@@ -49,10 +49,15 @@ typedef struct {
     // record the number of SuspendThread
     int64 numSuspend;
 
-    // store all threads info
+    // store all threads information
     List Threads;
     byte ThreadsKey[CRYPTO_KEY_SIZE];
     byte ThreadsIV [CRYPTO_IV_SIZE];
+
+    // track allocated TLS index
+    List TLSIndex;
+    byte TLSIndexKey[CRYPTO_KEY_SIZE];
+    byte TLSIndexIV [CRYPTO_IV_SIZE];
 } ThreadTracker;
 
 // methods for IAT hooks
@@ -102,6 +107,8 @@ static bool  initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static void* camouflageStartAddress(uint seed);
 static bool  addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
 static void  delThread(ThreadTracker* tracker, uint32 threadID);
+static bool  addTLSIndex(ThreadTracker* tracker, DWORD index);
+static void  delTLSIndex(ThreadTracker* tracker, DWORD index);
 
 static void eraseTrackerMethods(Context* context);
 static void cleanTracker(ThreadTracker* tracker);
@@ -279,23 +286,26 @@ static bool recoverTrackerPointer(ThreadTracker* tracker)
 __declspec(noinline)
 static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
 {
-    // create global mutex
+    // create mutex
     HANDLE hMutex = context->CreateMutexA(NULL, false, NULL);
     if (hMutex == NULL)
     {
         return false;
     }
     tracker->hMutex = hMutex;
-    // initialize thread list
+    // initialize thread and TLS index list
     List_Ctx ctx = {
         .malloc  = context->malloc,
         .realloc = context->realloc,
         .free    = context->free,
     };
-    List_Init(&tracker->Threads, &ctx, sizeof(thread));
+    List_Init(&tracker->Threads,  &ctx, sizeof(thread));
+    List_Init(&tracker->TLSIndex, &ctx, sizeof(DWORD));
     // set crypto context data
-    RandBuffer(tracker->ThreadsKey, CRYPTO_KEY_SIZE);
-    RandBuffer(tracker->ThreadsIV, CRYPTO_IV_SIZE);
+    RandBuffer(tracker->ThreadsKey,  CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->ThreadsIV,   CRYPTO_IV_SIZE);
+    RandBuffer(tracker->TLSIndexKey, CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->TLSIndexIV,  CRYPTO_IV_SIZE);
     // add current thread for special executable file like Golang
     if (context->TrackCurrentThread)
     {
@@ -354,6 +364,7 @@ static void cleanTracker(ThreadTracker* tracker)
         num++;
     }
     List_Free(threads);
+    List_Free(&tracker->TLSIndex);
 }
 
 // updateTrackerPointer will replace hard encode address to the actual address.
@@ -370,8 +381,7 @@ __declspec(noinline)
 HANDLE TT_CreateThread(
     POINTER lpThreadAttributes, SIZE_T dwStackSize, POINTER lpStartAddress,
     LPVOID lpParameter, DWORD dwCreationFlags, DWORD* lpThreadId
-)
-{
+){
     return tt_createThread(
         lpThreadAttributes, dwStackSize, lpStartAddress,
         lpParameter, dwCreationFlags, lpThreadId, true
@@ -755,11 +765,87 @@ BOOL TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
 __declspec(noinline)
 DWORD TT_TlsAlloc()
 {
+    ThreadTracker* tracker = getTrackerPointer();
 
+    if (!TT_Lock())
+    {
+        return TLS_OUT_OF_INDEXES;
+    }
+
+    DWORD index;
+    errno lastErr = NO_ERROR;
+    for (;;)
+    {
+        index = tracker->TlsAlloc();
+        if (index == TLS_OUT_OF_INDEXES)
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        if (!addTLSIndex(tracker, index))
+        {
+            lastErr = ERR_THREAD_ADD_TLS_INDEX;
+            break;
+        }
+        break;
+    }
+
+    dbg_log("[thread]", "TlsAlloc: %d", index);
+
+    if (!TT_Unlock())
+    {
+        return TLS_OUT_OF_INDEXES;
+    }
+
+    SetLastErrno(lastErr);
+    if (lastErr != NO_ERROR)
+    {
+        return TLS_OUT_OF_INDEXES;
+    }
+    return index;
 }
 
 __declspec(noinline)
 BOOL TT_TlsFree(DWORD dwTlsIndex)
+{
+    ThreadTracker* tracker = getTrackerPointer();
+
+    if (!TT_Lock())
+    {
+        return false;
+    }
+
+    BOOL  success = false;
+    errno lastErr = NO_ERROR;
+    for (;;)
+    {
+        if (!tracker->TlsFree(dwTlsIndex))
+        {
+            lastErr = GetLastErrno();
+            break;
+        }
+        delTLSIndex(tracker, dwTlsIndex);
+        success = true;
+        break;
+    }
+
+    dbg_log("[thread]", "TlsFree: %d", dwTlsIndex);
+
+    if (!TT_Unlock())
+    {
+        return false;
+    }
+
+    SetLastErrno(lastErr);
+    return success;
+}
+
+static bool addTLSIndex(ThreadTracker* tracker, DWORD index)
+{
+    return true;
+}
+
+static void delTLSIndex(ThreadTracker* tracker, DWORD index)
 {
 
 }
