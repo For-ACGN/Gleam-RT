@@ -349,10 +349,10 @@ static void cleanTracker(ThreadTracker* tracker)
 
     // close already tracked handles
     List* threads = &tracker->Threads;
-    uint  index   = 0;
-    for (uint num = 0; num < threads->Len; index++)
+    uint idx = 0;
+    for (uint num = 0; num < threads->Len; idx++)
     {
-        thread* thread = List_Get(threads, index);
+        thread* thread = List_Get(threads, idx);
         if (thread->threadID == 0)
         {
             continue;
@@ -635,12 +635,12 @@ static void delThread(ThreadTracker* tracker, uint32 threadID)
     thread thread = {
         .threadID = threadID,
     };
-    uint index;
-    if (!List_Find(threads, &thread, sizeof(thread.threadID), &index))
+    uint idx;
+    if (!List_Find(threads, &thread, sizeof(thread.threadID), &idx))
     {
         return;
     }
-    if (!List_Delete(threads, index))
+    if (!List_Delete(threads, idx))
     {
         return;
     }
@@ -805,6 +805,19 @@ DWORD TT_TlsAlloc()
     return index;
 }
 
+static bool addTLSIndex(ThreadTracker* tracker, DWORD index)
+{
+    // for prevent zero index and conflict in List
+    DWORD idx = index + 1;
+
+    if (!List_Insert(&tracker->TLSIndex, &idx))
+    {
+        tracker->TlsFree(index);
+        return false;
+    }
+    return true;
+}
+
 __declspec(noinline)
 BOOL TT_TlsFree(DWORD dwTlsIndex)
 {
@@ -840,14 +853,18 @@ BOOL TT_TlsFree(DWORD dwTlsIndex)
     return success;
 }
 
-static bool addTLSIndex(ThreadTracker* tracker, DWORD index)
-{
-    return true;
-}
-
 static void delTLSIndex(ThreadTracker* tracker, DWORD index)
 {
+    // for prevent zero index and conflict in List
+    index++;
 
+    List* tlsIndex = &tracker->TLSIndex;
+    uint idx;
+    if (!List_Find(tlsIndex, &index, sizeof(index), &idx))
+    {
+        return;
+    }
+    List_Delete(tlsIndex, idx);
 }
 
 __declspec(noinline)
@@ -906,11 +923,11 @@ errno TT_Suspend()
     errno errno   = NO_ERROR;
 
     // suspend threads
-    uint len   = threads->Len;
-    uint index = 0;
-    for (uint num = 0; num < len; index++)
+    uint len = threads->Len;
+    uint idx = 0;
+    for (uint num = 0; num < len; idx++)
     {
-        thread* thread = List_Get(threads, index);
+        thread* thread = List_Get(threads, idx);
         if (thread->threadID == 0)
         {
             continue;
@@ -961,11 +978,11 @@ errno TT_Resume()
     errno errno   = NO_ERROR;
 
     // resume threads
-    uint len   = threads->Len;
-    uint index = 0;
-    for (uint num = 0; num < len; index++)
+    uint len = threads->Len;
+    uint idx = 0;
+    for (uint num = 0; num < len; idx++)
     {
-        thread* thread = List_Get(threads, index);
+        thread* thread = List_Get(threads, idx);
         if (thread->threadID == 0)
         {
             continue;
@@ -1000,16 +1017,17 @@ errno TT_KillAll()
         return ERR_THREAD_GET_CURRENT_TID;
     }
 
-    List* threads = &tracker->Threads;
+    List* threads  = &tracker->Threads;
+    List* tlsIndex = &tracker->TLSIndex;
 
-    uint  len   = threads->Len;
-    uint  index = 0;
+    uint len = threads->Len;
+    uint idx = 0;
+
     errno errno = NO_ERROR;
-
     // suspend all threads before terminate    
-    for (uint num = 0; num < len; index++)
+    for (uint num = 0; num < len; idx++)
     {
-        thread* thread = List_Get(threads, index);
+        thread* thread = List_Get(threads, idx);
         if (thread->threadID == 0)
         {
             continue;
@@ -1029,10 +1047,10 @@ errno TT_KillAll()
     }
 
     // terminate all threads
-    index = 0;
-    for (uint num = 0; num < len; index++)
+    idx = 0;
+    for (uint num = 0; num < len; idx++)
     {
-        thread* thread = List_Get(threads, index);
+        thread* thread = List_Get(threads, idx);
         if (thread->threadID == 0)
         {
             continue;
@@ -1053,9 +1071,31 @@ errno TT_KillAll()
         {
             errno = ERR_THREAD_CLOSE_HANDLE;
         }
-        if (!List_Delete(threads, index))
+        if (!List_Delete(threads, idx))
         {
             errno = ERR_THREAD_DELETE_THREAD;
+        }
+        num++;
+    }
+
+    // free all TLS slots
+    len = tlsIndex->Len;
+    idx = 0;
+    for (uint num = 0; num < len; idx++)
+    {
+        DWORD* pIdx = List_Get(tlsIndex, idx);
+        DWORD index = *pIdx;
+        if (index == 0)
+        {
+            continue;
+        }
+        if (!tracker->TlsFree(index - 1))
+        {
+            errno = ERR_THREAD_FREE_TLS_SLOT;
+        }
+        if (!List_Delete(threads, idx))
+        {
+            errno = ERR_THREAD_DELETE_TLS_INDEX;
         }
         num++;
     }
@@ -1075,14 +1115,14 @@ errno TT_Clean()
 
     List* threads = &tracker->Threads;
 
-    uint  len   = threads->Len;
-    uint  index = 0;
-    errno errno = NO_ERROR;
+    uint len = threads->Len;
+    uint idx = 0;
 
+    errno errno = NO_ERROR;
     // suspend all threads before terminate
-    for (uint num = 0; num < len; index++)
+    for (uint num = 0; num < len; idx++)
     {
-        thread* thread = List_Get(threads, index);
+        thread* thread = List_Get(threads, idx);
         if (thread->threadID == 0)
         {
             continue;
@@ -1102,10 +1142,10 @@ errno TT_Clean()
     }
 
     // terminate all threads
-    index = 0;
-    for (uint num = 0; num < len; index++)
+    idx = 0;
+    for (uint num = 0; num < len; idx++)
     {
-        thread* thread = List_Get(threads, index);
+        thread* thread = List_Get(threads, idx);
         if (thread->threadID == 0)
         {
             continue;
