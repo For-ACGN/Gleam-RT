@@ -83,7 +83,7 @@ typedef struct {
     HANDLE hThreadEvent; // event handler thread
 
     // IAT hooks about GetProcAddress
-    Hook IATHooks[39];
+    Hook IATHooks[41];
 
     // runtime submodules
     LibraryTracker_M*  LibraryTracker;
@@ -799,6 +799,8 @@ static bool initIATHooks(Runtime* runtime)
         { 0x374E149C710B1006, 0xE5D0E3FA417FA6CF, threadTracker->GetThreadContext },
         { 0xCFE3FFD5F0023AE3, 0x9044E42F1C020CF5, threadTracker->SetThreadContext },
         { 0x248E1CDD11AB444F, 0x195932EA70030929, threadTracker->TerminateThread },
+        { 0xFA78B22F20F4A6AE, 0xBE9C88DB7A69D0FA, threadTracker->TlsAlloc },
+        { 0x04ACE48652C6FABB, 0x19401007C082388D, threadTracker->TlsFree },
     };
 #elif _WIN32
     {
@@ -841,6 +843,8 @@ static bool initIATHooks(Runtime* runtime)
         { 0xCF0EC7B7, 0xBAC33715, threadTracker->GetThreadContext },
         { 0xC59EF832, 0xEF75D2EA, threadTracker->SetThreadContext },
         { 0x6EF0E2AA, 0xE014E29F, threadTracker->TerminateThread },
+        { 0x52598AD3, 0xD7C6183F, threadTracker->TlsAlloc },
+        { 0x218DD96E, 0x05FED0A2, threadTracker->TlsFree },
     };
 #endif
     for (int i = 0; i < arrlen(items); i++)
