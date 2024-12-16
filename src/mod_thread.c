@@ -54,7 +54,7 @@ typedef struct {
     byte ThreadsKey[CRYPTO_KEY_SIZE];
     byte ThreadsIV [CRYPTO_IV_SIZE];
 
-    // track allocated TLS index
+    // store allocated TLS slot index
     List TLSIndex;
     byte TLSIndexKey[CRYPTO_KEY_SIZE];
     byte TLSIndexIV [CRYPTO_IV_SIZE];
@@ -920,7 +920,7 @@ errno TT_Suspend()
     }
 
     List* threads = &tracker->Threads;
-    errno errno   = NO_ERROR;
+    errno errno = NO_ERROR;
 
     // suspend threads
     uint len = threads->Len;
@@ -954,6 +954,14 @@ errno TT_Suspend()
     RandBuffer(key, CRYPTO_KEY_SIZE);
     RandBuffer(iv, CRYPTO_IV_SIZE);
     EncryptBuf(list->Data, List_Size(list), key, iv);
+
+    // encrypt TLS slot index list
+    list = &tracker->TLSIndex;
+    key  = tracker->TLSIndexKey;
+    iv   = tracker->TLSIndexIV;
+    RandBuffer(key, CRYPTO_KEY_SIZE);
+    RandBuffer(iv, CRYPTO_IV_SIZE);
+    EncryptBuf(list->Data, List_Size(list), key, iv);
     return errno;
 }
 
@@ -974,8 +982,14 @@ errno TT_Resume()
     byte* iv   = tracker->ThreadsIV;
     DecryptBuf(list->Data, List_Size(list), key, iv);
 
+    // decrypt TLS slot index list
+    list = &tracker->TLSIndex;
+    key  = tracker->TLSIndexKey;
+    iv   = tracker->TLSIndexIV;
+    DecryptBuf(list->Data, List_Size(list), key, iv);
+
     List* threads = &tracker->Threads;
-    errno errno   = NO_ERROR;
+    errno errno = NO_ERROR;
 
     // resume threads
     uint len = threads->Len;
@@ -1002,7 +1016,8 @@ errno TT_Resume()
         num++;
     }
 
-    dbg_log("[thread]", "threads: %zu", list->Len);
+    dbg_log("[thread]", "threads:   %zu", tracker->Threads.Len);
+    dbg_log("[thread]", "TLS slots: %zu", tracker->TLSIndex.Len);
     return errno;
 }
 
@@ -1019,12 +1034,11 @@ errno TT_KillAll()
 
     List* threads  = &tracker->Threads;
     List* tlsIndex = &tracker->TLSIndex;
+    errno errno = NO_ERROR;
 
+    // suspend all threads before terminate
     uint len = threads->Len;
     uint idx = 0;
-
-    errno errno = NO_ERROR;
-    // suspend all threads before terminate    
     for (uint num = 0; num < len; idx++)
     {
         thread* thread = List_Get(threads, idx);
@@ -1093,12 +1107,15 @@ errno TT_KillAll()
         {
             errno = ERR_THREAD_FREE_TLS_SLOT;
         }
-        if (!List_Delete(threads, idx))
+        if (!List_Delete(tlsIndex, idx))
         {
             errno = ERR_THREAD_DELETE_TLS_INDEX;
         }
         num++;
     }
+
+    dbg_log("[thread]", "threads:   %zu", tracker->Threads.Len);
+    dbg_log("[thread]", "TLS slots: %zu", tracker->TLSIndex.Len);
     return errno;
 }
 
@@ -1113,13 +1130,13 @@ errno TT_Clean()
         return ERR_THREAD_GET_CURRENT_TID;
     }
 
-    List* threads = &tracker->Threads;
+    List* threads  = &tracker->Threads;
+    List* tlsIndex = &tracker->TLSIndex;
+    errno errno = NO_ERROR;
 
+    // suspend all threads before terminate
     uint len = threads->Len;
     uint idx = 0;
-
-    errno errno = NO_ERROR;
-    // suspend all threads before terminate
     for (uint num = 0; num < len; idx++)
     {
         thread* thread = List_Get(threads, idx);
@@ -1172,11 +1189,34 @@ errno TT_Clean()
         num++;
     }
 
+    // free all TLS slots
+    len = tlsIndex->Len;
+    idx = 0;
+    for (uint num = 0; num < len; idx++)
+    {
+        DWORD* pIdx = List_Get(tlsIndex, idx);
+        DWORD index = *pIdx;
+        if (index == 0)
+        {
+            continue;
+        }
+        if (!tracker->TlsFree(index - 1) && errno == NO_ERROR)
+        {
+            errno = ERR_THREAD_FREE_TLS_SLOT;
+        }
+        num++;
+    }
+
     // clean thread list
     RandBuffer(threads->Data, List_Size(threads));
+    RandBuffer(tlsIndex->Data, List_Size(tlsIndex));
     if (!List_Free(threads) && errno == NO_ERROR)
     {
-        errno = ERR_THREAD_FREE_LIST;
+        errno = ERR_THREAD_FREE_THREAD_LIST;
+    }
+    if (!List_Free(tlsIndex) && errno == NO_ERROR)
+    {
+        errno = ERR_THREAD_FREE_TLS_IDX_LIST;
     }
 
     // close mutex
@@ -1193,5 +1233,8 @@ errno TT_Clean()
             errno = ERR_THREAD_RECOVER_INST;
         }
     }
+
+    dbg_log("[thread]", "threads:   %zu", tracker->Threads.Len);
+    dbg_log("[thread]", "TLS slots: %zu", tracker->TLSIndex.Len);
     return errno;
 }
