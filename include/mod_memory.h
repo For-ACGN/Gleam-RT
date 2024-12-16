@@ -13,6 +13,7 @@ typedef void* (*MemCalloc_t)(uint num, uint size);
 typedef void* (*MemRealloc_t)(void* ptr, uint size);
 typedef void  (*MemFree_t)(void* ptr);
 typedef uint  (*MemSize_t)(void* ptr);
+typedef uint  (*MemCap_t)(void* ptr);
 
 typedef bool  (*MemLock_t)();
 typedef bool  (*MemUnlock_t)();
@@ -55,6 +56,7 @@ typedef struct {
     MemRealloc_t Realloc;
     MemFree_t    Free;
     MemSize_t    Size;
+    MemCap_t     Cap;
 
     MemLock_t    Lock;
     MemUnlock_t  Unlock;
