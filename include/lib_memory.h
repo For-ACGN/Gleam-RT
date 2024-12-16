@@ -8,6 +8,7 @@ typedef void* (*calloc_t)(uint num, uint size);
 typedef void* (*realloc_t)(void* ptr, uint size);
 typedef bool  (*free_t)(void* ptr);
 typedef uint  (*msize_t)(void* ptr);
+typedef uint  (*mcap_t)(void* ptr);
 
 // mem_copy is used to copy source memory data to the destination.
 void mem_copy(void* dst, void* src, uint size);
