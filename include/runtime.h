@@ -20,6 +20,8 @@ typedef void* (*MemAlloc_t)(uint size);
 typedef void* (*MemCalloc_t)(uint num, uint size);
 typedef void* (*MemRealloc_t)(void* ptr, uint size);
 typedef void  (*MemFree_t)(void* ptr);
+typedef uint  (*MemSize_t)(void* ptr);
+typedef uint  (*MemCap_t)(void* ptr);
 
 // about thread module
 typedef HANDLE (*ThdNew_t)(void* address, void* parameter, bool track);
@@ -149,6 +151,8 @@ typedef struct {
         MemCalloc_t  Calloc;
         MemRealloc_t Realloc;
         MemFree_t    Free;
+        MemSize_t    Size;
+        MemCap_t     Cap;
     } Memory;
 
     struct {
