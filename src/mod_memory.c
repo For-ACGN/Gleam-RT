@@ -145,6 +145,7 @@ void* MT_MemCalloc(uint num, uint size);
 void* MT_MemRealloc(void* ptr, uint size);
 void  MT_MemFree(void* ptr);
 uint  MT_MemSize(void* ptr);
+uint  MT_MemCap(void* ptr);
 
 bool  MT_Lock();
 bool  MT_Unlock();
@@ -273,6 +274,7 @@ MemoryTracker_M* InitMemoryTracker(Context* context)
     module->Realloc = GetFuncAddr(&MT_MemRealloc);
     module->Free    = GetFuncAddr(&MT_MemFree);
     module->Size    = GetFuncAddr(&MT_MemSize);
+    module->Cap     = GetFuncAddr(&MT_MemCap);
     module->Lock    = GetFuncAddr(&MT_Lock);
     module->Unlock  = GetFuncAddr(&MT_Unlock);
     module->Encrypt = GetFuncAddr(&MT_Encrypt);
@@ -2051,7 +2053,7 @@ void* MT_MemRealloc(void* ptr, uint size)
         return NULL;
     }
     // check need expand capacity
-    uint cap = *(uint*)((uintptr)(ptr)-16+sizeof(uint));
+    uint cap = MT_MemCap(ptr);
     if (size <= cap)
     {
         *(uint*)((uintptr)(ptr)-16) = size;
@@ -2105,6 +2107,16 @@ uint MT_MemSize(void* ptr)
         return 0;
     }
     return *(uint*)((uintptr)(ptr)-16);
+}
+
+__declspec(noinline)
+uint MT_MemCap(void* ptr)
+{
+    if (ptr == NULL)
+    {
+        return 0;
+    }
+    return *(uint*)((uintptr)(ptr)-16+sizeof(uint));
 }
 
 __declspec(noinline)
