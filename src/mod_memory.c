@@ -2363,6 +2363,8 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation)
     HEAP_ENTRY entry = {
         .lpData = NULL,
     };
+
+    PVOID* blocks = NULL;
     uint numFound = 0;
     for (;;)
     {
@@ -2407,10 +2409,14 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation)
             break;
         case OP_WALK_HEAP_ERASE:
             mem_init(buf, entry.cbData);
-            if (!tracker->HeapFree(hHeap, HEAP_NO_SERIALIZE, buf))
+            // record marked heap block address
+            uint ms = (numFound + 1) * sizeof(PVOID);
+            blocks = tracker->RT_realloc(blocks, ms);
+            if (blocks == NULL)
             {
-               continue;
+                break;
             }
+            blocks[numFound] = entry.lpData;
             break;
         default:
             panic(PANIC_UNREACHABLE_CODE);
@@ -2418,7 +2424,20 @@ static bool walkHeapBlocks(MemoryTracker* tracker, HANDLE hHeap, int operation)
         numFound++;
     }
     errno lastErr = GetLastErrno();
-    
+
+    // free marked heap block
+    if (blocks != NULL)
+    {
+        for (uint i = 0; i < numFound; i++)
+        {
+            if (!tracker->HeapFree(hHeap, HEAP_NO_SERIALIZE, blocks[i]))
+            {
+                lastErr = GetLastErrno();
+            }
+        }
+        tracker->RT_free(blocks);
+    }
+
     if (!tracker->HeapUnlock(hHeap))
     {
         return false;
