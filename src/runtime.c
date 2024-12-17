@@ -125,6 +125,7 @@ void* RT_calloc(uint num, uint size);
 void* RT_realloc(void* ptr, uint size);
 bool  RT_free(void* ptr);
 uint  RT_msize(void* ptr);
+uint  RT_mcap(void* ptr);
 
 errno RT_lock_mods();
 errno RT_unlock_mods();
@@ -307,6 +308,8 @@ Runtime_M* InitRuntime(Runtime_Opts* opts)
     module->Memory.Calloc  = runtime->MemoryTracker->Calloc;
     module->Memory.Realloc = runtime->MemoryTracker->Realloc;
     module->Memory.Free    = runtime->MemoryTracker->Free;
+    module->Memory.Size    = runtime->MemoryTracker->Size;
+    module->Memory.Cap     = runtime->MemoryTracker->Cap;
     // thread tracker
     module->Thread.New   = runtime->ThreadTracker->New;
     module->Thread.Exit  = runtime->ThreadTracker->Exit;
@@ -594,6 +597,7 @@ static errno initModules(Runtime* runtime)
         .realloc = GetFuncAddr(&RT_realloc),
         .free    = GetFuncAddr(&RT_free),
         .msize   = GetFuncAddr(&RT_msize),
+        .mcap    = GetFuncAddr(&RT_mcap),
 
         .lock   = GetFuncAddr(&RT_lock_mods),
         .unlock = GetFuncAddr(&RT_unlock_mods),
@@ -636,6 +640,7 @@ static errno initModules(Runtime* runtime)
     context.mt_realloc = runtime->MemoryTracker->Realloc;
     context.mt_free    = runtime->MemoryTracker->Free;
     context.mt_msize   = runtime->MemoryTracker->Size;
+    context.mt_mcap    = runtime->MemoryTracker->Cap;
 
     // initialize high-level modules
     module_t hl_modules[] = 
@@ -1160,7 +1165,7 @@ void* RT_realloc(void* ptr, uint size)
         return NULL;
     }
     // check need expand capacity
-    uint cap = *(uint*)((uintptr)(ptr)-16+sizeof(uint));
+    uint cap = RT_mcap(ptr);
     if (size <= cap)
     {
         *(uint*)((uintptr)(ptr)-16) = size;
@@ -1220,6 +1225,16 @@ uint RT_msize(void* ptr)
         return 0;
     }
     return *(uint*)((uintptr)(ptr)-16);
+}
+
+__declspec(noinline)
+uint RT_mcap(void* ptr)
+{
+    if (ptr == NULL)
+    {
+        return 0;
+    }
+    return *(uint*)((uintptr)(ptr)-16+sizeof(uint));
 }
 
 __declspec(noinline)
