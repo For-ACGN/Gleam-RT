@@ -434,8 +434,6 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     tracker->hMutex = hMutex;
     // generate the random heap mark
     tracker->HeapMark = RandUint((uint64)hMutex);
-    RandBuffer(tracker->BlocksKey, CRYPTO_KEY_SIZE);
-    RandBuffer(tracker->BlocksIV,  CRYPTO_IV_SIZE);
     // initialize memory region and page list
     List_Ctx ctx = {
         .malloc  = context->malloc,
@@ -452,6 +450,8 @@ static bool initTrackerEnvironment(MemoryTracker* tracker, Context* context)
     RandBuffer(tracker->PagesIV,    CRYPTO_IV_SIZE);
     RandBuffer(tracker->HeapsKey,   CRYPTO_KEY_SIZE);
     RandBuffer(tracker->HeapsIV,    CRYPTO_IV_SIZE);
+    RandBuffer(tracker->BlocksKey,  CRYPTO_KEY_SIZE);
+    RandBuffer(tracker->BlocksIV,   CRYPTO_IV_SIZE);
     // copy runtime methods
     tracker->RT_malloc  = context->malloc;
     tracker->RT_calloc  = context->calloc;
@@ -2595,6 +2595,14 @@ errno MT_FreeAll()
     dbg_log("[memory]", "blocks:  %d",  tracker->NumBlocks);
     dbg_log("[memory]", "globals: %d",  tracker->NumGlobals);
     dbg_log("[memory]", "locals:  %d",  tracker->NumLocals);
+
+    // generate the new random heap mark
+    tracker->HeapMark = RandUint(tracker->HeapMark);
+
+    // reset the counters about track heap
+    tracker->NumBlocks  = 0;
+    tracker->NumGlobals = 0;
+    tracker->NumLocals  = 0;
     return errno;
 }
 
