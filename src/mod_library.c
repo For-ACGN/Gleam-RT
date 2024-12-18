@@ -11,6 +11,8 @@
 #include "mod_library.h"
 #include "debug.h"
 
+#define MODULE_UNLOADED ((HMODULE)(0xFE))
+
 typedef struct {
     HMODULE hModule;
     uint    counter;
@@ -576,13 +578,11 @@ static bool delModule(LibraryTracker* tracker, HMODULE hModule)
     }
     module* module = List_Get(modules, index);
     module->counter--;
-    // if counter is zero, delete it in module list
+    // mark it is deleted and reserve space
+    // for free the loaded DLL in reverse order
     if (module->counter == 0)
     {
-        if (!List_Delete(modules, index))
-        {
-            return false;
-        }
+        module->hModule = MODULE_UNLOADED;
     }
     return true;
 }
@@ -640,20 +640,24 @@ errno LT_FreeAll()
     List* modules = &tracker->Modules;
     errno errno   = NO_ERROR;
 
-    uint len   = modules->Len;
-    uint index = 0;
-    for (uint num = 0; num < len; index++)
+    // free the loaded DLL in reverse order
+    uint len = modules->Len;
+    uint idx = modules->Last;
+    for (uint num = 0; num < len; idx--)
     {
-        module* module = List_Get(modules, index);
+        module* module = List_Get(modules, idx);
         if (module->hModule == NULL)
         {
             continue;
         }
-        if (!cleanModule(tracker, module))
+        if (module->hModule != MODULE_UNLOADED)
         {
-            errno = ERR_LIBRARY_CLEAN_MODULE;
+            if (!cleanModule(tracker, module))
+            {
+                errno = ERR_LIBRARY_CLEAN_MODULE;
+            }            
         }
-        if (!List_Delete(modules, index))
+        if (!List_Delete(modules, idx))
         {
             errno = ERR_LIBRARY_DELETE_MODULE;
         }
@@ -670,18 +674,21 @@ errno LT_Clean()
     List* modules = &tracker->Modules;
     errno errno   = NO_ERROR;
     
-    // clean modules
-    uint index = 0;
-    for (uint num = 0; num < modules->Len; index++)
+    // free the loaded DLL in reverse order
+    uint idx = modules->Last;
+    for (uint num = 0; num < modules->Len; idx--)
     {
-        module* module = List_Get(modules, index);
+        module* module = List_Get(modules, idx);
         if (module->hModule == NULL)
         {
             continue;
         }
-        if (!cleanModule(tracker, module))
+        if (module->hModule != MODULE_UNLOADED)
         {
-            errno = ERR_LIBRARY_CLEAN_MODULE;
+            if (!cleanModule(tracker, module))
+            {
+                errno = ERR_LIBRARY_CLEAN_MODULE;
+            }
         }
         num++;
     }
