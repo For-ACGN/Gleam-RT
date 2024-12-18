@@ -85,7 +85,7 @@ bool List_Insert(List* list, void* data)
         {
             continue;
         }
-        if (i >= list->Len)
+        if (i > list->Last)
         {
             list->Last = i;
         }
@@ -167,6 +167,14 @@ bool List_Resize(List* list, uint cap)
     }
     list->Data = data;
     list->Cap  = cap;
+    if (list->Len >= cap)
+    {
+        list->Len = cap;
+    }
+    if (list->Last >= cap && cap > 0)
+    {
+        list->Last = cap - 1;
+    }
     return true;
 }
 
