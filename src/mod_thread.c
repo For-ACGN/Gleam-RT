@@ -14,7 +14,7 @@
 #include "debug.h"
 
 typedef struct {
-    uint32 threadID;
+    DWORD  threadID;
     HANDLE hThread;  // add numSuspend
 } thread;
 
@@ -77,8 +77,8 @@ BOOL  TT_TlsFree(DWORD dwTlsIndex);
 // methods for runtime
 HANDLE TT_ThdNew(void* address, void* parameter, bool track);
 void   TT_ThdExit();
-bool   TT_ThdLock(uint32 threadID);
-bool   TT_ThdUnlock(uint32 threadID);
+bool   TT_ThdLock(DWORD threadID);
+bool   TT_ThdUnlock(DWORD threadID);
 
 bool  TT_Lock();
 bool  TT_Unlock();
@@ -105,8 +105,8 @@ static bool  updateTrackerPointer(ThreadTracker* tracker);
 static bool  recoverTrackerPointer(ThreadTracker* tracker);
 static bool  initTrackerEnvironment(ThreadTracker* tracker, Context* context);
 static void* camouflageStartAddress(uint seed);
-static bool  addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread);
-static void  delThread(ThreadTracker* tracker, uint32 threadID);
+static bool  addThread(ThreadTracker* tracker, DWORD threadID, HANDLE hThread);
+static void  delThread(ThreadTracker* tracker, DWORD threadID);
 static bool  addTLSIndex(ThreadTracker* tracker, DWORD index);
 static void  delTLSIndex(ThreadTracker* tracker, DWORD index);
 
@@ -309,7 +309,7 @@ static bool initTrackerEnvironment(ThreadTracker* tracker, Context* context)
     // add current thread for special executable file like Golang
     if (context->TrackCurrentThread)
     {
-        uint32 threadID = tracker->GetCurrentThreadID();
+        DWORD threadID = tracker->GetCurrentThreadID();
         if (threadID == 0)
         {
             return false;
@@ -400,7 +400,7 @@ HANDLE tt_createThread(
         return NULL;
     }
 
-    uint32 threadID;
+    DWORD  threadID;
     HANDLE hThread = NULL;
 
     bool success = true;
@@ -582,7 +582,7 @@ static void* camouflageStartAddress(uint seed)
     return (void*)begin;
 }
 
-static bool addThread(ThreadTracker* tracker, uint32 threadID, HANDLE hThread)
+static bool addThread(ThreadTracker* tracker, DWORD threadID, HANDLE hThread)
 {
     // duplicate thread handle
     HANDLE dupHandle;
@@ -614,13 +614,13 @@ void TT_ExitThread(DWORD dwExitCode)
         return;
     }
 
-    uint32 threadID = tracker->GetCurrentThreadID();
+    DWORD threadID = tracker->GetCurrentThreadID();
     if (threadID != 0)
     {
         delThread(tracker, threadID);
     }
 
-    dbg_log("[thread]", "ExitThread: %lu", threadID);
+    dbg_log("[thread]", "ExitThread: %d, id: %d", dwExitCode, threadID);
 
     if (!TT_Unlock())
     {
@@ -629,7 +629,7 @@ void TT_ExitThread(DWORD dwExitCode)
     tracker->ExitThread(dwExitCode);
 }
 
-static void delThread(ThreadTracker* tracker, uint32 threadID)
+static void delThread(ThreadTracker* tracker, DWORD threadID)
 {
     List* threads = &tracker->Threads;
     thread thread = {
@@ -747,13 +747,13 @@ BOOL TT_TerminateThread(HANDLE hThread, DWORD dwExitCode)
         return false;
     }
 
-    uint32 threadID = tracker->GetThreadID(hThread);
+    DWORD threadID = tracker->GetThreadID(hThread);
     if (threadID != 0)
     {
         delThread(tracker, threadID);
     }
 
-    dbg_log("[thread]", "TerminateThread: %lu", threadID);
+    dbg_log("[thread]", "TerminateThread: %d", threadID);
 
     if (tracker->RT_Unlock() != NO_ERROR)
     {
@@ -880,13 +880,13 @@ void TT_ThdExit()
 }
 
 __declspec(noinline)
-bool TT_ThdLock(uint32 threadID)
+bool TT_ThdLock(DWORD threadID)
 {
     return true;
 }
 
 __declspec(noinline)
-bool TT_ThdUnlock(uint32 threadID)
+bool TT_ThdUnlock(DWORD threadID)
 {
     return true;
 }
@@ -896,7 +896,7 @@ bool TT_Lock()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    uint32 event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
+    DWORD event = tracker->WaitForSingleObject(tracker->hMutex, INFINITE);
     return event == WAIT_OBJECT_0;
 }
 
@@ -913,7 +913,7 @@ errno TT_Suspend()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    uint32 currentTID = tracker->GetCurrentThreadID();
+    DWORD currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
     {
         return ERR_THREAD_GET_CURRENT_TID;
@@ -938,7 +938,7 @@ errno TT_Suspend()
             num++;
             continue;
         }
-        uint32 count = tracker->SuspendThread(thread->hThread);
+        DWORD count = tracker->SuspendThread(thread->hThread);
         if (count == (DWORD)(-1))
         {
             delThread(tracker, thread->threadID);
@@ -970,7 +970,7 @@ errno TT_Resume()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    uint32 currentTID = tracker->GetCurrentThreadID();
+    DWORD currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
     {
         return ERR_THREAD_GET_CURRENT_TID;
@@ -1007,7 +1007,7 @@ errno TT_Resume()
             num++;
             continue;
         }
-        uint32 count = tracker->ResumeThread(thread->hThread);
+        DWORD count = tracker->ResumeThread(thread->hThread);
         if (count == (DWORD)(-1))
         {
             delThread(tracker, thread->threadID);
@@ -1026,7 +1026,7 @@ errno TT_KillAll()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    uint32 currentTID = tracker->GetCurrentThreadID();
+    DWORD currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
     {
         return ERR_THREAD_GET_CURRENT_TID;
@@ -1052,7 +1052,7 @@ errno TT_KillAll()
             num++;
             continue;
         }
-        uint32 count = tracker->SuspendThread(thread->hThread);
+        DWORD count = tracker->SuspendThread(thread->hThread);
         if (count == (DWORD)(-1))
         {
             errno = ERR_THREAD_SUSPEND;
@@ -1124,7 +1124,7 @@ errno TT_Clean()
 {
     ThreadTracker* tracker = getTrackerPointer();
 
-    uint32 currentTID = tracker->GetCurrentThreadID();
+    DWORD currentTID = tracker->GetCurrentThreadID();
     if (currentTID == 0)
     {
         return ERR_THREAD_GET_CURRENT_TID;
@@ -1150,7 +1150,7 @@ errno TT_Clean()
             num++;
             continue;
         }
-        uint32 count = tracker->SuspendThread(thread->hThread);
+        DWORD count = tracker->SuspendThread(thread->hThread);
         if (count == (DWORD)(-1) && errno == NO_ERROR)
         {
             errno = ERR_THREAD_SUSPEND;
