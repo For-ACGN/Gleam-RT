@@ -23,4 +23,9 @@ typedef void (__cdecl *msvcrt_free_t)
 	void* ptr
 );
 
+typedef uint (__cdecl *msvcrt_msize_t)
+(
+	void* ptr
+);
+
 #endif // MSVCRT_T_H
