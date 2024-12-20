@@ -81,10 +81,12 @@ hash_api -fmt 64 -conc -mod "msvcrt.dll" -func malloc
 hash_api -fmt 64 -conc -mod "msvcrt.dll" -func calloc
 hash_api -fmt 64 -conc -mod "msvcrt.dll" -func realloc
 hash_api -fmt 64 -conc -mod "msvcrt.dll" -func free
+hash_api -fmt 64 -conc -mod "msvcrt.dll" -func _msize
 hash_api -fmt 64 -conc -mod "ucrtbase.dll" -func malloc
 hash_api -fmt 64 -conc -mod "ucrtbase.dll" -func calloc
 hash_api -fmt 64 -conc -mod "ucrtbase.dll" -func realloc
 hash_api -fmt 64 -conc -mod "ucrtbase.dll" -func free
+hash_api -fmt 64 -conc -mod "ucrtbase.dll" -func _msize
 echo.
 
 echo [Thread Tracker]
@@ -220,10 +222,12 @@ hash_api -fmt 32 -conc -mod "msvcrt.dll" -func malloc
 hash_api -fmt 32 -conc -mod "msvcrt.dll" -func calloc
 hash_api -fmt 32 -conc -mod "msvcrt.dll" -func realloc
 hash_api -fmt 32 -conc -mod "msvcrt.dll" -func free
+hash_api -fmt 32 -conc -mod "msvcrt.dll" -func _msize
 hash_api -fmt 32 -conc -mod "ucrtbase.dll" -func malloc
 hash_api -fmt 32 -conc -mod "ucrtbase.dll" -func calloc
 hash_api -fmt 32 -conc -mod "ucrtbase.dll" -func realloc
 hash_api -fmt 32 -conc -mod "ucrtbase.dll" -func free
+hash_api -fmt 32 -conc -mod "ucrtbase.dll" -func _msize
 echo.
 
 echo [Thread Tracker]
