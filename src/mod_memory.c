@@ -1746,7 +1746,6 @@ void* __cdecl MT_ucrtbase_malloc(uint size)
 
     void* address = NULL;
     errno lastErr = NO_ERROR;
-    bool  success = false;
     for (;;)
     {
         ucrtbase_malloc_t malloc;
@@ -1760,14 +1759,7 @@ void* __cdecl MT_ucrtbase_malloc(uint size)
             lastErr = ERR_MEMORY_API_NOT_FOUND;
             break;
         }
-        if (size == 0)
-        {
-            address = malloc(size);
-            lastErr = GetLastErrno();
-            success = true;
-            break;
-        }
-        address = malloc(size + sizeof(uint));
+        address = malloc(size + BLOCK_MARK_SIZE);
         if (address == NULL)
         {
             lastErr = GetLastErrno();
@@ -1778,7 +1770,6 @@ void* __cdecl MT_ucrtbase_malloc(uint size)
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, size);
         // update counter
         tracker->NumBlocks++;
-        success = true;
         break;
     }
 
@@ -1805,7 +1796,6 @@ void* __cdecl MT_ucrtbase_calloc(uint num, uint size)
 
     void* address = NULL;
     errno lastErr = NO_ERROR;
-    bool  success = false;
     for (;;)
     {
         ucrtbase_calloc_t calloc;
@@ -1819,26 +1809,22 @@ void* __cdecl MT_ucrtbase_calloc(uint num, uint size)
             lastErr = ERR_MEMORY_API_NOT_FOUND;
             break;
         }
-        if (size == 0)
-        {
-            address = calloc(num, size);
-            lastErr = GetLastErrno();
-            success = true;
-            break;
-        }
-        address = calloc(num + sizeof(uint), size);
+        address = calloc(num + BLOCK_MARK_SIZE, size);
         if (address == NULL)
         {
             lastErr = GetLastErrno();
             break;
         }
+        if (size == 0)
+        {
+            break;
+        }
         // write heap block mark
-        uint total = num* size;
+        uint total = (num + BLOCK_MARK_SIZE) * size - BLOCK_MARK_SIZE;
         uint* tail = (uint*)((uintptr)address + total);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, total);
         // update counter
         tracker->NumBlocks++;
-        success = true;
         break;
     }
 
@@ -1865,7 +1851,6 @@ void* __cdecl MT_ucrtbase_realloc(void* ptr, uint size)
 
     void* address = NULL;
     errno lastErr = NO_ERROR;
-    bool  success = false;
     for (;;)
     {
         ucrtbase_realloc_t realloc;
@@ -1879,14 +1864,41 @@ void* __cdecl MT_ucrtbase_realloc(void* ptr, uint size)
             lastErr = ERR_MEMORY_API_NOT_FOUND;
             break;
         }
-        if (size == 0)
+        ucrtbase_msize_t msize;
+    #ifdef _WIN64
+        msize = FindAPI(0x74D58F2F24046630, 0x048994D256C94892);
+    #elif _WIN32
+        msize = FindAPI(0x0BA6529D, 0x4F10E2C7);
+    #endif
+        if (msize == NULL)
         {
-            address = realloc(ptr, size);
-            lastErr = GetLastErrno();
-            success = true;
+            lastErr = ERR_MEMORY_API_NOT_FOUND;
             break;
         }
-        address = realloc(ptr, size + sizeof(uint));
+        // get old size about heap block
+        SIZE_T oSize = 0;
+        if (ptr != NULL)
+        {
+            oSize = msize(ptr);
+            if (oSize == (SIZE_T)(-1))
+            {
+                break;
+            }
+        }
+        // erase old block mark before realloc
+        bool marked = false;
+        if (oSize >= BLOCK_MARK_SIZE)
+        {
+            uintptr block = (uintptr)ptr;
+            uint  bSize = oSize - BLOCK_MARK_SIZE;
+            uint* mark  = (uint*)(block + bSize);
+            if (calcHeapMark(tracker->HeapMark, block, bSize) == *mark)
+            {
+                mem_init(mark, BLOCK_MARK_SIZE);
+                marked = true;
+            }
+        }
+        address = realloc(ptr, size + BLOCK_MARK_SIZE);
         if (address == NULL)
         {
             lastErr = GetLastErrno();
@@ -1896,11 +1908,10 @@ void* __cdecl MT_ucrtbase_realloc(void* ptr, uint size)
         uint* tail = (uint*)((uintptr)address + size);
         *tail = calcHeapMark(tracker->HeapMark, (uintptr)address, size);
         // update counter
-        if (ptr == NULL)
+        if (!marked)
         {
             tracker->NumBlocks++;
         }
-        success = true;
         break;
     }
 
@@ -1939,14 +1950,49 @@ void __cdecl MT_ucrtbase_free(void* ptr)
             lastErr = ERR_MEMORY_API_NOT_FOUND;
             break;
         }
-        free(ptr);
-        lastErr = GetLastErrno();
+        ucrtbase_msize_t msize;
+    #ifdef _WIN64
+        msize = FindAPI(0xB7CEC664623F1FBD, 0x7019101EE16AB530);
+    #elif _WIN32
+        msize = FindAPI(0xEF51834F, 0xB96264E3);
+    #endif
+        if (msize == NULL)
+        {
+            lastErr = ERR_MEMORY_API_NOT_FOUND;
+            break;
+        }
+        // special case
         if (ptr == NULL)
+        {
+            free(ptr);
+            lastErr = GetLastErrno();
+            break;
+        }
+        // get old size about heap block
+        SIZE_T oSize = msize(ptr);
+        if (oSize == (SIZE_T)(-1))
         {
             break;
         }
+        // check it is a marked block before free
+        bool marked = false;
+        if (oSize >= BLOCK_MARK_SIZE)
+        {
+            uintptr block = (uintptr)ptr;
+            uint  bSize = oSize - BLOCK_MARK_SIZE;
+            uint* mark  = (uint*)(block + bSize);
+            if (calcHeapMark(tracker->HeapMark, block, bSize) == *mark)
+            {
+                marked = true;
+            }
+        }
+        mem_init(ptr, oSize);
+        free(ptr);
         // update counter
-        tracker->NumBlocks--;
+        if (marked)
+        {
+            tracker->NumBlocks--;
+        }
         break;
     }
 
