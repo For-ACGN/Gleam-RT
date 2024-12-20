@@ -23,4 +23,9 @@ typedef void (__cdecl *ucrtbase_free_t)
 	void* ptr
 );
 
+typedef uint (__cdecl *ucrtbase_msize_t)
+(
+	void* ptr
+);
+
 #endif // UCRTBASE_T_H
